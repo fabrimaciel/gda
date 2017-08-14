@@ -1,0 +1,171 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="GDA">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="GenerateKeyHandler" maxOccurs="1" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>
+							Método que será usado para manipular a geração das chaves pelo GDA.
+							O método deve seguir o delegate GDA.GenerateKeyHandler.
+						</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:attribute name="classType" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>
+									Tipo da classe onde o método está inserido.									
+								</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="methodName" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>
+									Nome do método que será usado.
+								</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="CryptoClass" maxOccurs="1" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>
+							Configura a classe responsável pela criptografia da string de conexão do GDA.
+						</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:attribute name="classType" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>
+									Tipo da classe.
+								</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="decryptMethod" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>
+									Nome do método usado para descriptografar.
+								</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="encryptMethod" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>
+									Nome do método usado para criptografar.
+								</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="ProviderConfigurationLoadHandler" minOccurs="0" maxOccurs="1">
+					<xs:annotation>
+						<xs:documentation>
+							Configuração do método que será acionado toda vez que um provedor de configuração
+							for carregado pelo GDA.
+						</xs:documentation>						
+					</xs:annotation>
+					<xs:complexType>
+						<xs:attribute name="classType" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>
+									Tipo da classe onde o método está inserido.
+								</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="methodName" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>
+									Nome do método da classe que será usado.
+								</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="DefaultProvider" maxOccurs="1">
+					<xs:annotation>
+						<xs:documentation>
+							Configura o nome do provedor de configuração padrão que será usado no sistema.
+						</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:attribute name="name" type="xs:string" use="required" />
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="Debug" maxOccurs="1">
+					<xs:complexType>
+						<xs:attribute name="trace" type="xs:boolean" use="required" />
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="ProvidersConfiguration" minOccurs="1">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element maxOccurs="unbounded" name="Info">
+								<xs:complexType>
+									<xs:attribute name="name" type="xs:string" use="required" />
+									<xs:attribute name="providerName" type="xs:string" use="required" />
+									<xs:attribute name="connectionString" type="xs:string" use="required" />
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="Providers" minOccurs="1">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element maxOccurs="unbounded" name="Provider">
+								<xs:complexType>
+									<xs:attribute name="name" type="xs:string" use="required" />
+									<xs:attribute name="classNamespace" type="xs:string" use="required" />
+									<xs:attribute name="assembly" type="xs:string" use="required" />
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+        <xs:element name="Mappings" minOccurs="0" maxOccurs="1">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="Mapping" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:attribute name="assemblyName" type="xs:string" use="optional">
+                    <xs:annotation>
+                      <xs:documentation>
+                        Nome do assembly onde o mapeamento está inserido.
+                      </xs:documentation>
+                    </xs:annotation>
+                  </xs:attribute>
+                  <xs:attribute name="resourceName" type="xs:string" use="optional">
+                    <xs:annotation>
+                      <xs:documentation>
+                        Nome do resource do mapeamento.
+                      </xs:documentation>
+                    </xs:annotation>
+                  </xs:attribute>
+                  <xs:attribute name="fileName" type="xs:string" use="optional">
+                    <xs:annotation>
+                      <xs:documentation>
+                        Arquivo aonde o mapemento está inserido.
+                      </xs:documentation>
+                    </xs:annotation>
+                  </xs:attribute>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+				<xs:element name="ModelsNamespace" minOccurs="0" maxOccurs="1">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="Namespace">
+								<xs:complexType>
+									<xs:attribute name="assembly" type="xs:string" use="required" />
+									<xs:attribute name="name" type="xs:string" use="required" />
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

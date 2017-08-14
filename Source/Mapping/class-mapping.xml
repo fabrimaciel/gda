@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<gda-mapping namespace="" assembly="" xmlns="urn:gda-mapping-1.0">
+	<!-- Espaço de nomes dos modelos mapeados -->
+	<modelsNamespace>
+		<namespace assembly="*" name="ClassType" />
+	</modelsNamespace>
+	<!-- Método usado para gerar chaves para novos registros -->
+	<generateKeyHandler classType="" methodName="" />
+	<!-- Geradores de chave do sistema -->
+	<generatorsKey>
+		<generator name="GeneratorName" classType="" />
+	</generatorsKey>
+	<!-- Mapeamento de um tipo que será persistido -->
+	<class name="ClassName" table="TableName" schema="catalog">
+		<!-- Provedor usado pela classe -->
+		<provider name="" configurationName="">
+			<connectionString></connectionString>
+		</provider>
+		<!-- Data Access Object responsável pela classe -->
+		<baseDAO name="ClassName">
+			<genericType name="ClassName" />
+		</baseDAO>
+		<!-- Mapeamento da propriedade que será persistida -->
+		<property name="PropertyName"
+				  column="ColumnName"
+				  parameterType="Field|Key|IdentityKey|ForeignKey"
+				  size="0"
+				  direction="" not-null="true|false" unique="true|false" not-persists="true|false">
+			<generator name="GeneratorName" />
+			<!-- Identifica de qual classe a propriedade representa uma chave estrangeira -->
+			<foreignKey typeOfClassRelated="ClassName" propertyName="" groupOfRelationship="0" />
+			<!-- Identifica de qual classe a propriedade representa um membro estrangeiro -->
+			<foreignMember typeOfClassRelated="ClassName" propertyName="" groupOfRelationship="0" />
+			<validator name="GDA.Validation.RequiredValidator, GDA">
+				<param name="">[Value]</param>
+				<message></message>
+			</validator>
+		</property>
+	</class>
+
+	<sql-query name="" use-database-schema="true">
+		<parameters>
+			<param name="?p1" type="Int32" />
+		</parameters>
+		<return class="">
+			<return-property name="" column="" />
+		</return>
+		<commandText>
+			SELECT * FROM Customers
+		</commandText>
+	</sql-query>
+
+  <references>
+    <reference resourceName="Mapping.gda-map.xml" assemblyName="Data.SqlServer"
+  </references> 
+</gda-mapping>

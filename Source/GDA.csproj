@@ -1,0 +1,317 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="3.5">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{17C18D98-D8BB-4C65-A148-C25E61D1AF37}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>GDA</RootNamespace>
+    <AssemblyName>GDA</AssemblyName>
+    <SignAssembly>false</SignAssembly>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <OldToolsVersion>2.0</OldToolsVersion>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <IsWebBootstrapper>true</IsWebBootstrapper>
+    <PublishUrl>http://localhost/GDA/</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Web</InstallFrom>
+    <UpdateEnabled>true</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkSubset>
+    </TargetFrameworkSubset>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;CLS_3_5</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>0</WarningLevel>
+    <DocumentationFile>
+    </DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE;CLS_3_5</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\GDA.XML</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release 2.0|AnyCPU' ">
+    <OutputPath>bin\Release 2.0\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <DocumentationFile>bin\Release\GDA.XML</DocumentationFile>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisUseTypeNameInSuppression>true</CodeAnalysisUseTypeNameInSuppression>
+    <CodeAnalysisModuleSuppressionsFile>GlobalSuppressions.cs</CodeAnalysisModuleSuppressionsFile>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ForeignKeyList.cs" />
+    <Compile Include="ForeignKeyMap.cs" />
+    <Compile Include="Generator.cs" />
+    <Compile Include="FieldList.cs" />
+    <Compile Include="FieldMap.cs" />
+    <Compile Include="DatabaseAnalyzer.cs" />
+    <Compile Include="TableMap.cs" />
+    <Compile Include="PersistenceBaseDAOAttribute.cs" />
+    <Compile Include="PersistenceForeignKeyAttribute.cs" />
+    <Compile Include="PersistenceForeignMemberAttribute.cs" />
+    <Compile Include="PersistenceProviderAttribute.cs" />
+    <Compile Include="SqlQueryManager.cs" />
+    <Compile Include="FunctorComparer.cs" />
+    <Compile Include="GDACursor.cs" />
+    <Compile Include="GDADataRecordCursor.cs" />
+    <Compile Include="GDAMultipleResultCursor.cs" />
+    <Compile Include="GDAParameterCollection.cs" />
+    <Compile Include="ObjectPropertyComparer.cs" />
+    <Compile Include="ProxyIList.cs" />
+    <Compile Include="VirtualList.cs" />
+    <Compile Include="ConfigKeyPresence.cs" />
+    <Compile Include="ConfigurationAttribute.cs" />
+    <Compile Include="ConfigurationMap.cs" />
+    <Compile Include="Configurator.cs" />
+    <Compile Include="LoadConfigurationException.cs" />
+    <Compile Include="MissingConfigurationKeyException.cs" />
+    <Compile Include="FileConfigHandler.cs" />
+    <Compile Include="BaseSectionHandler.cs" />
+    <Compile Include="GDASectionHandler.cs" />
+    <Compile Include="MemberAttributeInfo.cs" />
+    <Compile Include="ElementTarget.cs" />
+    <Compile Include="FieldTarget.cs" />
+    <Compile Include="MethodTarget.cs" />
+    <Compile Include="PropertyTarget.cs" />
+    <Compile Include="FileSystemUtil.cs" />
+    <Compile Include="MethodDispacher.cs" />
+    <Compile Include="MethodInvokable.cs" />
+    <Compile Include="MethodInvoker.cs" />
+    <Compile Include="ReflectionFlags.cs" />
+    <Compile Include="TypeConverter.cs" />
+    <Compile Include="MappingManager.cs" />
+    <Compile Include="DataAccess.cs" />
+    <Compile Include="Delegates.cs" />
+    <Compile Include="Enums.cs" />
+    <Compile Include="ForeignKeyMapper.cs" />
+    <Compile Include="ForeignMapper.cs" />
+    <Compile Include="ForeignMemberMapper.cs" />
+    <Compile Include="GDAConnectionManager.cs" />
+    <Compile Include="GDADataRecord.cs" />
+    <Compile Include="GDAOperations.cs" />
+    <Compile Include="GDAOperationsEx.cs" />
+    <Compile Include="GDAPropertyValue.cs" />
+    <Compile Include="GDAPropertySelector.cs" />
+    <Compile Include="GDASession.cs" />
+    <Compile Include="GDAStoredProcedure.cs" />
+    <Compile Include="GDATransaction.cs" />
+    <Compile Include="GroupOfRelationshipInfo.cs" />
+    <Compile Include="IValueConverter.cs" />
+    <Compile Include="TranslatorDataInfo.cs" />
+    <Compile Include="SimpleBaseDAO.cs" />
+    <Compile Include="CommandExecutionInfo.cs" />
+    <Compile Include="GDADebugTraceListener.cs" />
+    <Compile Include="GDATrace.cs" />
+    <Compile Include="GDATraceException.cs" />
+    <Compile Include="GDATraceInternal.cs" />
+    <Compile Include="GDATraceListener.cs" />
+    <Compile Include="GDATraceListenerCollection.cs" />
+    <Compile Include="TypeHelper.cs" />
+    <Compile Include="IGeneratorKey.cs" />
+    <Compile Include="Mapper.cs" />
+    <Compile Include="ModelValidator.cs" />
+    <Compile Include="GDAMappingException.cs" />
+    <Compile Include="ValidationException.cs" />
+    <Compile Include="Base32.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="BFormatterNavigate.cs" />
+    <Compile Include="BFormatterSource.cs" />
+    <Compile Include="ThreadSafeEvents.cs" />
+    <Compile Include="ModelsNamespaceInfo.cs" />
+    <Compile Include="ProviderConfigurationInfo.cs" />
+    <Compile Include="IObjectDataRecord.cs" />
+    <Compile Include="IParameterConverter.cs" />
+    <Compile Include="BaseDAOMapping.cs" />
+    <Compile Include="ClassMapping.cs" />
+    <Compile Include="ElementMapping.cs" />
+    <Compile Include="ForeignItemMapping.cs" />
+    <Compile Include="ForeignKeyMapping.cs" />
+    <Compile Include="ForeignMemberMapping.cs" />
+    <Compile Include="MappingExtractor.cs" />
+    <Compile Include="PropertyMappingBuilder.cs" />
+    <Compile Include="ReferenceMapping.cs" />
+    <Compile Include="SqlQueryParameterMapping.cs" />
+    <Compile Include="GeneratorKeyMapping.cs" />
+    <Compile Include="MappingData.cs" />
+    <Compile Include="ModelsNamespaceMapping.cs" />
+    <Compile Include="PropertyMapping.cs" />
+    <Compile Include="ProviderMapping.cs" />
+    <Compile Include="SqlQueryMapping.cs" />
+    <Compile Include="SqlQueryReturnMapping.cs" />
+    <Compile Include="SqlQueryReturnPropertyMapping.cs" />
+    <Compile Include="TypeInfo.cs" />
+    <Compile Include="ValidatorMapping.cs" />
+    <Compile Include="ValidatorParamMapping.cs" />
+    <Compile Include="CreateConnectionEvent.cs" />
+    <Compile Include="Enums1.cs" />
+    <Compile Include="MsAccessAnalyzer.cs" />
+    <Compile Include="MsSql92Analyzer.cs" />
+    <Compile Include="MsSqlAnalyzer.cs" />
+    <Compile Include="BaseQuery.cs" />
+    <Compile Include="BindingResultList.cs" />
+    <Compile Include="Conditional.cs" />
+    <Compile Include="ConditionalContainer.cs" />
+    <Compile Include="SelectVariable.cs" />
+    <Compile Include="MappingSelectStatementReferences.cs" />
+    <Compile Include="ArrayHelper.cs" />
+    <Compile Include="IQuery.cs" />
+    <Compile Include="ISelectStatementReferences.cs" />
+    <Compile Include="NativeQuery.cs" />
+    <Compile Include="NativeWhereClause.cs" />
+    <Compile Include="NativeSelectStatementReferences.cs" />
+    <Compile Include="QueryPropertySelector.cs" />
+    <Compile Include="ResultList.cs" />
+    <Compile Include="ColumnInfo.cs" />
+    <Compile Include="SelectClauseResultType.cs" />
+    <Compile Include="SqlExpressionType.cs" />
+    <Compile Include="ExpressionComparer.cs" />
+    <Compile Include="Column.cs" />
+    <Compile Include="ContainerSqlExpression.cs" />
+    <Compile Include="FromPart.cs" />
+    <Compile Include="GroupByPart.cs" />
+    <Compile Include="HavingPart.cs" />
+    <Compile Include="LimitPart.cs" />
+    <Compile Include="OrderByExpression.cs" />
+    <Compile Include="OrderByPart.cs" />
+    <Compile Include="SqlFunction.cs" />
+    <Compile Include="Select.cs" />
+    <Compile Include="SelectExpression.cs" />
+    <Compile Include="SelectPart.cs" />
+    <Compile Include="SqlExpression.cs" />
+    <Compile Include="TableExpression.cs" />
+    <Compile Include="WherePart.cs" />
+    <Compile Include="Parser.cs" />
+    <Compile Include="TokenID.cs" />
+    <Compile Include="SqlLexerException.cs" />
+    <Compile Include="SqlParserException.cs" />
+    <Compile Include="JoinInfo.cs" />
+    <Compile Include="Operator.cs" />
+    <Compile Include="ParserToSqlCommand.cs" />
+    <Compile Include="Query.cs" />
+    <Compile Include="QueryException.cs" />
+    <Compile Include="QueryReturnInfo.cs" />
+    <Compile Include="SelectStatement.cs" />
+    <Compile Include="BaseDAO.cs" />
+    <Compile Include="GDAItemCollection.cs" />
+    <Compile Include="GDAList.cs" />
+    <Compile Include="BFormatter.cs" />
+    <Compile Include="GDASettings.cs" />
+    <Compile Include="GDAComparer.cs" />
+    <Compile Include="GDAConditionalClauseException.cs" />
+    <Compile Include="GDAException.cs" />
+    <Compile Include="GDAHelper.cs" />
+    <Compile Include="GDAParameter.cs" />
+    <Compile Include="GDATableNameRepresentNotExistsException.cs" />
+    <Compile Include="InfoPaging.cs" />
+    <Compile Include="InfoSortExpression.cs" />
+    <Compile Include="IBaseDAO.cs" />
+    <Compile Include="IPersistenceObjectBase.cs" />
+    <Compile Include="IPersistenceObjectDataAccess.cs" />
+    <Compile Include="IProvider.cs" />
+    <Compile Include="IProviderConfiguration.cs" />
+    <Compile Include="Persistent.cs" />
+    <Compile Include="PersistenceClassAttribute.cs" />
+    <Compile Include="PersistenceObject.cs" />
+    <Compile Include="PersistenceObjectBase.cs" />
+    <Compile Include="PersistencePropertyAttribute.cs" />
+    <Compile Include="PersistencePropertyCollection.cs" />
+    <Compile Include="ISimpleBaseDAO.cs" />
+    <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="MsAccessProvider.cs" />
+    <Compile Include="MsAccessProviderConfiguration.cs" />
+    <Compile Include="Provider.cs" />
+    <Compile Include="ProviderConfiguration.cs" />
+    <Compile Include="MsSqlProvider.cs" />
+    <Compile Include="MsSqlProviderConfiguration.cs" />
+    <Compile Include="ContainerExpression.cs" />
+    <Compile Include="Expression.cs" />
+    <Compile Include="Lexer.cs" />
+    <Compile Include="ExpressionLine.cs" />
+    <Compile Include="SpecialContainerExpression.cs" />
+    <Compile Include="TabExpression.cs" />
+    <Compile Include="SqlBuilder.cs" />
+    <Compile Include="SqlPropertyInfo.cs" />
+    <Compile Include="TableInfo.cs" />
+    <Compile Include="TableName.cs" />
+    <Compile Include="Utils.cs" />
+    <Compile Include="QueryWhereClause.cs" />
+    <Compile Include="VariableInfo.cs" />
+    <Compile Include="WhereClause.cs" />
+    <Compile Include="RangeValidatorAttribute.cs" />
+    <Compile Include="RequiredValidatorAttribute.cs" />
+    <Compile Include="UniqueAttribute.cs" />
+    <Compile Include="ValidationMapper.cs" />
+    <Compile Include="ValidationMessage.cs" />
+    <Compile Include="ValidationResult.cs" />
+    <Compile Include="ValidatorAttribute.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="GDA.xsd" />
+    <None Include="Mapping\class-mapping.xsd" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Mapping\class-mapping.xml" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
