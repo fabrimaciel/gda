@@ -1,0 +1,10 @@
+
+Source/bin/Debug/GDA.XML
+/Source/bin
+/Source/obj
+/Providers/GDA.Provider.MsSqlv45/bin
+/Providers/GDA.Provider.MsSqlv45/obj
+/Providers/GDA.Provider.MySql/bin
+/Providers/GDA.Provider.MySql/obj
+/Providers/GDA.Provider.Oracle/bin
+/Providers/GDA.Provider.Oracle/obj
