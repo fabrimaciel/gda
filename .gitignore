@@ -8,3 +8,5 @@ Source/bin/Debug/GDA.XML
 /Providers/GDA.Provider.MySql/obj
 /Providers/GDA.Provider.Oracle/bin
 /Providers/GDA.Provider.Oracle/obj
+Source/.vs/GDA/v14/.suo
+Providers/.vs/GDA.Providers/v14/.suo
