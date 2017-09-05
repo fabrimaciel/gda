@@ -1,301 +1,430 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Sql.InterpreterExpression;
 using GDA.Sql.InterpreterExpression.Nodes;
+
 namespace GDA.Sql
 {
 	class ParserToSqlCommand
 	{
-		private StringBuilder sqlCommand = new StringBuilder ();
+		private StringBuilder sqlCommand = new StringBuilder();
+
 		private string _quoteExpressionBegin;
+
 		private string _quoteExpressionEnd;
-		public string SqlCommand {
-			get {
-				return sqlCommand.ToString ().TrimEnd (' ');
+
+		public string SqlCommand
+		{
+			get
+			{
+				return sqlCommand.ToString().TrimEnd(' ');
 			}
 		}
-		public string QuoteExpressionBegin {
-			get {
+
+		/// <summary>
+		/// Quote inicial para escrever a expressão.
+		/// </summary>
+		public string QuoteExpressionBegin
+		{
+			get
+			{
 				return _quoteExpressionBegin;
 			}
-			set {
+			set
+			{
 				_quoteExpressionBegin = value;
 			}
 		}
-		public string QuoteExpressionEnd {
-			get {
+
+		/// <summary>
+		/// Quote final para escrever a expressão.
+		/// </summary>
+		public string QuoteExpressionEnd
+		{
+			get
+			{
 				return _quoteExpressionEnd;
 			}
-			set {
+			set
+			{
 				_quoteExpressionEnd = value;
 			}
 		}
-		internal ParserToSqlCommand (Parser a) : this (a, "", "")
+
+		/// <summary>
+		/// Cria a instancia o com Parser que será usado na execução.
+		/// </summary>
+		/// <param name="parser"></param>
+		internal ParserToSqlCommand(Parser parser) : this(parser, "", "")
 		{
 		}
-		internal ParserToSqlCommand (Parser a, string b, string c)
+
+		internal ParserToSqlCommand(Parser parser, string quoteExpressionBegin, string quoteExpressionEnd)
 		{
-			_quoteExpressionBegin = b;
-			_quoteExpressionEnd = c;
-			foreach (Select select in a.SelectParts) {
-				GetSelectInfo (select);
+			_quoteExpressionBegin = quoteExpressionBegin;
+			_quoteExpressionEnd = quoteExpressionEnd;
+			foreach (Select select in parser.SelectParts)
+			{
+				GetSelectInfo(select);
 			}
 		}
-		internal ParserToSqlCommand (WherePart a) : this (a, "", "")
+
+		internal ParserToSqlCommand(WherePart wp) : this(wp, "", "")
 		{
 		}
-		internal ParserToSqlCommand (WherePart a, string b, string c)
+
+		/// <summary>
+		/// Cria o parser da clausula WHERE.
+		/// </summary>
+		/// <param name="wp"></param>
+		/// <param name="quoteExpressionBegin"></param>
+		/// <param name="quoteExpressionEnd"></param>
+		internal ParserToSqlCommand(WherePart wp, string quoteExpressionBegin, string quoteExpressionEnd)
 		{
-			_quoteExpressionBegin = b;
-			_quoteExpressionEnd = c;
-			foreach (SqlExpression exp in a.Expressions)
-				ColumnName (exp);
+			_quoteExpressionBegin = quoteExpressionBegin;
+			_quoteExpressionEnd = quoteExpressionEnd;
+			foreach (SqlExpression exp in wp.Expressions)
+				ColumnName(exp);
 		}
-		internal ParserToSqlCommand (OrderByPart a) : this (a, "", "")
+
+		internal ParserToSqlCommand(OrderByPart op) : this(op, "", "")
 		{
 		}
-		internal ParserToSqlCommand (OrderByPart a, string b, string c)
+
+		internal ParserToSqlCommand(OrderByPart op, string quoteExpressionBegin, string quoteExpressionEnd)
 		{
-			_quoteExpressionBegin = b;
-			_quoteExpressionEnd = c;
-			for (int d = 0; d < a.OrderByExpressions.Count; d++) {
-				ColumnName (a.OrderByExpressions [d].Expression);
-				if (a.OrderByExpressions [d].Asc)
-					sqlCommand.Append (" ASC");
+			_quoteExpressionBegin = quoteExpressionBegin;
+			_quoteExpressionEnd = quoteExpressionEnd;
+			for(int i = 0; i < op.OrderByExpressions.Count; i++)
+			{
+				ColumnName(op.OrderByExpressions[i].Expression);
+				if(op.OrderByExpressions[i].Asc)
+					sqlCommand.Append(" ASC");
 				else
-					sqlCommand.Append (" DESC");
-				if (d + 1 != a.OrderByExpressions.Count)
-					sqlCommand.Append (", ");
+					sqlCommand.Append(" DESC");
+				if(i + 1 != op.OrderByExpressions.Count)
+					sqlCommand.Append(", ");
 			}
 		}
-		internal ParserToSqlCommand (GroupByPart a, string b, string c)
+
+		internal ParserToSqlCommand(GroupByPart gbp, string quoteExpressionBegin, string quoteExpressionEnd)
 		{
-			_quoteExpressionBegin = b;
-			_quoteExpressionEnd = c;
-			for (int d = 0; d < a.Expressions.Count; d++) {
-				ColumnName (a.Expressions [d]);
-				if (d + 1 != a.Expressions.Count)
-					sqlCommand.Append (", ");
+			_quoteExpressionBegin = quoteExpressionBegin;
+			_quoteExpressionEnd = quoteExpressionEnd;
+			for(int i = 0; i < gbp.Expressions.Count; i++)
+			{
+				ColumnName(gbp.Expressions[i]);
+				if(i + 1 != gbp.Expressions.Count)
+					sqlCommand.Append(", ");
 			}
 		}
-		private string ApplyQuoteExpression (string a)
+
+		/// <summary>
+		/// Cria o parser para o clausula HAVING.
+		/// </summary>
+		/// <param name="havingPart"></param>
+		/// <param name="quoteExpressionBegin"></param>
+		/// <param name="quoteExpressionEnd"></param>
+		internal ParserToSqlCommand(HavingPart havingPart, string quoteExpressionBegin, string quoteExpressionEnd)
 		{
-			if (a != null) {
-				var b = a.TrimEnd (' ').TrimStart (' ');
-				if (b.Length > 3 && b [0] == '[' && b [b.Length - 1] == ']')
-					return a;
-			}
-			return this.QuoteExpressionBegin + a + this.QuoteExpressionEnd;
+			_quoteExpressionBegin = quoteExpressionBegin;
+			_quoteExpressionEnd = quoteExpressionEnd;
+			foreach (SqlExpression exp in havingPart.Expressions)
+				ColumnName(exp);
 		}
-		private void GetSelectInfo (Select a)
+
+		/// <summary>
+		/// Aplica a marcação de citação na expressão.
+		/// </summary>
+		/// <param name="expression"></param>
+		private string ApplyQuoteExpression(string expression)
 		{
-			sqlCommand.Append (a.Value.Text.ToUpper ()).Append (" ");
-			if (a.SelectPart.ResultType == GDA.Sql.InterpreterExpression.Enums.SelectClauseResultTypes.Distinct)
-				sqlCommand.Append ("DISTINCT ");
-			foreach (SelectExpression se in a.SelectPart.SelectionExpressions) {
-				ColumnName (se.ColumnName);
-				if (se.ColumnAlias != null && se.AsExpression != null)
-					sqlCommand.Append (" AS ").Append (se.ColumnAlias.Value.Text);
-				else if (se.ColumnAlias != null)
-					sqlCommand.Append (" ").Append (se.ColumnAlias.Value.Text);
-				sqlCommand.Append (", ");
+			if(expression != null)
+			{
+				var trimWord = expression.TrimEnd(' ').TrimStart(' ');
+				if(trimWord.Length > 3 && trimWord[0] == '[' && trimWord[trimWord.Length - 1] == ']')
+					return expression;
 			}
-			if (a.SelectPart.SelectionExpressions.Count > 0)
-				sqlCommand.Remove (sqlCommand.Length - 2, 1);
-			if (a.FromPart != null) {
-				sqlCommand.Append ("FROM ");
-				foreach (TableExpression te in a.FromPart.TableExpressions) {
-					if (te.LeftOrRight != null)
-						sqlCommand.Append (te.LeftOrRight.Text).Append (" ");
-					if (te.OuterOrInnerOrCrossOrNatural != null)
-						sqlCommand.Append (te.OuterOrInnerOrCrossOrNatural.Text.ToUpper ()).Append (" ");
-					if (te.Join != null)
-						sqlCommand.Append ("JOIN ");
-					if (te.SelectInfo != null) {
-						sqlCommand.Append ("(");
-						GetSelectInfo (te.SelectInfo);
-						sqlCommand.Append (") ");
+			return this.QuoteExpressionBegin + expression + this.QuoteExpressionEnd;
+		}
+
+		/// <summary>
+		/// Recupera as informações de Select
+		/// </summary>
+		/// <param name="select"></param>
+		private void GetSelectInfo(Select select)
+		{
+			sqlCommand.Append(select.Value.Text.ToUpper()).Append(" ");
+			if(select.SelectPart.ResultType == GDA.Sql.InterpreterExpression.Enums.SelectClauseResultTypes.Distinct)
+				sqlCommand.Append("DISTINCT ");
+			foreach (SelectExpression se in select.SelectPart.SelectionExpressions)
+			{
+				ColumnName(se.ColumnName);
+				if(se.ColumnAlias != null && se.AsExpression != null)
+					sqlCommand.Append(" AS ").Append(se.ColumnAlias.Value.Text);
+				else if(se.ColumnAlias != null)
+					sqlCommand.Append(" ").Append(se.ColumnAlias.Value.Text);
+				sqlCommand.Append(", ");
+			}
+			if(select.SelectPart.SelectionExpressions.Count > 0)
+				sqlCommand.Remove(sqlCommand.Length - 2, 1);
+			if(select.FromPart != null)
+			{
+				sqlCommand.Append("FROM ");
+				foreach (TableExpression te in select.FromPart.TableExpressions)
+				{
+					if(te.LeftOrRight != null)
+						sqlCommand.Append(te.LeftOrRight.Text).Append(" ");
+					if(te.OuterOrInnerOrCrossOrNatural != null)
+						sqlCommand.Append(te.OuterOrInnerOrCrossOrNatural.Text.ToUpper()).Append(" ");
+					if(te.Join != null)
+						sqlCommand.Append("JOIN ");
+					if(te.SelectInfo != null)
+					{
+						sqlCommand.Append("(");
+						GetSelectInfo(te.SelectInfo);
+						sqlCommand.Append(") ");
 					}
-					else {
-						TableName (te);
+					else
+					{
+						TableName(te);
 					}
-					if (te.TableAlias != null) {
-						sqlCommand.Append ((te.AsExpression != null ? "AS " : " ")).Append (te.TableAlias).Append (" ");
+					if(te.TableAlias != null)
+					{
+						sqlCommand.Append((te.AsExpression != null ? "AS " : " ")).Append(te.TableAlias).Append(" ");
 					}
-					if (te.OnExpressions != null) {
-						sqlCommand.Append ("ON(");
+					if(te.OnExpressions != null)
+					{
+						sqlCommand.Append("ON(");
 						foreach (SqlExpression se in te.OnExpressions.Expressions)
-							ColumnName (se);
-						sqlCommand.Append (")");
+							ColumnName(se);
+						sqlCommand.Append(")");
 					}
-					sqlCommand.Append (" ");
+					sqlCommand.Append(" ");
 				}
 			}
-			if (a.WherePart != null) {
-				sqlCommand.Append ("WHERE ");
-				foreach (SqlExpression se in a.WherePart.Expressions)
-					ColumnName (se);
-				sqlCommand.Append (" ");
+			if(select.WherePart != null)
+			{
+				sqlCommand.Append("WHERE ");
+				foreach (SqlExpression se in select.WherePart.Expressions)
+					ColumnName(se);
+				sqlCommand.Append(" ");
 			}
-			if (a.GroupByPart != null) {
-				sqlCommand.Append ("GROUP BY ");
-				foreach (SqlExpression se in a.GroupByPart.Expressions) {
-					ColumnName (se);
-					sqlCommand.Append (", ");
+			if(select.GroupByPart != null)
+			{
+				sqlCommand.Append("GROUP BY ");
+				foreach (SqlExpression se in select.GroupByPart.Expressions)
+				{
+					ColumnName(se);
+					sqlCommand.Append(", ");
 				}
-				if (a.GroupByPart.Expressions.Count > 0)
-					sqlCommand.Remove (sqlCommand.Length - 2, 1);
-				sqlCommand.Append (" ");
+				if(select.GroupByPart.Expressions.Count > 0)
+					sqlCommand.Remove(sqlCommand.Length - 2, 1);
+				sqlCommand.Append(" ");
 			}
-			if (a.HavingPart != null) {
-				sqlCommand.Append ("HAVING ");
-				foreach (SqlExpression se in a.HavingPart.Expressions)
-					ColumnName (se);
-				sqlCommand.Append (" ");
+			if(select.HavingPart != null)
+			{
+				sqlCommand.Append("HAVING ");
+				foreach (SqlExpression se in select.HavingPart.Expressions)
+					ColumnName(se);
+				sqlCommand.Append(" ");
 			}
-			if (a.OrderByPart != null) {
-				sqlCommand.Append ("ORDER BY ");
-				int b = 0;
-				foreach (OrderByExpression oe in a.OrderByPart.OrderByExpressions) {
-					if (b > 0)
-						sqlCommand.Append (", ");
-					ColumnName (oe.Expression);
-					if (!oe.Asc)
-						sqlCommand.Append (" DESC");
-					b++;
+			if(select.OrderByPart != null)
+			{
+				sqlCommand.Append("ORDER BY ");
+				int currentPos = 0;
+				foreach (OrderByExpression oe in select.OrderByPart.OrderByExpressions)
+				{
+					if(currentPos > 0)
+						sqlCommand.Append(", ");
+					ColumnName(oe.Expression);
+					if(!oe.Asc)
+						sqlCommand.Append(" DESC");
+					currentPos++;
 				}
-				sqlCommand.Append (" ");
+				sqlCommand.Append(" ");
 			}
 		}
-		private void ColumnName (SqlExpression a)
+
+		private void ColumnName(SqlExpression se)
 		{
-			if (a is ContainerSqlExpression) {
-				if (((ContainerSqlExpression)a).ContainerToken == GDA.Sql.InterpreterExpression.Enums.TokenID.LParen)
-					sqlCommand.Append ("(");
-				foreach (SqlExpression se1 in ((ContainerSqlExpression)a).Expressions) {
-					ColumnName (se1);
+			if(se is ContainerSqlExpression)
+			{
+				if(((ContainerSqlExpression)se).ContainerToken == GDA.Sql.InterpreterExpression.Enums.TokenID.LParen)
+					sqlCommand.Append("(");
+				foreach (SqlExpression se1 in ((ContainerSqlExpression)se).Expressions)
+				{
+					ColumnName(se1);
 				}
-				if (((ContainerSqlExpression)a).ContainerToken == GDA.Sql.InterpreterExpression.Enums.TokenID.LParen)
-					sqlCommand.Append (")");
+				if(((ContainerSqlExpression)se).ContainerToken == GDA.Sql.InterpreterExpression.Enums.TokenID.LParen)
+					sqlCommand.Append(")");
 			}
-			else if (a is Select) {
-				GetSelectInfo ((Select)a);
+			else if(se is Select)
+			{
+				GetSelectInfo((Select)se);
 			}
-			else if (a.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column) {
-				if (a.Value.Token == GDA.Sql.InterpreterExpression.Enums.TokenID.Star)
-					sqlCommand.Append (a.Value.Text);
-				else {
-					int b = a.Value.Text.LastIndexOf ('.');
-					if (b >= 0) {
-						var c = RemoveDefaultQuote (a.Value.Text.Substring (0, b));
-						if (c.Length > 2 && !c.StartsWith (QuoteExpressionBegin) && !c.EndsWith (QuoteExpressionEnd))
-							sqlCommand.Append (QuoteExpressionBegin).Append (c).Append (QuoteExpressionEnd).Append (".");
+			else if(se.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column)
+			{
+				if(se.Value.Token == GDA.Sql.InterpreterExpression.Enums.TokenID.Star)
+					sqlCommand.Append(se.Value.Text);
+				else
+				{
+					int posEndInfo = se.Value.Text.LastIndexOf('.');
+					if(posEndInfo >= 0)
+					{
+						var text1 = RemoveDefaultQuote(se.Value.Text.Substring(0, posEndInfo));
+						if(text1.Length > 2 && !text1.StartsWith(QuoteExpressionBegin) && !text1.EndsWith(QuoteExpressionEnd))
+							sqlCommand.Append(QuoteExpressionBegin).Append(text1).Append(QuoteExpressionEnd).Append(".");
 						else
-							sqlCommand.Append (c).Append (".");
-						if (a.Value.Text.Substring (b + 1) == "*")
-							sqlCommand.Append (a.Value.Text.Substring (b + 1));
-						else {
-							var d = RemoveDefaultQuote (a.Value.Text.Substring (b + 1));
-							if (d.Length > 2 && !d.StartsWith (QuoteExpressionBegin) && !d.EndsWith (QuoteExpressionEnd))
-								sqlCommand.Append (QuoteExpressionBegin).Append (d).Append (QuoteExpressionEnd);
+							sqlCommand.Append(text1).Append(".");
+						if(se.Value.Text.Substring(posEndInfo + 1) == "*")
+							sqlCommand.Append(se.Value.Text.Substring(posEndInfo + 1));
+						else
+						{
+							var text = RemoveDefaultQuote(se.Value.Text.Substring(posEndInfo + 1));
+							if(text.Length > 2 && !text.StartsWith(QuoteExpressionBegin) && !text.EndsWith(QuoteExpressionEnd))
+								sqlCommand.Append(QuoteExpressionBegin).Append(text).Append(QuoteExpressionEnd);
 							else
-								sqlCommand.Append (d);
+								sqlCommand.Append(text);
 						}
 					}
-					else {
-						var c = RemoveDefaultQuote (a.Value.Text);
-						if (c.Length > 2 && !c.StartsWith (QuoteExpressionBegin) && !c.EndsWith (QuoteExpressionEnd))
-							sqlCommand.Append (QuoteExpressionBegin).Append (c).Append (QuoteExpressionEnd);
+					else
+					{
+						var text1 = RemoveDefaultQuote(se.Value.Text);
+						if(text1.Length > 2 && !text1.StartsWith(QuoteExpressionBegin) && !text1.EndsWith(QuoteExpressionEnd))
+							sqlCommand.Append(QuoteExpressionBegin).Append(text1).Append(QuoteExpressionEnd);
 						else
-							sqlCommand.Append (c);
+							sqlCommand.Append(text1);
 					}
 				}
 			}
-			else if (a is SqlFunction) {
-				sqlCommand.Append (a.Value.Text).Append ("(");
-				foreach (List<SqlExpression> parameter in ((SqlFunction)a).Parameters) {
-					foreach (SqlExpression pSe in parameter) {
-						ColumnName (pSe);
+			else if(se is SqlFunction)
+			{
+				sqlCommand.Append(se.Value.Text).Append("(");
+				foreach (List<SqlExpression> parameter in ((SqlFunction)se).Parameters)
+				{
+					foreach (SqlExpression pSe in parameter)
+					{
+						ColumnName(pSe);
 					}
-					sqlCommand.Append (", ");
+					sqlCommand.Append(", ");
 				}
-				if (((SqlFunction)a).Parameters.Count > 0)
-					sqlCommand.Remove (sqlCommand.Length - 2, 2);
-				sqlCommand.Append (")");
+				if(((SqlFunction)se).Parameters.Count > 0)
+					sqlCommand.Remove(sqlCommand.Length - 2, 2);
+				sqlCommand.Append(")");
 			}
-			else if (a.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.ComparerScalar || a.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Boolean || a.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Operation || a.Value.Token == GDA.Sql.InterpreterExpression.Enums.TokenID.kNot) {
-				sqlCommand.Append (" ").Append (a.Value.Text.ToUpper ()).Append (" ");
+			else if(se.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.ComparerScalar || se.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Boolean || se.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Operation || se.Value.Token == GDA.Sql.InterpreterExpression.Enums.TokenID.kNot)
+			{
+				sqlCommand.Append(" ").Append(se.Value.Text.ToUpper()).Append(" ");
 			}
-			else if (a.Value is SpecialContainerExpression) {
-				SpecialContainerExpression e = (SpecialContainerExpression)a.Value;
-				sqlCommand.Append (e.ContainerChar);
-				sqlCommand.Append (a.Value.Text);
-				sqlCommand.Append (e.ContainerChar);
+			else if(se.Value is SpecialContainerExpression)
+			{
+				SpecialContainerExpression sce = (SpecialContainerExpression)se.Value;
+				sqlCommand.Append(sce.ContainerChar);
+				sqlCommand.Append(se.Value.Text);
+				sqlCommand.Append(sce.ContainerChar);
 			}
-			else if (a.Value.Token == GDA.Sql.InterpreterExpression.Enums.TokenID.kIsNull || a.Value.Token == GDA.Sql.InterpreterExpression.Enums.TokenID.kIs)
-				sqlCommand.Append (" ").Append (a.Value.Text);
-			else if (a.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Boolean) {
-				switch (a.Value.Token) {
+			else if(se.Value.Token == GDA.Sql.InterpreterExpression.Enums.TokenID.kIsNull || se.Value.Token == GDA.Sql.InterpreterExpression.Enums.TokenID.kIs)
+				sqlCommand.Append(" ").Append(se.Value.Text);
+			else if(se.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Boolean)
+			{
+				switch(se.Value.Token)
+				{
 				case GDA.Sql.InterpreterExpression.Enums.TokenID.kAnd:
-					if (a.Value.Text == "&&")
-						a.Value.Text = "AND";
+					if(se.Value.Text == "&&")
+						se.Value.Text = "AND";
 					break;
 				case GDA.Sql.InterpreterExpression.Enums.TokenID.kOr:
-					if (a.Value.Text == "||")
-						a.Value.Text = "OR";
+					if(se.Value.Text == "||")
+						se.Value.Text = "OR";
 					break;
 				}
 			}
 			else
-				switch (a.Value.Token) {
+				switch(se.Value.Token)
+				{
 				case GDA.Sql.InterpreterExpression.Enums.TokenID.EqualEqual:
-					sqlCommand.Append ("=");
+					sqlCommand.Append("=");
 					break;
 				default:
-					sqlCommand.Append (a.Value.Text);
+					sqlCommand.Append(se.Value.Text);
 					break;
 				}
 		}
-		private static string RemoveDefaultQuote (string a)
+
+		/// <summary>
+		/// Remove o quote padrao.
+		/// </summary>
+		/// <param name="text1"></param>
+		/// <returns></returns>
+		private static string RemoveDefaultQuote(string text1)
 		{
-			if (a != null) {
-				var b = a.TrimEnd (' ').TrimStart (' ');
-				if (b.Length > 3 && b [0] == '[' && b [b.Length - 1] == ']')
-					a = a.Substring (1, a.Length - 2);
+			if(text1 != null)
+			{
+				var trimWord = text1.TrimEnd(' ').TrimStart(' ');
+				if(trimWord.Length > 3 && trimWord[0] == '[' && trimWord[trimWord.Length - 1] == ']')
+					text1 = text1.Substring(1, text1.Length - 2);
 			}
-			return a;
+			return text1;
 		}
-		private void TableName (TableExpression a)
+
+		private void TableName(TableExpression te)
 		{
-			var b = a.TableName.InnerExpression.Text.TrimEnd (' ').TrimStart (' ');
-			var c = (a.TableName.Schema ?? "").TrimEnd (' ').TrimStart (' ');
-			if (a.TableName.InnerExpression.CurrentSpecialContainer != null && a.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer == QuoteExpressionBegin [0] && a.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer == QuoteExpressionEnd [0]) {
-				if (c.Length > 0) {
-					if (!(c.Length > 3 && c [0] == a.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer && c [c.Length - 1] == a.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer))
-						sqlCommand.Append (a.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer).Append (a.TableName.Schema).Append (a.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer).Append ('.');
+			var name = te.TableName.InnerExpression.Text.TrimEnd(' ').TrimStart(' ');
+			var schema = (te.TableName.Schema ?? "").TrimEnd(' ').TrimStart(' ');
+			if(te.TableName.InnerExpression.CurrentSpecialContainer != null && te.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer == QuoteExpressionBegin[0] && te.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer == QuoteExpressionEnd[0])
+			{
+				if(schema.Length > 0)
+				{
+					if(!(schema.Length > 3 && schema[0] == te.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer && schema[schema.Length - 1] == te.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer))
+						sqlCommand.Append(te.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer).Append(te.TableName.Schema).Append(te.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer).Append('.');
 					else
-						sqlCommand.Append (a.TableName.Schema).Append ('.');
+						sqlCommand.Append(te.TableName.Schema).Append('.');
 				}
-				if (!(b.Length > 3 && b [0] == a.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer && b [b.Length - 1] == a.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer))
-					sqlCommand.Append (a.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer).Append (a.TableName.Name).Append (a.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer).Append (" ");
+				if(!(name.Length > 3 && name[0] == te.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer && name[name.Length - 1] == te.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer))
+					sqlCommand.Append(te.TableName.InnerExpression.CurrentSpecialContainer.BeginCharSpecialContainer).Append(te.TableName.Name).Append(te.TableName.InnerExpression.CurrentSpecialContainer.EndCharSpecialContainer).Append(" ");
 			}
-			else {
-				if (c.Length > 0) {
-					if (c.Length > 2 && !c.StartsWith (QuoteExpressionBegin) && !c.EndsWith (QuoteExpressionEnd))
-						sqlCommand.Append (QuoteExpressionBegin).Append (a.TableName.Schema).Append (QuoteExpressionEnd).Append ('.');
+			else
+			{
+				if(schema.Length > 0)
+				{
+					if(schema.Length > 2 && !schema.StartsWith(QuoteExpressionBegin) && !schema.EndsWith(QuoteExpressionEnd))
+						sqlCommand.Append(QuoteExpressionBegin).Append(te.TableName.Schema).Append(QuoteExpressionEnd).Append('.');
 					else
-						sqlCommand.Append (a.TableName.Schema).Append ('.');
+						sqlCommand.Append(te.TableName.Schema).Append('.');
 				}
-				if (b.Length > 2 && !b.StartsWith (QuoteExpressionBegin) && !b.EndsWith (QuoteExpressionEnd))
-					sqlCommand.Append (QuoteExpressionBegin).Append (a.TableName.Name).Append (QuoteExpressionEnd).Append (" ");
+				if(name.Length > 2 && !name.StartsWith(QuoteExpressionBegin) && !name.EndsWith(QuoteExpressionEnd))
+					sqlCommand.Append(QuoteExpressionBegin).Append(te.TableName.Name).Append(QuoteExpressionEnd).Append(" ");
 				else
-					sqlCommand.Append (a.TableName.Name).Append (" ");
+					sqlCommand.Append(te.TableName.Name).Append(" ");
 			}
 		}
-		public override string ToString ()
+
+		public override string ToString()
 		{
-			return sqlCommand.ToString ();
+			return sqlCommand.ToString();
 		}
 	}
 }

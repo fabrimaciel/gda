@@ -1,92 +1,170 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+
 namespace GDA.Mapping
 {
+	/// <summary>
+	/// Armazena os dados do mapeamento de uma consulta sql.
+	/// </summary>
 	public class SqlQueryMapping : ElementMapping
 	{
 		private string _name;
+
 		private bool _useDatabaseSchema = true;
-		private List<SqlQueryParameterMapping> _parameters = new List<SqlQueryParameterMapping> ();
+
+		private List<SqlQueryParameterMapping> _parameters = new List<SqlQueryParameterMapping>();
+
 		private SqlQueryReturnMapping _return;
+
 		private string _query;
-		public string Name {
-			get {
+
+		/// <summary>
+		/// Nome da consulta.
+		/// </summary>
+		public string Name
+		{
+			get
+			{
 				return _name;
 			}
-			set {
+			set
+			{
 				_name = value;
 			}
 		}
-		public bool UseDatabaseSchema {
-			get {
+
+		/// <summary>
+		/// Verifica se é usado o esquema do banco de dados para fazer a consulta.
+		/// </summary>
+		public bool UseDatabaseSchema
+		{
+			get
+			{
 				return _useDatabaseSchema;
 			}
-			set {
+			set
+			{
 				_useDatabaseSchema = value;
 			}
 		}
-		public List<SqlQueryParameterMapping> Parameters {
-			get {
+
+		/// <summary>
+		/// Parametros usados na consulta.
+		/// </summary>
+		public List<SqlQueryParameterMapping> Parameters
+		{
+			get
+			{
 				return _parameters;
 			}
 		}
-		public SqlQueryReturnMapping Return {
-			get {
+
+		/// <summary>
+		/// Informações sobre o retorno da consulta.
+		/// </summary>
+		public SqlQueryReturnMapping Return
+		{
+			get
+			{
 				return _return;
 			}
-			set {
+			set
+			{
 				_return = value;
 			}
 		}
-		public string Query {
-			get {
+
+		/// <summary>
+		/// SQL da consulta.
+		/// </summary>
+		public string Query
+		{
+			get
+			{
 				return _query;
 			}
-			set {
+			set
+			{
 				_query = value;
 			}
 		}
-		public SqlQueryMapping (XmlElement a)
+
+		/// <summary>
+		/// Constrói uma instancia do mapeamento da consulta.
+		/// </summary>
+		/// <param name="element"></param>
+		public SqlQueryMapping(XmlElement element)
 		{
-			Name = GetAttributeString (a, "name", true);
-			var b = false;
-			string c = GetAttributeString (a, "use-database-schema", "true");
+			Name = GetAttributeString(element, "name", true);
+			var boolVal = false;
+			string val = GetAttributeString(element, "use-database-schema", "true");
 			#if PocketPC
-						            if (GDA.Helper.GDAHelper.TryParse(val, out boolVal))
+			            if (GDA.Helper.GDAHelper.TryParse(val, out boolVal))
 #else
-			if (bool.TryParse (c, out b))
+			if(bool.TryParse(val, out boolVal))
 				#endif
-				UseDatabaseSchema = b;
+				UseDatabaseSchema = boolVal;
 			else
 				UseDatabaseSchema = true;
-			var d = FirstOrDefault<XmlElement> (a.GetElementsByTagName ("parameters"));
-			if (d != null)
-				foreach (XmlElement i in d.GetElementsByTagName ("param")) {
-					var e = new SqlQueryParameterMapping (i);
-					if (!Parameters.Exists (f => f.Name == e.Name))
-						Parameters.Add (e);
+			var parameters = FirstOrDefault<XmlElement>(element.GetElementsByTagName("parameters"));
+			if(parameters != null)
+				foreach (XmlElement i in parameters.GetElementsByTagName("param"))
+				{
+					var pm = new SqlQueryParameterMapping(i);
+					if(!Parameters.Exists(f => f.Name == pm.Name))
+						Parameters.Add(pm);
 				}
-			var g = FirstOrDefault<XmlElement> (a.GetElementsByTagName ("return"));
-			if (g != null)
-				Return = new SqlQueryReturnMapping (g);
-			var h = FirstOrDefault<XmlElement> (a.GetElementsByTagName ("commandText"));
-			if (h != null || !string.IsNullOrEmpty (h.InnerText))
-				Query = h.InnerText.TrimStart ('\n', '\t').TrimEnd ('\n', '\t');
+			var returnInfo = FirstOrDefault<XmlElement>(element.GetElementsByTagName("return"));
+			if(returnInfo != null)
+				Return = new SqlQueryReturnMapping(returnInfo);
+			var commandText = FirstOrDefault<XmlElement>(element.GetElementsByTagName("commandText"));
+			if(commandText != null || !string.IsNullOrEmpty(commandText.InnerText))
+				Query = commandText.InnerText.TrimStart('\n', '\t').TrimEnd('\n', '\t');
 		}
-		public SqlQueryMapping (string a, bool b, SqlQueryReturnMapping c, string d, IEnumerable<SqlQueryParameterMapping> e)
+
+		/// <summary>
+		/// Constrói uma instancia do mapeamento da consulta.
+		/// </summary>
+		/// <param name="name">Nome da consulta.</param>
+		/// <param name="useDatabaseSchema">Identifica se sera usado o esquema do banco de dados para fazer a consulta.</param>
+		/// <param name="returnMapping">Informações sobre o retorno da consulta.</param>
+		/// <param name="query">SQL da consulta.</param>
+		/// <param name="parameters">Parametros usados na consulta.</param>
+		public SqlQueryMapping(string name, bool useDatabaseSchema, SqlQueryReturnMapping returnMapping, string query, IEnumerable<SqlQueryParameterMapping> parameters)
 		{
-			if (string.IsNullOrEmpty (a))
-				throw new ArgumentNullException ("name");
-			this.Name = a;
-			this.UseDatabaseSchema = b;
-			this.Return = c;
-			this.Query = d;
-			if (e != null)
-				foreach (var i in e)
-					if (!Parameters.Exists (f => f.Name == i.Name))
-						Parameters.Add (i);
+			if(string.IsNullOrEmpty(name))
+				throw new ArgumentNullException("name");
+			this.Name = name;
+			this.UseDatabaseSchema = useDatabaseSchema;
+			this.Return = returnMapping;
+			this.Query = query;
+			if(parameters != null)
+				foreach (var i in parameters)
+					if(!Parameters.Exists(f => f.Name == i.Name))
+						Parameters.Add(i);
 		}
 	}
 }

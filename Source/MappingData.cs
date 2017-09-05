@@ -1,321 +1,459 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+
 namespace GDA.Mapping
 {
+	/// <summary>
+	/// Armazena os dados do mapeamento.
+	/// </summary>
 	public class MappingData
 	{
-		private static object objLock = new object ();
-		private static Dictionary<string, ClassMapping> _classes = new Dictionary<string, ClassMapping> ();
-		private static Dictionary<string, SqlQueryMapping> _queries = new Dictionary<string, SqlQueryMapping> ();
-		private static List<ReferenceMapping> _references = new List<ReferenceMapping> ();
-		public static ClassMapping GetMapping (Type a)
+		private static object objLock = new object();
+
+		private static Dictionary<string, ClassMapping> _classes = new Dictionary<string, ClassMapping>();
+
+		private static Dictionary<string, SqlQueryMapping> _queries = new Dictionary<string, SqlQueryMapping>();
+
+		/// <summary>
+		/// Relação das referencias já carregadas.
+		/// </summary>
+		private static List<ReferenceMapping> _references = new List<ReferenceMapping>();
+
+		/// <summary>
+		/// Recupera o mapeamento do tipo informado.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public static ClassMapping GetMapping(Type type)
 		{
-			if (a == null)
+			if(type == null)
 				return null;
-			ClassMapping b = null;
-			if (_classes.TryGetValue (a.FullName, out b))
-				return b;
+			ClassMapping mapping = null;
+			if(_classes.TryGetValue(type.FullName, out mapping))
+				return mapping;
 			return null;
 		}
-		public static ClassMapping GetMapping (string a)
+
+		/// <summary>
+		/// Recupera o mapeamento do classes.
+		/// </summary>
+		/// <param name="className"></param>
+		/// <returns></returns>
+		public static ClassMapping GetMapping(string className)
 		{
-			ClassMapping b = null;
-			if (_classes.TryGetValue (a, out b))
-				return b;
+			ClassMapping mapping = null;
+			if(_classes.TryGetValue(className, out mapping))
+				return mapping;
 			return null;
 		}
-		public static IEnumerable<ClassMapping> GetMappings ()
+
+		/// <summary>
+		/// Recupera os mapeamentos do sistema.
+		/// </summary>
+		/// <returns></returns>
+		public static IEnumerable<ClassMapping> GetMappings()
 		{
 			return _classes.Values;
 		}
-		public static void AddMapping (ClassMapping a)
+
+		/// <summary>
+		/// Adiciona o mapeamento da classe.
+		/// </summary>
+		/// <param name="mapping"></param>
+		public static void AddMapping(ClassMapping mapping)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("mapping");
-			if (_classes.ContainsKey (a.TypeInfo.Fullname))
-				_classes.Remove (a.TypeInfo.Name);
-			_classes.Add (a.TypeInfo.Fullname, a);
+			if(mapping == null)
+				throw new ArgumentNullException("mapping");
+			if(_classes.ContainsKey(mapping.TypeInfo.Fullname))
+				_classes.Remove(mapping.TypeInfo.Name);
+			_classes.Add(mapping.TypeInfo.Fullname, mapping);
 		}
-		public static void RemoteMapping (string a)
+
+		/// <summary>
+		/// Remove o mapeamento.
+		/// </summary>
+		/// <param name="typeInfoFullname">Nome do tipo mapeado.</param>
+		public static void RemoteMapping(string typeInfoFullname)
 		{
-			if (_classes.ContainsKey (a))
-				_classes.Remove (a);
+			if(_classes.ContainsKey(typeInfoFullname))
+				_classes.Remove(typeInfoFullname);
 		}
-		public static SqlQueryMapping GetSqlQuery (string a)
+
+		/// <summary>
+		/// Recupera a consulta SQL mapeada.
+		/// </summary>
+		/// <param name="queryName"></param>
+		/// <returns></returns>
+		public static SqlQueryMapping GetSqlQuery(string queryName)
 		{
-			SqlQueryMapping b = null;
-			if (_queries.TryGetValue (a, out b))
-				return b;
+			SqlQueryMapping mapping = null;
+			if(_queries.TryGetValue(queryName, out mapping))
+				return mapping;
 			return null;
 		}
-		public static IEnumerable<SqlQueryMapping> GetSqlQueries ()
+
+		/// <summary>
+		/// Recupera as consultas mapeadas no sistema.
+		/// </summary>
+		/// <returns></returns>
+		public static IEnumerable<SqlQueryMapping> GetSqlQueries()
 		{
 			return _queries.Values;
 		}
-		public static void AddSqlQuery (SqlQueryMapping a)
+
+		/// <summary>
+		/// Adiciona o mapeamento de uma consulta no sistema.
+		/// </summary>
+		/// <param name="query">Dados da consulta.</param>
+		public static void AddSqlQuery(SqlQueryMapping query)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("query");
-			if (_queries.ContainsKey (a.Name))
-				_queries.Remove (a.Name);
-			_queries.Add (a.Name, a);
+			if(query == null)
+				throw new ArgumentNullException("query");
+			if(_queries.ContainsKey(query.Name))
+				_queries.Remove(query.Name);
+			_queries.Add(query.Name, query);
 		}
-		public static void RemoteSqlQuery (string a)
+
+		/// <summary>
+		/// Remove a consulta SQL mapeada no sistema.
+		/// </summary>
+		/// <param name="queryName">Nome da consulta.</param>
+		public static void RemoteSqlQuery(string queryName)
 		{
-			if (_queries.ContainsKey (a))
-				_queries.Remove (a);
+			if(_queries.ContainsKey(queryName))
+				_queries.Remove(queryName);
 		}
-		public static void Import (string a, string b)
+
+		/// <summary>
+		/// Importa os dados do mapeamento.
+		/// </summary>
+		/// <param name="assemblyString">Assembly onde o mapeamento está inserido.</param>
+		/// <param name="resourceName"></param>
+		public static void Import(string assemblyString, string resourceName)
 		{
-			var c = System.Reflection.Assembly.Load (a);
-			if (c == null)
+			var assembly = System.Reflection.Assembly.Load(assemblyString);
+			if(assembly == null)
 				return;
-			using (System.IO.Stream d = c.GetManifestResourceStream (b)) {
-				if (d == null)
-					throw new GDAMappingException ("Not found resource \"{0}\" in \"{1}\".", b, a);
-				Import (d);
+			using (System.IO.Stream resourceStream = assembly.GetManifestResourceStream(resourceName))
+			{
+				if(resourceStream == null)
+					throw new GDAMappingException("Not found resource \"{0}\" in \"{1}\".", resourceName, assemblyString);
+				Import(resourceStream);
 			}
 		}
-		public static void Import (string a)
+
+		/// <summary>
+		/// Importa os dados de um arquivo.
+		/// </summary>
+		/// <param name="fileName"></param>
+		public static void Import(string fileName)
 		{
-			if (string.IsNullOrEmpty (a))
-				throw new ArgumentNullException ("fileName");
-			if (!System.IO.File.Exists (a))
-				throw new GDAMappingException ("Mapping file \"{0}\" not exists.", a);
-			using (var b = new System.IO.FileStream (a, System.IO.FileMode.Open, System.IO.FileAccess.Read))
-				Import (b);
+			if(string.IsNullOrEmpty(fileName))
+				throw new ArgumentNullException("fileName");
+			if(!System.IO.File.Exists(fileName))
+				throw new GDAMappingException("Mapping file \"{0}\" not exists.", fileName);
+			using (var fs = new System.IO.FileStream(fileName, System.IO.FileMode.Open, System.IO.FileAccess.Read))
+				Import(fs);
 		}
-		public static void Import (System.IO.Stream a)
+
+		/// <summary>
+		/// Importa os dados do mapeamento contido na stream.
+		/// </summary>
+		/// <param name="inputStream"></param>
+		public static void Import(System.IO.Stream inputStream)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("inputStream");
-			try {
-				var b = XmlReader.Create (a, new XmlReaderSettings {
+			if(inputStream == null)
+				throw new ArgumentNullException("inputStream");
+			try
+			{
+				var reader = XmlReader.Create(inputStream, new XmlReaderSettings {
 					IgnoreWhitespace = true,
 					IgnoreComments = true,
 				});
-				var c = new System.Xml.XmlDocument ();
-				c.Load (b);
-				var d = c.DocumentElement;
-				if (!(d.LocalName == "gda-mapping" && d.NamespaceURI == "urn:gda-mapping-1.0"))
+				var doc = new System.Xml.XmlDocument();
+				doc.Load(reader);
+				var root = doc.DocumentElement;
+				if(!(root.LocalName == "gda-mapping" && root.NamespaceURI == "urn:gda-mapping-1.0"))
 					return;
-				var e = ElementMapping.GetAttributeString (d, "namespace");
-				var f = ElementMapping.GetAttributeString (d, "assembly");
-				var g = ElementMapping.GetAttributeString (d, "defaultProviderName");
-				var h = ElementMapping.GetAttributeString (d, "defaultProviderConfigurationName");
-				var j = ElementMapping.GetAttributeString (d, "defaultConnectionString");
-				var k = ElementMapping.GetAttributeString (d, "defaultSchema");
-				foreach (XmlElement referencesElement in d.GetElementsByTagName ("references")) {
-					foreach (XmlElement i in referencesElement.GetElementsByTagName ("reference")) {
-						var l = new ReferenceMapping (i);
-						bool n = false;
+				var mappingNamespace = ElementMapping.GetAttributeString(root, "namespace");
+				var mappingAssembly = ElementMapping.GetAttributeString(root, "assembly");
+				var defaultProviderName = ElementMapping.GetAttributeString(root, "defaultProviderName");
+				var defaultProviderConfigurationName = ElementMapping.GetAttributeString(root, "defaultProviderConfigurationName");
+				var defaultConnectionString = ElementMapping.GetAttributeString(root, "defaultConnectionString");
+				var defaultSchema = ElementMapping.GetAttributeString(root, "defaultSchema");
+				foreach (XmlElement referencesElement in root.GetElementsByTagName("references"))
+				{
+					foreach (XmlElement i in referencesElement.GetElementsByTagName("reference"))
+					{
+						var refMapping = new ReferenceMapping(i);
+						bool exists = false;
 						lock (objLock)
-							n = _references.Exists (o => o.Equals (l));
-						if (!n) {
+							exists = _references.Exists(f => f.Equals(refMapping));
+						if(!exists)
+						{
 							lock (objLock)
-								_references.Add (l);
-							if (!string.IsNullOrEmpty (l.FileName))
-								Import (l.FileName);
+								_references.Add(refMapping);
+							if(!string.IsNullOrEmpty(refMapping.FileName))
+								Import(refMapping.FileName);
 							else
-								Import (l.AssemblyName, l.ResourceName);
+								Import(refMapping.AssemblyName, refMapping.ResourceName);
 						}
 					}
 					break;
 				}
-				lock (objLock) {
-					foreach (XmlElement i in d.GetElementsByTagName ("class")) {
-						var p = new ClassMapping (i, e, f, g, h, j, k);
-						if (!_classes.ContainsKey (p.TypeInfo.Fullname))
-							_classes.Add (p.TypeInfo.Fullname, p);
+				lock (objLock)
+				{
+					foreach (XmlElement i in root.GetElementsByTagName("class"))
+					{
+						var classMap = new ClassMapping(i, mappingNamespace, mappingAssembly, defaultProviderName, defaultProviderConfigurationName, defaultConnectionString, defaultSchema);
+						if(!_classes.ContainsKey(classMap.TypeInfo.Fullname))
+							_classes.Add(classMap.TypeInfo.Fullname, classMap);
 					}
-					foreach (XmlElement i in d.GetElementsByTagName ("sql-query")) {
-						var q = new SqlQueryMapping (i);
-						if (!_queries.ContainsKey (q.Name))
-							_queries.Add (q.Name, q);
+					foreach (XmlElement i in root.GetElementsByTagName("sql-query"))
+					{
+						var queryMap = new SqlQueryMapping(i);
+						if(!_queries.ContainsKey(queryMap.Name))
+							_queries.Add(queryMap.Name, queryMap);
 					}
-					var r = ElementMapping.FirstOrDefault<XmlElement> (d.GetElementsByTagName ("modelsNamespace"));
-					if (r != null)
-						foreach (XmlElement i in r.GetElementsByTagName ("namespace")) {
-							var s = new ModelsNamespaceMapping (i);
-							GDASettings.AddModelsNamespace (s.Assembly, s.Namespace);
+					var modelsNamespace = ElementMapping.FirstOrDefault<XmlElement>(root.GetElementsByTagName("modelsNamespace"));
+					if(modelsNamespace != null)
+						foreach (XmlElement i in modelsNamespace.GetElementsByTagName("namespace"))
+						{
+							var ns = new ModelsNamespaceMapping(i);
+							GDASettings.AddModelsNamespace(ns.Assembly, ns.Namespace);
 						}
-					XmlElement t = ElementMapping.FirstOrDefault<XmlElement> (d.GetElementsByTagName ("generateKeyHandler"));
-					if (t != null) {
-						GDASettings.DefineGenerateKeyHandler (ElementMapping.GetAttributeString (t, "classType", true), ElementMapping.GetAttributeString (t, "methodName", true));
+					XmlElement generateKeyHandlerElement = ElementMapping.FirstOrDefault<XmlElement>(root.GetElementsByTagName("generateKeyHandler"));
+					if(generateKeyHandlerElement != null)
+					{
+						GDASettings.DefineGenerateKeyHandler(ElementMapping.GetAttributeString(generateKeyHandlerElement, "classType", true), ElementMapping.GetAttributeString(generateKeyHandlerElement, "methodName", true));
 					}
-					var u = ElementMapping.FirstOrDefault<XmlElement> (d.GetElementsByTagName ("generatorsKey"));
-					if (u != null)
-						foreach (XmlElement i in u.GetElementsByTagName ("generator")) {
-							var w = new GeneratorKeyMapping (i);
-							IGeneratorKey x = null;
-							try {
-								x = Activator.CreateInstance (w.ClassType) as IGeneratorKey;
+					var generatorsElement = ElementMapping.FirstOrDefault<XmlElement>(root.GetElementsByTagName("generatorsKey"));
+					if(generatorsElement != null)
+						foreach (XmlElement i in generatorsElement.GetElementsByTagName("generator"))
+						{
+							var gk = new GeneratorKeyMapping(i);
+							IGeneratorKey instance = null;
+							try
+							{
+								instance = Activator.CreateInstance(gk.ClassType) as IGeneratorKey;
 							}
-							catch (Exception ex) {
-								if (ex is System.Reflection.TargetInvocationException)
+							catch(Exception ex)
+							{
+								if(ex is System.Reflection.TargetInvocationException)
 									ex = ex.InnerException;
-								throw new GDAMappingException ("Fail on create instance for \"{0}\".", w.ClassType.FullName);
+								throw new GDAMappingException("Fail on create instance for \"{0}\".", gk.ClassType.FullName);
 							}
-							if (x == null)
-								throw new GDAMappingException ("\"{0}\" not inherits of {1}.", w.ClassType.FullName, typeof(IGeneratorKey).FullName);
-							GDASettings.AddGeneratorKey (w.Name, x);
+							if(instance == null)
+								throw new GDAMappingException("\"{0}\" not inherits of {1}.", gk.ClassType.FullName, typeof(IGeneratorKey).FullName);
+							GDASettings.AddGeneratorKey(gk.Name, instance);
 						}
 				}
 			}
-			catch (Exception ex) {
-				if (ex is GDAMappingException)
+			catch(Exception ex)
+			{
+				if(ex is GDAMappingException)
 					throw ex;
 				else
-					throw new GDAMappingException ("Fail on load mapping", ex);
+					throw new GDAMappingException("Fail on load mapping", ex);
 			}
 		}
-		public static XmlDocument RefactorSystemMapping (System.Reflection.Assembly a)
+
+		/// <summary>
+		/// Realiza um refactor no mapeamento do sistema.
+		/// </summary>
+		/// <returns></returns>
+		public static XmlDocument RefactorSystemMapping(System.Reflection.Assembly assembly)
 		{
-			var b = new XmlDocument ();
-			var c = a.FullName;
-			c = c.Substring (0, c.IndexOf (','));
-			var d = b.CreateElement ("gda-mapping");
-			d.SetAttribute ("assembly", a.FullName);
-			d.SetAttribute ("namespace", c);
-			d.SetAttribute ("xmlns", "urn:gda-mapping-1.0");
-			var e = b.CreateElement ("modelsNamespace");
-			foreach (var i in GDASettings.ModelsNamespaces) {
-				var f = b.CreateElement ("namespace");
-				f.SetAttribute ("name", i.Namespace);
-				f.SetAttribute ("assembly", i.AssemblyName);
-				e.AppendChild (f);
+			var doc = new XmlDocument();
+			var baseNamespace = assembly.FullName;
+			baseNamespace = baseNamespace.Substring(0, baseNamespace.IndexOf(','));
+			var root = doc.CreateElement("gda-mapping");
+			root.SetAttribute("assembly", assembly.FullName);
+			root.SetAttribute("namespace", baseNamespace);
+			root.SetAttribute("xmlns", "urn:gda-mapping-1.0");
+			var mnElement = doc.CreateElement("modelsNamespace");
+			foreach (var i in GDASettings.ModelsNamespaces)
+			{
+				var nElement = doc.CreateElement("namespace");
+				nElement.SetAttribute("name", i.Namespace);
+				nElement.SetAttribute("assembly", i.AssemblyName);
+				mnElement.AppendChild(nElement);
 			}
-			d.AppendChild (e);
+			root.AppendChild(mnElement);
 			#if !PocketPC
-			if (GDAOperations.GlobalGenerateKey != null) {
-				var g = GDAOperations.GlobalGenerateKey.Method;
-				var h = b.CreateElement ("generateKeyHandler");
-				h.SetAttribute ("methodName", g.Name);
-				h.SetAttribute ("classType", g.DeclaringType.FullName);
+			if(GDAOperations.GlobalGenerateKey != null)
+			{
+				var mi = GDAOperations.GlobalGenerateKey.Method;
+				var ggkElement = doc.CreateElement("generateKeyHandler");
+				ggkElement.SetAttribute("methodName", mi.Name);
+				ggkElement.SetAttribute("classType", mi.DeclaringType.FullName);
 			}
 			#endif
-			var j = b.CreateElement ("generatorsKey");
-			foreach (var i in GDASettings.GetGeneratorsKey ()) {
-				var k = b.CreateElement ("generator");
-				k.SetAttribute ("name", i.Key);
-				k.SetAttribute ("classType", i.Value.GetType ().FullName);
-				j.AppendChild (k);
+			var gkElement = doc.CreateElement("generatorsKey");
+			foreach (var i in GDASettings.GetGeneratorsKey())
+			{
+				var gElement = doc.CreateElement("generator");
+				gElement.SetAttribute("name", i.Key);
+				gElement.SetAttribute("classType", i.Value.GetType().FullName);
+				gkElement.AppendChild(gElement);
 			}
-			d.AppendChild (j);
-			foreach (var i in a.GetTypes ()) {
-				var l = RefactorClass (i, c, b);
-				if (l != null)
-					d.AppendChild (l);
+			root.AppendChild(gkElement);
+			foreach (var i in assembly.GetTypes())
+			{
+				var classElement = RefactorClass(i, baseNamespace, doc);
+				if(classElement != null)
+					root.AppendChild(classElement);
 			}
-			b.AppendChild (d);
-			return b;
+			doc.AppendChild(root);
+			return doc;
 		}
-		public static XmlElement RefactorClass (Type a, string b, XmlDocument c)
+
+		/// <summary>
+		/// Processa a classe e recupera um elemento que representa seu mapeamento.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <param name="baseNamespace">Namespace base.</param>
+		/// <param name="doc"></param>
+		/// <returns></returns>
+		public static XmlElement RefactorClass(Type type, string baseNamespace, XmlDocument doc)
 		{
-			var d = Caching.MappingManager.GetPersistenceClassAttribute (a);
-			var e = c.CreateElement ("class");
-			var f = a.FullName;
-			if (f.StartsWith (b + '.'))
-				f = f.Substring (b.Length + 1);
-			e.SetAttribute ("name", f);
-			if (d != null) {
-				e.SetAttribute ("table", d.Name);
-				if (!string.IsNullOrEmpty (d.Schema))
-					e.SetAttribute ("schema", d.Schema);
+			var ppa = Caching.MappingManager.GetPersistenceClassAttribute(type);
+			var element = doc.CreateElement("class");
+			var name = type.FullName;
+			if(name.StartsWith(baseNamespace + '.'))
+				name = name.Substring(baseNamespace.Length + 1);
+			element.SetAttribute("name", name);
+			if(ppa != null)
+			{
+				element.SetAttribute("table", ppa.Name);
+				if(!string.IsNullOrEmpty(ppa.Schema))
+					element.SetAttribute("schema", ppa.Schema);
 			}
-			var g = Caching.MappingManager.GetPersistenceBaseDAOAttribute (a);
-			if (g != null) {
-				var h = c.CreateElement ("baseDAO");
-				f = g.BaseDAOType.FullName;
-				if (f.StartsWith (b + '.'))
-					f = f.Substring (b.Length + 1);
-				h.SetAttribute ("name", f);
-				if (g.BaseDAOGenericTypes != null)
-					foreach (var i in g.BaseDAOGenericTypes) {
-						var j = c.CreateElement ("genericType");
-						j.SetAttribute ("name", i.FullName);
+			var bda = Caching.MappingManager.GetPersistenceBaseDAOAttribute(type);
+			if(bda != null)
+			{
+				var bdaElement = doc.CreateElement("baseDAO");
+				name = bda.BaseDAOType.FullName;
+				if(name.StartsWith(baseNamespace + '.'))
+					name = name.Substring(baseNamespace.Length + 1);
+				bdaElement.SetAttribute("name", name);
+				if(bda.BaseDAOGenericTypes != null)
+					foreach (var i in bda.BaseDAOGenericTypes)
+					{
+						var gElement = doc.CreateElement("genericType");
+						gElement.SetAttribute("name", i.FullName);
 					}
-				e.AppendChild (h);
+				element.AppendChild(bdaElement);
 			}
-			var k = Caching.MappingManager.GetPersistenceProviderAttribute (a);
-			if (k != null) {
-				var l = c.CreateElement ("provider");
-				l.SetAttribute ("name", k.ProviderName);
-				if (!string.IsNullOrEmpty (k.ProviderConfigurationName))
-					l.SetAttribute ("configurationName", k.ProviderConfigurationName);
-				if (!string.IsNullOrEmpty (k.ConnectionString)) {
-					var n = c.CreateElement ("connectionString");
-					n.InnerText = k.ConnectionString;
-					l.AppendChild (n);
+			var prov = Caching.MappingManager.GetPersistenceProviderAttribute(type);
+			if(prov != null)
+			{
+				var provElement = doc.CreateElement("provider");
+				provElement.SetAttribute("name", prov.ProviderName);
+				if(!string.IsNullOrEmpty(prov.ProviderConfigurationName))
+					provElement.SetAttribute("configurationName", prov.ProviderConfigurationName);
+				if(!string.IsNullOrEmpty(prov.ConnectionString))
+				{
+					var csElement = doc.CreateElement("connectionString");
+					csElement.InnerText = prov.ConnectionString;
+					provElement.AppendChild(csElement);
 				}
-				e.AppendChild (l);
+				element.AppendChild(provElement);
 			}
-			var o = Caching.MappingManager.GetForeignMemberMapper (a);
-			foreach (var m in Caching.MappingManager.GetMappers (a)) {
-				if (m.PropertyMapper.DeclaringType != m.PropertyMapper.ReflectedType)
+			var fkMembers = Caching.MappingManager.GetForeignMemberMapper(type);
+			foreach (var m in Caching.MappingManager.GetMappers(type))
+			{
+				if(m.PropertyMapper.DeclaringType != m.PropertyMapper.ReflectedType)
 					continue;
-				var p = c.CreateElement ("property");
-				p.SetAttribute ("name", m.PropertyMapperName);
-				if (m.Name != m.PropertyMapperName)
-					p.SetAttribute ("column", m.Name);
-				if (m.ParameterType != PersistenceParameterType.Field)
-					p.SetAttribute ("parameterType", m.ParameterType.ToString ());
-				if (m.Size > 0)
-					p.SetAttribute ("size", m.Size.ToString ());
-				if (m.Direction != DirectionParameter.InputOutput)
-					p.SetAttribute ("direction", m.Direction.ToString ());
-				if (m.IsNotNull)
-					p.SetAttribute ("not-null", m.IsNotNull.ToString ());
-				if (!string.IsNullOrEmpty (m.GeneratorKeyName)) {
-					var j = c.CreateElement ("generator");
-					j.SetAttribute ("name", m.GeneratorKeyName);
-					p.AppendChild (j);
+				var pElement = doc.CreateElement("property");
+				pElement.SetAttribute("name", m.PropertyMapperName);
+				if(m.Name != m.PropertyMapperName)
+					pElement.SetAttribute("column", m.Name);
+				if(m.ParameterType != PersistenceParameterType.Field)
+					pElement.SetAttribute("parameterType", m.ParameterType.ToString());
+				if(m.Size > 0)
+					pElement.SetAttribute("size", m.Size.ToString());
+				if(m.Direction != DirectionParameter.InputOutput)
+					pElement.SetAttribute("direction", m.Direction.ToString());
+				if(m.IsNotNull)
+					pElement.SetAttribute("not-null", m.IsNotNull.ToString());
+				if(!string.IsNullOrEmpty(m.GeneratorKeyName))
+				{
+					var gElement = doc.CreateElement("generator");
+					gElement.SetAttribute("name", m.GeneratorKeyName);
+					pElement.AppendChild(gElement);
 				}
-				if (m.ForeignKeys != null)
-					foreach (var fk in m.ForeignKeys) {
-						var q = c.CreateElement ("foreignKey");
-						f = fk.TypeOfClassRelated.FullName;
-						if (f.StartsWith (b + '.'))
-							f = f.Substring (b.Length + 1);
-						q.SetAttribute ("typeOfClassRelated", f);
-						q.SetAttribute ("propertyName", fk.PropertyOfClassRelated.Name);
-						if (!string.IsNullOrEmpty (fk.GroupOfRelationship))
-							q.SetAttribute ("groupOfRelationship", fk.GroupOfRelationship);
-						p.AppendChild (q);
+				if(m.ForeignKeys != null)
+					foreach (var fk in m.ForeignKeys)
+					{
+						var fkElement = doc.CreateElement("foreignKey");
+						name = fk.TypeOfClassRelated.FullName;
+						if(name.StartsWith(baseNamespace + '.'))
+							name = name.Substring(baseNamespace.Length + 1);
+						fkElement.SetAttribute("typeOfClassRelated", name);
+						fkElement.SetAttribute("propertyName", fk.PropertyOfClassRelated.Name);
+						if(!string.IsNullOrEmpty(fk.GroupOfRelationship))
+							fkElement.SetAttribute("groupOfRelationship", fk.GroupOfRelationship);
+						pElement.AppendChild(fkElement);
 					}
-				foreach (var fkm in o)
-					if (fkm.PropertyModel.Name == m.PropertyMapperName) {
-						var q = c.CreateElement ("foreignKey");
-						f = fkm.TypeOfClassRelated.FullName;
-						if (f.StartsWith (b + '.'))
-							f = f.Substring (b.Length + 1);
-						q.SetAttribute ("typeOfClassRelated", f);
-						q.SetAttribute ("propertyName", fkm.PropertyOfClassRelated.Name);
-						if (!string.IsNullOrEmpty (fkm.GroupOfRelationship))
-							q.SetAttribute ("groupOfRelationship", fkm.GroupOfRelationship);
-						p.AppendChild (q);
+				foreach (var fkm in fkMembers)
+					if(fkm.PropertyModel.Name == m.PropertyMapperName)
+					{
+						var fkElement = doc.CreateElement("foreignKey");
+						name = fkm.TypeOfClassRelated.FullName;
+						if(name.StartsWith(baseNamespace + '.'))
+							name = name.Substring(baseNamespace.Length + 1);
+						fkElement.SetAttribute("typeOfClassRelated", name);
+						fkElement.SetAttribute("propertyName", fkm.PropertyOfClassRelated.Name);
+						if(!string.IsNullOrEmpty(fkm.GroupOfRelationship))
+							fkElement.SetAttribute("groupOfRelationship", fkm.GroupOfRelationship);
+						pElement.AppendChild(fkElement);
 					}
-				if (m.Validation != null && m.Validation.Validators != null)
-					foreach (var v in m.Validation.Validators) {
-						var r = c.CreateElement ("validator");
-						r.SetAttribute ("name", r.Name);
-						foreach (var pi in v.GetType ().GetProperties ())
-							try {
-								var s = pi.GetValue (v, null);
-								var t = c.CreateElement ("param");
-								t.SetAttribute ("name", pi.Name);
-								t.InnerText = s.ToString ();
+				if(m.Validation != null && m.Validation.Validators != null)
+					foreach (var v in m.Validation.Validators)
+					{
+						var vElement = doc.CreateElement("validator");
+						vElement.SetAttribute("name", vElement.Name);
+						foreach (var pi in v.GetType().GetProperties())
+							try
+							{
+								var val = pi.GetValue(v, null);
+								var eParam = doc.CreateElement("param");
+								eParam.SetAttribute("name", pi.Name);
+								eParam.InnerText = val.ToString();
 							}
-							catch {
+							catch
+							{
 							}
 					}
-				e.AppendChild (p);
+				element.AppendChild(pElement);
 			}
-			if (e.IsEmpty)
+			if(element.IsEmpty)
 				return null;
-			return e;
+			return element;
 		}
 	}
 }

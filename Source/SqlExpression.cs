@@ -1,34 +1,80 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Sql.InterpreterExpression.Enums;
+
 namespace GDA.Sql.InterpreterExpression.Nodes
 {
+	/// <summary>
+	/// Representa uma expressão Sql.
+	/// </summary>
 	class SqlExpression
 	{
 		private Expression _value;
+
 		private SqlExpressionType _type;
-		public Expression Value {
-			get {
+
+		/// <summary>
+		/// Valor da expressão.
+		/// </summary>
+		public Expression Value
+		{
+			get
+			{
 				return _value;
 			}
-			set {
+			set
+			{
 				_value = value;
 			}
 		}
-		public SqlExpressionType Type {
-			get {
+
+		/// <summary>
+		/// Tipo da expressão.
+		/// </summary>
+		public SqlExpressionType Type
+		{
+			get
+			{
 				return _type;
 			}
-			set {
+			set
+			{
 				_type = value;
 			}
 		}
-		internal SqlExpression (Expression a)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="expression">Expressão relacionadas</param>
+		internal SqlExpression(Expression expression)
 		{
-			switch (a.Token) {
+			switch(expression.Token)
+			{
 			case TokenID.Identifier:
-				if (a.Text [0] == '?' || a.Text [0] == '@')
+				if(expression.Text[0] == '?' || expression.Text[0] == '@')
 					_type = SqlExpressionType.Variable;
 				else
 					_type = SqlExpressionType.Column;
@@ -78,16 +124,27 @@ namespace GDA.Sql.InterpreterExpression.Nodes
 				_type = SqlExpressionType.Column;
 				break;
 			}
-			_value = a;
+			_value = expression;
 		}
-		public SqlExpression (Expression a, SqlExpressionType b)
+
+		/// <summary>
+		/// Construtor completo.
+		/// </summary>
+		/// <param name="value">Expressão.</param>
+		/// <param name="type">Tipo da expressão.</param>
+		public SqlExpression(Expression value, SqlExpressionType type)
 		{
-			_type = b;
-			if (b == SqlExpressionType.Column && a.Length > 0 && (a.Text [0] == '?' || a.Text [0] == '@'))
+			_type = type;
+			if(type == SqlExpressionType.Column && value.Length > 0 && (value.Text[0] == '?' || value.Text[0] == '@'))
 				_type = SqlExpressionType.Variable;
-			_value = a;
+			_value = value;
 		}
-		public override string ToString ()
+
+		/// <summary>
+		/// Recupera o texto que representa a instancia.
+		/// </summary>
+		/// <returns></returns>
+		public override string ToString()
 		{
 			return _value.Text;
 		}

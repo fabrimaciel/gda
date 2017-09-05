@@ -1,208 +1,365 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data;
+
 namespace GDA.Sql
 {
 	public class ConditionalContainer : Conditional, IGDAParameterContainer
 	{
-		private List<Conditional> _conditionals = new List<Conditional> ();
-		private List<LogicalOperator> _logicalOperators = new List<LogicalOperator> ();
-		private Collections.GDAParameterCollection _parameters = new Collections.GDAParameterCollection ();
+		/// <summary>
+		/// Condições do container.
+		/// </summary>
+		private List<Conditional> _conditionals = new List<Conditional>();
+
+		/// <summary>
+		/// Operadores lógicos usados.
+		/// </summary>
+		private List<LogicalOperator> _logicalOperators = new List<LogicalOperator>();
+
+		private Collections.GDAParameterCollection _parameters = new Collections.GDAParameterCollection();
+
 		private IGDAParameterContainer _parameterContainer;
-		public override ConditionalContainer Parent {
-			get {
+
+		public override ConditionalContainer Parent
+		{
+			get
+			{
 				return base.Parent;
 			}
-			internal set {
+			internal set
+			{
 				base.Parent = value;
 				ParameterContainer = value.ParameterContainer;
 			}
 		}
-		public virtual IGDAParameterContainer ParameterContainer {
-			get {
-				if (_parameterContainer == null)
-					_parameterContainer = new Collections.GDAParameterCollection ();
+
+		/// <summary>
+		/// Container onde são registrados os parametros.
+		/// </summary>
+		public virtual IGDAParameterContainer ParameterContainer
+		{
+			get
+			{
+				if(_parameterContainer == null)
+					_parameterContainer = new Collections.GDAParameterCollection();
 				return _parameterContainer;
 			}
-			set {
-				if (_parameterContainer != null && value != null && _parameterContainer != value)
-					foreach (var i in _parameterContainer) {
-						var a = false;
+			set
+			{
+				if(_parameterContainer != null && value != null && _parameterContainer != value)
+					foreach (var i in _parameterContainer)
+					{
+						var found = false;
 						foreach (var j in value)
-							if (j.ParameterName == i.ParameterName) {
-								a = true;
+							if(j.ParameterName == i.ParameterName)
+							{
+								found = true;
 								continue;
 							}
-						if (!a)
-							value.Add (i);
+						if(!found)
+							value.Add(i);
 					}
 				_parameterContainer = value;
 			}
 		}
-		public int Count {
-			get {
+
+		/// <summary>
+		/// Quantidade de itens no container.
+		/// </summary>
+		public int Count
+		{
+			get
+			{
 				return _conditionals.Count;
 			}
 		}
-		public ConditionalContainer ()
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		public ConditionalContainer()
 		{
 		}
-		public ConditionalContainer (string a)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="expression"></param>
+		public ConditionalContainer(string expression)
 		{
-			if (!string.IsNullOrEmpty (a)) {
-				var b = new Conditional (a);
-				b.Parent = this;
-				_conditionals.Add (b);
+			if(!string.IsNullOrEmpty(expression))
+			{
+				var cond = new Conditional(expression);
+				cond.Parent = this;
+				_conditionals.Add(cond);
 			}
 		}
-		public ConditionalContainer (Conditional a)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="conditional"></param>
+		public ConditionalContainer(Conditional conditional)
 		{
-			if (a != null) {
-				a.Parent = this;
-				_conditionals.Add (a);
-				if (a is ConditionalContainer) {
-					var b = (ConditionalContainer)a;
-					if (b.ParameterContainer != this.ParameterContainer)
-						b.ParameterContainer = this.ParameterContainer;
+			if(conditional != null)
+			{
+				conditional.Parent = this;
+				_conditionals.Add(conditional);
+				if(conditional is ConditionalContainer)
+				{
+					var cc = (ConditionalContainer)conditional;
+					if(cc.ParameterContainer != this.ParameterContainer)
+						cc.ParameterContainer = this.ParameterContainer;
 				}
 			}
 		}
-		public virtual ConditionalContainer And (Conditional a)
+
+		/// <summary>
+		/// Adiciona uma condição do tipo AND.
+		/// </summary>
+		/// <param name="conditional"></param>
+		/// <returns></returns>
+		public virtual ConditionalContainer And(Conditional conditional)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("conditional");
-			a.Parent = this;
-			_conditionals.Add (a);
-			if (_conditionals.Count > 1)
-				_logicalOperators.Add (LogicalOperator.And);
+			if(conditional == null)
+				throw new ArgumentNullException("conditional");
+			conditional.Parent = this;
+			_conditionals.Add(conditional);
+			if(_conditionals.Count > 1)
+				_logicalOperators.Add(LogicalOperator.And);
 			return this;
 		}
-		public virtual ConditionalContainer Or (Conditional a)
+
+		/// <summary>
+		/// Adiciona uma condição do tipo OR.
+		/// </summary>
+		/// <param name="conditional"></param>
+		/// <returns></returns>
+		public virtual ConditionalContainer Or(Conditional conditional)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("conditional");
-			a.Parent = this;
-			_conditionals.Add (a);
-			if (_conditionals.Count > 1)
-				_logicalOperators.Add (LogicalOperator.Or);
+			if(conditional == null)
+				throw new ArgumentNullException("conditional");
+			conditional.Parent = this;
+			_conditionals.Add(conditional);
+			if(_conditionals.Count > 1)
+				_logicalOperators.Add(LogicalOperator.Or);
 			return this;
 		}
-		public virtual ConditionalContainer And (string a)
+
+		/// <summary>
+		/// Adiciona uma condição do tipo AND.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public virtual ConditionalContainer And(string expression)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("expression");
-			_conditionals.Add (new Conditional (a));
-			if (_conditionals.Count > 1)
-				_logicalOperators.Add (LogicalOperator.And);
+			if(expression == null)
+				throw new ArgumentNullException("expression");
+			_conditionals.Add(new Conditional(expression));
+			if(_conditionals.Count > 1)
+				_logicalOperators.Add(LogicalOperator.And);
 			return this;
 		}
-		public virtual ConditionalContainer Or (string a)
+
+		/// <summary>
+		/// Adiciona uma condição do tipo OR.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public virtual ConditionalContainer Or(string expression)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("expression");
-			_conditionals.Add (new Conditional (a));
-			if (_conditionals.Count > 1)
-				_logicalOperators.Add (LogicalOperator.Or);
+			if(expression == null)
+				throw new ArgumentNullException("expression");
+			_conditionals.Add(new Conditional(expression));
+			if(_conditionals.Count > 1)
+				_logicalOperators.Add(LogicalOperator.Or);
 			return this;
 		}
-		public virtual ConditionalContainer Start (Conditional a)
+
+		/// <summary>
+		/// Adiciona a condição inicial. Essa operação limpa todas a outras condições já existentes.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public virtual ConditionalContainer Start(Conditional conditional)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("conditional");
-			foreach (var i in _conditionals) {
+			if(conditional == null)
+				throw new ArgumentNullException("conditional");
+			foreach (var i in _conditionals)
+			{
 				i.Parent = null;
 			}
-			_conditionals.Clear ();
-			_logicalOperators.Clear ();
-			a.Parent = this;
-			_conditionals.Add (a);
+			_conditionals.Clear();
+			_logicalOperators.Clear();
+			conditional.Parent = this;
+			_conditionals.Add(conditional);
 			return this;
 		}
-		public virtual ConditionalContainer Start (string a)
+
+		/// <summary>
+		/// Adiciona a condição inicial. Essa operação limpa todas a outras condições já existentes.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public virtual ConditionalContainer Start(string expression)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("expression");
-			foreach (var i in _conditionals) {
+			if(expression == null)
+				throw new ArgumentNullException("expression");
+			foreach (var i in _conditionals)
+			{
 				i.Parent = null;
 			}
-			_conditionals.Clear ();
-			_logicalOperators.Clear ();
-			_conditionals.Add (new Conditional (a));
+			_conditionals.Clear();
+			_logicalOperators.Clear();
+			_conditionals.Add(new Conditional(expression));
 			return this;
 		}
-		public override string ToString ()
+
+		/// <summary>
+		/// Recupera o texto que representa a instancia.
+		/// </summary>
+		/// <returns></returns>
+		public override string ToString()
 		{
-			var a = new StringBuilder ();
-			for (int b = 0, c = -1; b < _conditionals.Count; b++, c++) {
-				if (_logicalOperators.Count > c && c >= 0)
-					a.Append (_logicalOperators [c] == LogicalOperator.Or ? " OR " : " AND ");
-				a.Append (_conditionals [b].ToString ());
+			var sb = new StringBuilder();
+			for(int i = 0, j = -1; i < _conditionals.Count; i++, j++)
+			{
+				if(_logicalOperators.Count > j && j >= 0)
+					sb.Append(_logicalOperators[j] == LogicalOperator.Or ? " OR " : " AND ");
+				sb.Append(_conditionals[i].ToString());
 			}
-			if (Parent != null)
-				return "(" + a.ToString () + ")";
+			if(Parent != null)
+				return "(" + sb.ToString() + ")";
 			else
-				return a.ToString ();
+				return sb.ToString();
 		}
-		public ConditionalContainer Add (string a, DbType b, object c)
+
+		/// <summary>
+		/// Adicionar um parametro.
+		/// </summary>
+		/// <param name="name">Nome do parametro.</param>
+		/// <param name="dbtype">Tipo usado na base de dados.</param>
+		/// <param name="value">parameter value</param>
+		public ConditionalContainer Add(string name, DbType dbtype, object value)
 		{
-			ParameterContainer.Add (new GDAParameter (a, c) {
-				DbType = b
+			ParameterContainer.Add(new GDAParameter(name, value) {
+				DbType = dbtype
 			});
 			return this;
 		}
-		public ConditionalContainer Add (string a, object b)
+
+		public ConditionalContainer Add(string name, object value)
 		{
-			ParameterContainer.Add (new GDAParameter (a, b));
+			ParameterContainer.Add(new GDAParameter(name, value));
 			return this;
 		}
-		public ConditionalContainer Add (DbType a, int b, object c)
+
+		/// <summary>
+		/// Adds a parameter.
+		/// </summary>
+		/// <param name="dbtype">database data type</param>
+		/// <param name="size">size of the database data type</param>
+		/// <param name="value">parameter value</param>
+		public ConditionalContainer Add(DbType dbtype, int size, object value)
 		{
-			ParameterContainer.Add (new GDAParameter () {
-				DbType = a,
-				Size = b,
-				Value = c
+			ParameterContainer.Add(new GDAParameter() {
+				DbType = dbtype,
+				Size = size,
+				Value = value
 			});
 			return this;
 		}
-		public ConditionalContainer Add (string a, DbType b, int c, object d)
+
+		/// <summary>
+		/// Adds a parameter.
+		/// </summary>
+		/// <param name="name">parameter name</param>
+		/// <param name="dbtype">database data type</param>
+		/// <param name="size">size of the database data type</param>
+		/// <param name="value">parameter value</param>
+		public ConditionalContainer Add(string name, DbType dbtype, int size, object value)
 		{
-			ParameterContainer.Add (new GDAParameter () {
-				ParameterName = a,
-				DbType = b,
-				Size = c,
-				Value = d
+			ParameterContainer.Add(new GDAParameter() {
+				ParameterName = name,
+				DbType = dbtype,
+				Size = size,
+				Value = value
 			});
 			return this;
 		}
-		public ConditionalContainer Add (GDAParameter a)
+
+		public ConditionalContainer Add(GDAParameter parameter)
 		{
-			ParameterContainer.Add (a);
+			ParameterContainer.Add(parameter);
 			return this;
 		}
-		IEnumerator<GDAParameter> IEnumerable<GDAParameter>.GetEnumerator ()
+
+		IEnumerator<GDAParameter> IEnumerable<GDAParameter>.GetEnumerator()
 		{
-			return ParameterContainer.GetEnumerator ();
+			return ParameterContainer.GetEnumerator();
 		}
-		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator ()
+
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
 		{
-			return ParameterContainer.GetEnumerator ();
+			return ParameterContainer.GetEnumerator();
 		}
-		void IGDAParameterContainer.Add (GDAParameter parameter)
+
+		void IGDAParameterContainer.Add(GDAParameter parameter)
 		{
-			ParameterContainer.Add (parameter);
+			ParameterContainer.Add(parameter);
 		}
-		bool IGDAParameterContainer.TryGet (string a, out GDAParameter b)
+
+		/// <summary>
+		/// Tenta recupera o parametro pelo nome informado.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="parameter"></param>
+		/// <returns></returns>
+		bool IGDAParameterContainer.TryGet(string name, out GDAParameter parameter)
 		{
-			return ParameterContainer.TryGet (a, out b);
+			return ParameterContainer.TryGet(name, out parameter);
 		}
-		bool IGDAParameterContainer.ContainsKey (string a)
+
+		/// <summary>
+		/// Verifica se existe algum parametro com o nome informado.
+		/// </summary>
+		/// <param name="name">Nome do parametro.</param>
+		/// <returns></returns>
+		bool IGDAParameterContainer.ContainsKey(string name)
 		{
-			return ParameterContainer.ContainsKey (a);
+			return ParameterContainer.ContainsKey(name);
 		}
-		bool IGDAParameterContainer.Remove (string a)
+
+		/// <summary>
+		/// Remove o parametro pelo nome informado.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <returns></returns>
+		bool IGDAParameterContainer.Remove(string name)
 		{
-			return ParameterContainer.Remove (a);
+			return ParameterContainer.Remove(name);
 		}
 	}
 }

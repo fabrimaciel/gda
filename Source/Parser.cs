@@ -1,232 +1,374 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Sql.InterpreterExpression.Enums;
 using GDA.Sql.InterpreterExpression.Nodes;
+
 namespace GDA.Sql.InterpreterExpression
 {
 	class Parser
 	{
+		/// <summary>
+		/// Examinador lexer relacionado.
+		/// </summary>
 		private Lexer _lex;
+
 		private List<Expression> expressions;
+
 		private int posCurrentExpression = 0;
-		private List<Select> _selectParts = new List<Select> ();
-		public List<Select> SelectParts {
-			get {
+
+		private List<Select> _selectParts = new List<Select>();
+
+		public List<Select> SelectParts
+		{
+			get
+			{
 				return _selectParts;
 			}
-			set {
+			set
+			{
 				_selectParts = value;
 			}
 		}
-		private Expression CurrentExpression {
-			get {
-				if (posCurrentExpression < expressions.Count)
-					return expressions [posCurrentExpression];
-				else {
-					Expression a = new Expression ();
-					a.Token = TokenID.End;
-					return a;
+
+		private Expression CurrentExpression
+		{
+			get
+			{
+				if(posCurrentExpression < expressions.Count)
+					return expressions[posCurrentExpression];
+				else
+				{
+					Expression expr = new Expression();
+					expr.Token = TokenID.End;
+					return expr;
 				}
 			}
 		}
-		public Lexer Lex {
-			get {
+
+		/// <summary>
+		/// Examinador lexer relacionado.
+		/// </summary>
+		public Lexer Lex
+		{
+			get
+			{
 				return _lex;
 			}
 		}
-		private void Error (string a)
+
+		private void Error(string message)
 		{
-			int b = 13;
-			if (posCurrentExpression <= b)
-				b = posCurrentExpression;
-			StringBuilder c = new StringBuilder ();
-			if (b > 0) {
-				c.Append ("\"");
-				if (b == 13)
-					c.Append ("...");
-				Expression d = GetPreviousExpression (b);
-				int e = d.BeginPoint + d.Length;
-				c.Append (d.Text);
-				for (int f = (b - 1); f > 0; f--) {
-					d = GetPreviousExpression (f);
-					c.Append (' ', (d.BeginPoint - e));
-					if (d.CurrentSpecialContainer != null)
-						c.Append (d.CurrentSpecialContainer.BeginCharSpecialContainer).Append (d.Text).Append (d.CurrentSpecialContainer.EndCharSpecialContainer);
-					else if (d is SpecialContainerExpression)
-						c.Append (((SpecialContainerExpression)d).ContainerChar).Append (d.Text).Append (((SpecialContainerExpression)d).ContainerChar);
+			int step = 13;
+			if(posCurrentExpression <= step)
+				step = posCurrentExpression;
+			StringBuilder express = new StringBuilder();
+			if(step > 0)
+			{
+				express.Append("\"");
+				if(step == 13)
+					express.Append("...");
+				Expression e = GetPreviousExpression(step);
+				int pos = e.BeginPoint + e.Length;
+				express.Append(e.Text);
+				for(int i = (step - 1); i > 0; i--)
+				{
+					e = GetPreviousExpression(i);
+					express.Append(' ', (e.BeginPoint - pos));
+					if(e.CurrentSpecialContainer != null)
+						express.Append(e.CurrentSpecialContainer.BeginCharSpecialContainer).Append(e.Text).Append(e.CurrentSpecialContainer.EndCharSpecialContainer);
+					else if(e is SpecialContainerExpression)
+						express.Append(((SpecialContainerExpression)e).ContainerChar).Append(e.Text).Append(((SpecialContainerExpression)e).ContainerChar);
 					else
-						c.Append (d.Text);
-					e = d.BeginPoint + d.Length;
+						express.Append(e.Text);
+					pos = e.BeginPoint + e.Length;
 				}
-				c.Append ("...\"");
+				express.Append("...\"");
 			}
-			throw new SqlParserException (a + " Command: " + c.ToString ());
+			throw new SqlParserException(message + " Command: " + express.ToString());
 		}
-		private Expression GetPreviousExpression (int a)
+
+		private Expression GetPreviousExpression(int step)
 		{
-			return expressions [posCurrentExpression - a];
+			return expressions[posCurrentExpression - step];
 		}
-		private Expression GetNextExpression (int a)
+
+		private Expression GetNextExpression(int step)
 		{
-			if (posCurrentExpression + a < expressions.Count) {
-				return expressions [posCurrentExpression + a];
+			if(posCurrentExpression + step < expressions.Count)
+			{
+				return expressions[posCurrentExpression + step];
 			}
 			else
-				return new Expression (TokenID.InvalidExpression);
+				return new Expression(TokenID.InvalidExpression);
 		}
-		private bool NextExpression (bool a)
+
+		/// <summary>
+		/// Move para a proxima expressao.
+		/// </summary>
+		/// <param name="expected">Identifica se a proxima expressao e esperada.</param>
+		/// <returns></returns>
+		private bool NextExpression(bool expected)
 		{
-			if (posCurrentExpression < expressions.Count) {
+			if(posCurrentExpression < expressions.Count)
+			{
 				posCurrentExpression++;
 				return true;
 			}
-			else if (a) {
-				Error ("Expected a expression.");
+			else if(expected)
+			{
+				Error("Expected a expression.");
 				return false;
 			}
 			else
 				return false;
 		}
-		public Parser (Lexer a)
+
+		public Parser(Lexer lex)
 		{
-			this._lex = a;
-			this.expressions = a.Expressions;
+			this._lex = lex;
+			this.expressions = lex.Expressions;
 		}
-		public void Execute ()
+
+		/// <summary>
+		/// Executa o parser.
+		/// </summary>
+		public void Execute()
 		{
-			while (true) {
-				switch (CurrentExpression.Token) {
+			while (true)
+			{
+				switch(CurrentExpression.Token)
+				{
 				case TokenID.kSelect:
 				case TokenID.kFrom:
-					_selectParts.Add (ParserSelect ());
+					_selectParts.Add(ParserSelect());
 					break;
 				default:
 					break;
 				}
-				if (CurrentExpression.Token == TokenID.Semi) {
-					NextExpression (false);
+				if(CurrentExpression.Token == TokenID.Semi)
+				{
+					NextExpression(false);
 					continue;
 				}
 				break;
 			}
-			if (CurrentExpression.Token != TokenID.Semi && CurrentExpression.Token != TokenID.End)
-				Error ("Not found end command.");
+			if(CurrentExpression.Token != TokenID.Semi && CurrentExpression.Token != TokenID.End)
+				Error("Not found end command.");
 		}
-		public SelectPart ExecuteSelectPart ()
+
+		/// <summary>
+		/// Executa o parser somente encima da parte da clausula SELECT.
+		/// </summary>
+		/// <returns></returns>
+		public SelectPart ExecuteSelectPart()
 		{
-			return ParserSelectPart ();
+			return ParserSelectPart();
 		}
-		public WherePart ExecuteWherePart ()
+
+		/// <summary>
+		/// Executa um parser somente em cima da parte da clausula WHERE.
+		/// </summary>
+		/// <returns></returns>
+		public WherePart ExecuteWherePart()
 		{
-			WherePart a = new WherePart ();
-			List<SqlExpression> b = new List<SqlExpression> ();
-			ContainerSqlExpression c = null;
-			int d = 0;
-			do {
-				ContainerSqlExpression e = ParserContainerConditional ();
-				if (e.ContainerToken == TokenID.kAs)
-					throw new SqlParserException ("Not support AS in WHERE PART");
-				if (e.ContainerToken == TokenID.RParen) {
-					this.GetNextExpression (0);
+			WherePart wherePart = new WherePart();
+			List<SqlExpression> expressions = new List<SqlExpression>();
+			int i = 0;
+			do
+			{
+				ContainerSqlExpression ce = ParserContainerConditional();
+				if(ce.ContainerToken == TokenID.kAs)
+					throw new SqlParserException("Not support AS in WHERE PART");
+				if(ce.ContainerToken == TokenID.RParen)
+				{
+					this.GetNextExpression(0);
 					break;
 				}
-				b.Add (e);
-				d++;
-				if (d > 1000)
-					throw new SqlParserException ("Invalid instruction WHERE");
+				expressions.Add(ce);
+				i++;
+				if(i > 1000)
+					throw new SqlParserException("Invalid instruction WHERE");
 			}
 			while (CurrentExpression.Token != TokenID.End);
-			a.Expressions = b;
-			return a;
+			wherePart.Expressions = expressions;
+			return wherePart;
 		}
-		public OrderByPart ExecuteOrderByPart ()
+
+		/// <summary>
+		/// Executa um parser somente em cima da parte da clausula ORDER BY
+		/// </summary>
+		/// <returns></returns>
+		public OrderByPart ExecuteOrderByPart()
 		{
-			return ParserOrderByPart (true);
+			return ParserOrderByPart(true);
 		}
-		public GroupByPart ExecuteGroupByPart ()
+
+		/// <summary>
+		/// Executa um parser somente em cima da parte da clausula GROUP BY.
+		/// </summary>
+		/// <returns></returns>
+		public GroupByPart ExecuteGroupByPart()
 		{
-			return ParserGroupByPart (true);
+			return ParserGroupByPart(true);
 		}
-		private Select ParserSelect ()
+
+		/// <summary>
+		/// Executa um parser somente na parte do HAVING.
+		/// </summary>
+		/// <returns></returns>
+		public HavingPart ExecuteHavingPart()
 		{
-			Select a = new Select (CurrentExpression);
-			if (CurrentExpression.Token == TokenID.kSelect) {
-				NextExpression (true);
-				a.SelectPart = ParserSelectPart ();
-			}
-			if (CurrentExpression.Token == TokenID.kFrom) {
-				a.FromPart = ParserFromPart ();
-				if (CurrentExpression.Token == TokenID.kWhere) {
-					a.WherePart = ParserWherePart ();
+			var havingPart = new HavingPart();
+			List<SqlExpression> expressions = new List<SqlExpression>();
+			int i = 0;
+			do
+			{
+				ContainerSqlExpression ce = ParserContainerConditional();
+				if(ce.ContainerToken == TokenID.kAs)
+					throw new SqlParserException("Not support AS in HAVING PART");
+				if(ce.ContainerToken == TokenID.RParen)
+				{
+					this.GetNextExpression(0);
+					break;
 				}
+				expressions.Add(ce);
+				i++;
+				if(i > 1000)
+					throw new SqlParserException("Invalid instruction HAVING");
 			}
-			if (CurrentExpression.Token == TokenID.kGroup) {
-				NextExpression (true);
-				if (CurrentExpression.Token == TokenID.kBy) {
-					a.GroupByPart = ParserGroupByPart ();
-				}
-				else {
-					Error ("Expected expression by.");
-				}
-			}
-			if (CurrentExpression.Token == TokenID.kHaving) {
-				a.HavingPart = ParserHavingPart ();
-			}
-			if (CurrentExpression.Token == TokenID.kOrder) {
-				NextExpression (true);
-				if (CurrentExpression.Token == TokenID.kBy) {
-					a.OrderByPart = ParserOrderByPart ();
-				}
-				else {
-					Error ("Expected expression by.");
-				}
-			}
-			if (a.SelectPart == null && CurrentExpression.Token == TokenID.kSelect) {
-				NextExpression (true);
-				a.SelectPart = ParserSelectPart ();
-			}
-			else if (a.SelectPart == null)
-				Error ("Select not found.");
-			return a;
+			while (CurrentExpression.Token != TokenID.End);
+			havingPart.Expressions.AddRange(expressions);
+			return havingPart;
 		}
-		private SelectPart ParserSelectPart ()
+
+		/// <summary>
+		/// Recupera os dados do comando SELECT
+		/// </summary>
+		/// <returns></returns>
+		private Select ParserSelect()
 		{
-			SelectPart a = new SelectPart ();
-			if (CurrentExpression.Token == TokenID.kTop) {
-				if (!NextExpression (true) || CurrentExpression.Token == TokenID.IntLiteral)
-					Error ("Expected a number integer.");
-				a.Top = uint.Parse (CurrentExpression.Text);
-				NextExpression (false);
-				if (CurrentExpression.Token == TokenID.kPercent) {
-					a.TopInPercent = true;
-					NextExpression (false);
+			Select select = new Select(CurrentExpression);
+			if(CurrentExpression.Token == TokenID.kSelect)
+			{
+				NextExpression(true);
+				select.SelectPart = ParserSelectPart();
+			}
+			if(CurrentExpression.Token == TokenID.kFrom)
+			{
+				select.FromPart = ParserFromPart();
+				if(CurrentExpression.Token == TokenID.kWhere)
+				{
+					select.WherePart = ParserWherePart();
 				}
 			}
-			if (CurrentExpression.Token == TokenID.kDistinct || CurrentExpression.Token == TokenID.kAll) {
-				a.ResultType = (CurrentExpression.Token == TokenID.kDistinct ? SelectClauseResultTypes.Distinct : SelectClauseResultTypes.All);
-				NextExpression (false);
+			if(CurrentExpression.Token == TokenID.kGroup)
+			{
+				NextExpression(true);
+				if(CurrentExpression.Token == TokenID.kBy)
+				{
+					select.GroupByPart = ParserGroupByPart();
+				}
+				else
+				{
+					Error("Expected expression by.");
+				}
 			}
-			while (true) {
-				SelectExpression b = ParserSelectExpression ();
-				if (b != null) {
-					a.SelectionExpressions.Add (b);
-					if (CurrentExpression.Token == TokenID.Comma)
-						NextExpression (true);
+			if(CurrentExpression.Token == TokenID.kHaving)
+			{
+				select.HavingPart = ParserHavingPart();
+			}
+			if(CurrentExpression.Token == TokenID.kOrder)
+			{
+				NextExpression(true);
+				if(CurrentExpression.Token == TokenID.kBy)
+				{
+					select.OrderByPart = ParserOrderByPart();
+				}
+				else
+				{
+					Error("Expected expression by.");
+				}
+			}
+			if(select.SelectPart == null && CurrentExpression.Token == TokenID.kSelect)
+			{
+				NextExpression(true);
+				select.SelectPart = ParserSelectPart();
+			}
+			else if(select.SelectPart == null)
+				Error("Select not found.");
+			return select;
+		}
+
+		/// <summary>
+		/// Recupera os dados da parte do SELECT.
+		/// </summary>
+		/// <returns></returns>
+		private SelectPart ParserSelectPart()
+		{
+			SelectPart selectPart = new SelectPart();
+			if(CurrentExpression.Token == TokenID.kTop)
+			{
+				if(!NextExpression(true) || CurrentExpression.Token == TokenID.IntLiteral)
+					Error("Expected a number integer.");
+				selectPart.Top = uint.Parse(CurrentExpression.Text);
+				NextExpression(false);
+				if(CurrentExpression.Token == TokenID.kPercent)
+				{
+					selectPart.TopInPercent = true;
+					NextExpression(false);
+				}
+			}
+			if(CurrentExpression.Token == TokenID.kDistinct || CurrentExpression.Token == TokenID.kAll)
+			{
+				selectPart.ResultType = (CurrentExpression.Token == TokenID.kDistinct ? SelectClauseResultTypes.Distinct : SelectClauseResultTypes.All);
+				NextExpression(false);
+			}
+			while (true)
+			{
+				SelectExpression se = ParserSelectExpression();
+				if(se != null)
+				{
+					selectPart.SelectionExpressions.Add(se);
+					if(CurrentExpression.Token == TokenID.Comma)
+						NextExpression(true);
 					else
 						break;
 				}
 				else
 					break;
 			}
-			switch (CurrentExpression.Token) {
+			switch(CurrentExpression.Token)
+			{
 			case TokenID.End:
 			case TokenID.RParen:
 			case TokenID.Semi:
 			case TokenID.kFrom:
 				break;
 			default:
-				switch (GetPreviousExpression (1).Token) {
+				switch(GetPreviousExpression(1).Token)
+				{
 				case TokenID.kAnd:
 				case TokenID.kOr:
 				case TokenID.End:
@@ -236,151 +378,175 @@ namespace GDA.Sql.InterpreterExpression
 					posCurrentExpression--;
 					break;
 				default:
-					Error ("\")\" or \";\" or \"from\" expected.");
+					Error("\")\" or \";\" or \"from\" expected.");
 					break;
 				}
 				break;
 			}
-			return a;
+			return selectPart;
 		}
-		private SelectExpression ParserSelectExpression ()
+
+		private SelectExpression ParserSelectExpression()
 		{
-			SelectExpression a = new SelectExpression ();
-			if (CurrentExpression.Token == TokenID.Star) {
-				a = new SelectExpression (new SqlExpression (CurrentExpression, SqlExpressionType.Column));
-				NextExpression (false);
-				return a;
+			SelectExpression se = new SelectExpression();
+			if(CurrentExpression.Token == TokenID.Star)
+			{
+				se = new SelectExpression(new SqlExpression(CurrentExpression, SqlExpressionType.Column));
+				NextExpression(false);
+				return se;
 			}
-			else if (CurrentExpression.Token == TokenID.kCase) {
-				throw new SqlParserException ("Not implemented keyword Case.");
+			else if(CurrentExpression.Token == TokenID.kCase)
+			{
+				throw new SqlParserException("Not implemented keyword Case.");
 			}
-			else if (CurrentExpression.Token == TokenID.LParen) {
-				ContainerSqlExpression b = new ContainerSqlExpression (CurrentExpression);
-				NextExpression (true);
-				b.Expressions.Add (ParserContainerSqlExpression (TokenID.RParen));
-				a.ColumnName = b;
-				if (CurrentExpression.Token == TokenID.RParen)
-					NextExpression (false);
+			else if(CurrentExpression.Token == TokenID.LParen)
+			{
+				ContainerSqlExpression ce = new ContainerSqlExpression(CurrentExpression);
+				NextExpression(true);
+				ce.Expressions.Add(ParserContainerSqlExpression(TokenID.RParen));
+				se.ColumnName = ce;
+				if(CurrentExpression.Token == TokenID.RParen)
+					NextExpression(false);
 			}
-			else {
-				try {
-					a.ColumnName = ParserContainerSqlExpression (TokenID.kAs, TokenID.Comma, TokenID.kFrom).Expressions [0];
+			else
+			{
+				try
+				{
+					se.ColumnName = ParserContainerSqlExpression(TokenID.kAs, TokenID.Comma, TokenID.kFrom).Expressions[0];
 				}
-				catch (Exception ex) {
-					Error ("Invalid expression.");
+				catch(Exception ex)
+				{
+					Error("Invalid expression.");
 				}
 			}
-			if (CurrentExpression.Token == TokenID.kAs) {
-				a.AsExpression = CurrentExpression;
-				NextExpression (true);
-				if (CurrentExpression.Token != TokenID.Identifier)
-					Error ("Alias of column name expected.");
-				a.ColumnAlias = new SqlExpression (CurrentExpression);
-				NextExpression (false);
+			if(CurrentExpression.Token == TokenID.kAs)
+			{
+				se.AsExpression = CurrentExpression;
+				NextExpression(true);
+				if(CurrentExpression.Token != TokenID.Identifier)
+					Error("Alias of column name expected.");
+				se.ColumnAlias = new SqlExpression(CurrentExpression);
+				NextExpression(false);
 			}
-			else if (CurrentExpression.Token == TokenID.Identifier) {
-				a.ColumnAlias = new SqlExpression (CurrentExpression);
-				NextExpression (false);
+			else if(CurrentExpression.Token == TokenID.Identifier)
+			{
+				se.ColumnAlias = new SqlExpression(CurrentExpression);
+				NextExpression(false);
 			}
-			return a;
+			return se;
 		}
-		private SqlFunction ParserFunction ()
+
+		private SqlFunction ParserFunction()
 		{
-			SqlFunction a = new SqlFunction (GetPreviousExpression (1));
-			NextExpression (true);
-			while (true) {
-				ContainerSqlExpression b = ParserContainerSqlExpression (TokenID.Equal, TokenID.Less, TokenID.LessEqual, TokenID.Greater, TokenID.GreaterEqual, TokenID.NotEqual, TokenID.Comma, TokenID.RParen);
-				if (b != null) {
-					List<SqlExpression> c = b.Expressions;
-					switch (CurrentExpression.Token) {
+			SqlFunction func = new SqlFunction(GetPreviousExpression(1));
+			NextExpression(true);
+			while (true)
+			{
+				ContainerSqlExpression ce = ParserContainerSqlExpression(TokenID.Equal, TokenID.Less, TokenID.LessEqual, TokenID.Greater, TokenID.GreaterEqual, TokenID.NotEqual, TokenID.Comma, TokenID.RParen);
+				if(ce != null)
+				{
+					List<SqlExpression> exprs = ce.Expressions;
+					switch(CurrentExpression.Token)
+					{
 					case TokenID.Equal:
 					case TokenID.Less:
 					case TokenID.LessEqual:
 					case TokenID.Greater:
 					case TokenID.GreaterEqual:
 					case TokenID.NotEqual:
-						c.Add (new SqlExpression (CurrentExpression));
-						NextExpression (true);
-						b = ParserContainerSqlExpression (TokenID.Comma, TokenID.RParen);
-						if (b != null)
-							c.AddRange (b.Expressions);
+						exprs.Add(new SqlExpression(CurrentExpression));
+						NextExpression(true);
+						ce = ParserContainerSqlExpression(TokenID.Comma, TokenID.RParen);
+						if(ce != null)
+							exprs.AddRange(ce.Expressions);
 						break;
 					}
-					a.Parameters.Add (c);
-					if (CurrentExpression.Token == TokenID.RParen) {
-						NextExpression (false);
+					func.Parameters.Add(exprs);
+					if(CurrentExpression.Token == TokenID.RParen)
+					{
+						NextExpression(false);
 						break;
 					}
-					else if (CurrentExpression.Token == TokenID.Comma) {
-						NextExpression (false);
+					else if(CurrentExpression.Token == TokenID.Comma)
+					{
+						NextExpression(false);
 					}
 				}
 				else
-					Error ("Invalid expression on context.");
+					Error("Invalid expression on context.");
 			}
-			return a;
+			return func;
 		}
-		private ContainerSqlExpression ParserContainerSqlExpression (params TokenID[] a)
+
+		private ContainerSqlExpression ParserContainerSqlExpression(params TokenID[] endToken)
 		{
-			ContainerSqlExpression b = new ContainerSqlExpression (CurrentExpression);
-			Stack<ContainerSqlExpression> c = new Stack<ContainerSqlExpression> ();
-			bool d = false;
-			while (true) {
-				switch (CurrentExpression.Token) {
+			ContainerSqlExpression container = new ContainerSqlExpression(CurrentExpression);
+			Stack<ContainerSqlExpression> tokensOpeneds = new Stack<ContainerSqlExpression>();
+			bool findOperator = false;
+			while (true)
+			{
+				switch(CurrentExpression.Token)
+				{
 				case TokenID.Identifier:
-					if (d) {
-						if (b.Expressions.Count > 0)
-							return b;
+					if(findOperator)
+					{
+						if(container.Expressions.Count > 0)
+							return container;
 						else
 							return null;
 					}
-					d = true;
-					switch (GetNextExpression (1).Token) {
+					findOperator = true;
+					switch(GetNextExpression(1).Token)
+					{
 					case TokenID.LParen:
-						NextExpression (true);
-						b.Expressions.Add (ParserFunction ());
+						NextExpression(true);
+						container.Expressions.Add(ParserFunction());
 						continue;
 					case TokenID.Dot:
-						b.Expressions.Add (ParserNamespace ());
+						container.Expressions.Add(ParserNamespace());
 						continue;
 					default:
-						b.Expressions.Add (new SqlExpression (CurrentExpression, SqlExpressionType.Column));
+						container.Expressions.Add(new SqlExpression(CurrentExpression, SqlExpressionType.Column));
 						break;
 					}
 					break;
 				case TokenID.LParen:
-					c.Push (b);
-					b = new ContainerSqlExpression (CurrentExpression);
-					c.Peek ().Expressions.Add (b);
+					tokensOpeneds.Push(container);
+					container = new ContainerSqlExpression(CurrentExpression);
+					tokensOpeneds.Peek().Expressions.Add(container);
 					break;
 				case TokenID.RParen:
-					d = true;
-					if (c.Count == 0) {
-						if (ArrayHelper.Exists<TokenID> (a, delegate (TokenID e) {
-							return e == CurrentExpression.Token;
-						})) {
-							if (b.Expressions.Count > 0)
-								return b;
+					findOperator = true;
+					if(tokensOpeneds.Count == 0)
+					{
+						if(ArrayHelper.Exists<TokenID>(endToken, delegate(TokenID t) {
+							return t == CurrentExpression.Token;
+						}))
+						{
+							if(container.Expressions.Count > 0)
+								return container;
 							else
 								return null;
 						}
 					}
-					else {
-						b = c.Pop ();
+					else
+					{
+						container = tokensOpeneds.Pop();
 					}
 					break;
 				case TokenID.StringLiteral:
 				case TokenID.IntLiteral:
 				case TokenID.DecimalLiteral:
 				case TokenID.RealLiteral:
-					if (d) {
-						if (b.Expressions.Count > 0)
-							return b;
+					if(findOperator)
+					{
+						if(container.Expressions.Count > 0)
+							return container;
 						else
 							return null;
 					}
-					d = true;
-					b.Expressions.Add (new SqlExpression (CurrentExpression));
+					findOperator = true;
+					container.Expressions.Add(new SqlExpression(CurrentExpression));
 					break;
 				case TokenID.Plus:
 				case TokenID.Minus:
@@ -388,34 +554,38 @@ namespace GDA.Sql.InterpreterExpression
 				case TokenID.Slash:
 				case TokenID.Equal:
 				case TokenID.EqualEqual:
-					if (d)
-						b.Expressions.Add (new SqlExpression (CurrentExpression));
-					else if (!d && CurrentExpression.Token == TokenID.Star)
-						b.Expressions.Add (new SqlExpression (CurrentExpression, SqlExpressionType.Column));
-					else if (b.Expressions.Count > 0)
-						return b;
+					if(findOperator)
+						container.Expressions.Add(new SqlExpression(CurrentExpression));
+					else if(!findOperator && CurrentExpression.Token == TokenID.Star)
+						container.Expressions.Add(new SqlExpression(CurrentExpression, SqlExpressionType.Column));
+					else if(container.Expressions.Count > 0)
+						return container;
 					else
 						return null;
-					d = false;
+					findOperator = false;
 					break;
 				case TokenID.kSelect:
-					if (GetPreviousExpression (1).Token == TokenID.LParen) {
-						b.Expressions.Add (ParserSelect ());
-						d = true;
+					if(GetPreviousExpression(1).Token == TokenID.LParen)
+					{
+						container.Expressions.Add(ParserSelect());
+						findOperator = true;
 						continue;
 					}
-					else if (b.Expressions.Count > 0)
-						return b;
+					else if(container.Expressions.Count > 0)
+						return container;
 					else
 						return null;
+				case TokenID.Comma:
 				case TokenID.End:
-					if (b.Expressions.Count > 0)
-						return b;
+					if(container.Expressions.Count > 0)
+						return container;
 					else
 						return null;
 				default:
-					if (CurrentExpression.Token != TokenID.kFrom && CurrentExpression.Token.ToString () [0] == 'k') {
-						switch (CurrentExpression.Token) {
+					if(CurrentExpression.Token != TokenID.kFrom && CurrentExpression.Token.ToString()[0] == 'k')
+					{
+						switch(CurrentExpression.Token)
+						{
 						case TokenID.kLike:
 						case TokenID.kIs:
 						case TokenID.kIn:
@@ -427,86 +597,101 @@ namespace GDA.Sql.InterpreterExpression
 						case TokenID.kSome:
 							break;
 						default:
-							if (GetNextExpression (1).Token == TokenID.LParen) {
-								NextExpression (true);
-								b.Expressions.Add (ParserFunction ());
-								d = true;
+							if(GetNextExpression(1).Token == TokenID.LParen)
+							{
+								NextExpression(true);
+								container.Expressions.Add(ParserFunction());
+								findOperator = true;
 								continue;
 							}
 							break;
 						}
 					}
-					if (CurrentExpression.Token == TokenID.Semi || ArrayHelper.Exists<TokenID> (a, delegate (TokenID e) {
-						return e == CurrentExpression.Token;
-					}) && c.Count == 0 || CurrentExpression.Token.ToString () [0] == 'k') {
-						if (b.Expressions.Count > 0)
-							return b;
+					if(CurrentExpression.Token == TokenID.Semi || ArrayHelper.Exists<TokenID>(endToken, delegate(TokenID t) {
+						return t == CurrentExpression.Token;
+					}) && tokensOpeneds.Count == 0 || CurrentExpression.Token.ToString()[0] == 'k')
+					{
+						if(container.Expressions.Count > 0)
+							return container;
 						else
 							return null;
 					}
-					else {
-						if (c.Count > 0)
-							Error ("Parent not closed.");
+					else
+					{
+						if(tokensOpeneds.Count > 0)
+							Error("Parent not closed.");
 						else
-							Error ("Invalid expression.");
+							Error("Invalid expression.");
 					}
 					break;
 				}
-				NextExpression (false);
+				NextExpression(false);
 			}
 		}
-		private SqlExpression ParserNamespace ()
+
+		private SqlExpression ParserNamespace()
 		{
-			List<Expression> a = new List<Expression> ();
-			a.Add (CurrentExpression);
-			bool b = true;
-			while (true) {
-				if (!b && (GetNextExpression (1).Token == TokenID.Identifier || (a.Count > 0 && GetNextExpression (1).Token == TokenID.Star))) {
-					b = true;
-					NextExpression (true);
-					a.Add (CurrentExpression);
+			List<Expression> expr = new List<Expression>();
+			expr.Add(CurrentExpression);
+			bool dot = true;
+			while (true)
+			{
+				if(!dot && (GetNextExpression(1).Token == TokenID.Identifier || (expr.Count > 0 && GetNextExpression(1).Token == TokenID.Star)))
+				{
+					dot = true;
+					NextExpression(true);
+					expr.Add(CurrentExpression);
 				}
-				else if (b && GetNextExpression (1).Token == TokenID.Dot) {
-					b = false;
-					NextExpression (true);
-					a.Add (CurrentExpression);
+				else if(dot && GetNextExpression(1).Token == TokenID.Dot)
+				{
+					dot = false;
+					NextExpression(true);
+					expr.Add(CurrentExpression);
 				}
-				else {
-					NextExpression (false);
-					int c = a [0].BeginPoint;
-					int d = a [0].Length;
-					if (a.Count > 1) {
-						d = (a [a.Count - 1].BeginPoint - c) + a [a.Count - 1].Length;
+				else
+				{
+					NextExpression(false);
+					int beginPoint = expr[0].BeginPoint;
+					int length = expr[0].Length;
+					if(expr.Count > 1)
+					{
+						length = (expr[expr.Count - 1].BeginPoint - beginPoint) + expr[expr.Count - 1].Length;
 					}
-					StringBuilder e = new StringBuilder ();
-					if (a [0].CurrentSpecialContainer != null)
-						e.Append (a [0].CurrentSpecialContainer.BeginCharSpecialContainer).Append (a [0].Text).Append (a [0].CurrentSpecialContainer.EndCharSpecialContainer);
+					StringBuilder e = new StringBuilder();
+					if(expr[0].CurrentSpecialContainer != null)
+						e.Append(expr[0].CurrentSpecialContainer.BeginCharSpecialContainer).Append(expr[0].Text).Append(expr[0].CurrentSpecialContainer.EndCharSpecialContainer);
 					else
-						e.Append (a [0].Text);
-					for (int f = 1; f < a.Count; f++) {
-						e.Append (' ', a [f].BeginPoint + (a [f].CurrentSpecialContainer != null ? -1 : 0) - ((a [f - 1].BeginPoint + a [f - 1].Length) + (a [f - 1].CurrentSpecialContainer != null ? 1 : 0)));
-						if (a [f].CurrentSpecialContainer != null) {
-							e.Append (a [f].CurrentSpecialContainer.BeginCharSpecialContainer).Append (a [f].Text).Append (a [f].CurrentSpecialContainer.EndCharSpecialContainer);
+						e.Append(expr[0].Text);
+					for(int i = 1; i < expr.Count; i++)
+					{
+						e.Append(' ', expr[i].BeginPoint + (expr[i].CurrentSpecialContainer != null ? -1 : 0) - ((expr[i - 1].BeginPoint + expr[i - 1].Length) + (expr[i - 1].CurrentSpecialContainer != null ? 1 : 0)));
+						if(expr[i].CurrentSpecialContainer != null)
+						{
+							e.Append(expr[i].CurrentSpecialContainer.BeginCharSpecialContainer).Append(expr[i].Text).Append(expr[i].CurrentSpecialContainer.EndCharSpecialContainer);
 						}
-						else {
-							e.Append (a [f].Text);
+						else
+						{
+							e.Append(expr[i].Text);
 						}
 					}
-					Expression g = new Expression (TokenID.Identifier);
-					g.BeginPoint = c;
-					g.Length = d;
-					g.Text = e.ToString ();
-					g.Line = a [0].Line;
-					return new SqlExpression (g, SqlExpressionType.Column);
+					Expression ee = new Expression(TokenID.Identifier);
+					ee.BeginPoint = beginPoint;
+					ee.Length = length;
+					ee.Text = e.ToString();
+					ee.Line = expr[0].Line;
+					return new SqlExpression(ee, SqlExpressionType.Column);
 				}
 			}
 		}
-		private FromPart ParserFromPart ()
+
+		private FromPart ParserFromPart()
 		{
-			FromPart a = new FromPart ();
-			NextExpression (true);
-			while (true) {
-				switch (CurrentExpression.Token) {
+			FromPart fromPart = new FromPart();
+			NextExpression(true);
+			while (true)
+			{
+				switch(CurrentExpression.Token)
+				{
 				case TokenID.Identifier:
 				case TokenID.LParen:
 				case TokenID.kLeft:
@@ -515,44 +700,51 @@ namespace GDA.Sql.InterpreterExpression
 				case TokenID.kInner:
 				case TokenID.kCross:
 				case TokenID.kNatural:
-					a.TableExpressions.Add (ParserTableExpression ());
+					fromPart.TableExpressions.Add(ParserTableExpression());
 					break;
 				default:
-					return a;
+					return fromPart;
 				}
 			}
 		}
-		private TableExpression ParserTableExpression ()
+
+		private TableExpression ParserTableExpression()
 		{
-			TableExpression a = new TableExpression ();
-			while (true) {
-				switch (CurrentExpression.Token) {
+			TableExpression te = new TableExpression();
+			while (true)
+			{
+				switch(CurrentExpression.Token)
+				{
 				case TokenID.Identifier:
-					if (a.TableName == null) {
-						if (GetNextExpression (1).Token == TokenID.Dot) {
-							a.TableName = new TableNameExpression (ParserNamespace ().Value);
+					if(te.TableName == null)
+					{
+						if(GetNextExpression(1).Token == TokenID.Dot)
+						{
+							te.TableName = new TableNameExpression(ParserNamespace().Value);
 							continue;
 						}
 						else
-							a.TableName = new TableNameExpression (CurrentExpression);
+							te.TableName = new TableNameExpression(CurrentExpression);
 					}
 					else
-						a.TableAlias = CurrentExpression;
+						te.TableAlias = CurrentExpression;
 					break;
 				case TokenID.kAs:
-					a.AsExpression = CurrentExpression;
-					NextExpression (true);
-					a.TableAlias = CurrentExpression;
+					te.AsExpression = CurrentExpression;
+					NextExpression(true);
+					te.TableAlias = CurrentExpression;
 					break;
 				case TokenID.LParen:
-					NextExpression (true);
-					if (CurrentExpression.Token == TokenID.kSelect) {
-						a.SelectInfo = ParserSelect ();
-						if (CurrentExpression.Token == TokenID.RParen) {
-							NextExpression (false);
+					NextExpression(true);
+					if(CurrentExpression.Token == TokenID.kSelect)
+					{
+						te.SelectInfo = ParserSelect();
+						if(CurrentExpression.Token == TokenID.RParen)
+						{
+							NextExpression(false);
 						}
 						else
-							Error ("Expected character )");
+							Error("Expected character )");
 						continue;
 					}
 					break;
@@ -562,223 +754,263 @@ namespace GDA.Sql.InterpreterExpression
 				case TokenID.kInner:
 				case TokenID.kCross:
 				case TokenID.kNatural:
-					if (a.TableName != null)
-						return a;
-					if (CurrentExpression.Token == TokenID.kLeft || CurrentExpression.Token == TokenID.kRight || CurrentExpression.Token == TokenID.kFull) {
-						a.LeftOrRight = CurrentExpression;
-						NextExpression (true);
+					if(te.TableName != null)
+						return te;
+					if(CurrentExpression.Token == TokenID.kLeft || CurrentExpression.Token == TokenID.kRight || CurrentExpression.Token == TokenID.kFull)
+					{
+						te.LeftOrRight = CurrentExpression;
+						NextExpression(true);
 					}
-					switch (CurrentExpression.Token) {
+					switch(CurrentExpression.Token)
+					{
 					case TokenID.kOuter:
 					case TokenID.kInner:
 					case TokenID.kCross:
 					case TokenID.kNatural:
-						a.OuterOrInnerOrCrossOrNatural = CurrentExpression;
-						NextExpression (true);
+						te.OuterOrInnerOrCrossOrNatural = CurrentExpression;
+						NextExpression(true);
 						break;
 					default:
 						break;
 					}
-					if (CurrentExpression.Token != TokenID.kJoin) {
-						Error ("Expected Join expression");
+					if(CurrentExpression.Token != TokenID.kJoin)
+					{
+						Error("Expected Join expression");
 					}
-					a.Join = CurrentExpression;
-					NextExpression (true);
-					if (CurrentExpression.Token == TokenID.LParen) {
-						NextExpression (true);
-						if (CurrentExpression.Token == TokenID.kSelect) {
-							a.SelectInfo = ParserSelect ();
+					te.Join = CurrentExpression;
+					NextExpression(true);
+					if(CurrentExpression.Token == TokenID.LParen)
+					{
+						NextExpression(true);
+						if(CurrentExpression.Token == TokenID.kSelect)
+						{
+							te.SelectInfo = ParserSelect();
 						}
 						else
-							Error ("Expected select command.");
+							Error("Expected select command.");
 					}
-					else if (CurrentExpression.Token == TokenID.Identifier) {
-						a.TableName = new TableNameExpression (CurrentExpression);
-						NextExpression (false);
+					else if(CurrentExpression.Token == TokenID.Identifier)
+					{
+						te.TableName = new TableNameExpression(CurrentExpression);
+						NextExpression(false);
 					}
 					else
-						Error ("Expected tablename or viewname.");
-					if (CurrentExpression.Token == TokenID.kAs) {
-						a.AsExpression = CurrentExpression;
-						if (!NextExpression (false) && CurrentExpression.Token != TokenID.Identifier)
-							Error ("Expected alias of table name.");
-						a.TableAlias = CurrentExpression;
-						NextExpression (false);
+						Error("Expected tablename or viewname.");
+					if(CurrentExpression.Token == TokenID.kAs)
+					{
+						te.AsExpression = CurrentExpression;
+						if(!NextExpression(false) && CurrentExpression.Token != TokenID.Identifier)
+							Error("Expected alias of table name.");
+						te.TableAlias = CurrentExpression;
+						NextExpression(false);
 					}
-					else if (CurrentExpression.Token == TokenID.Identifier) {
-						a.TableAlias = CurrentExpression;
-						NextExpression (false);
+					else if(CurrentExpression.Token == TokenID.Identifier)
+					{
+						te.TableAlias = CurrentExpression;
+						NextExpression(false);
 					}
-					if (CurrentExpression.Token == TokenID.kOn) {
-						NextExpression (true);
-						if (CurrentExpression.Token == TokenID.LParen) {
-							a.OnExpressions = ParserContainerConditional (true);
-							if (CurrentExpression.Token == TokenID.RParen) {
-								NextExpression (false);
+					if(CurrentExpression.Token == TokenID.kOn)
+					{
+						NextExpression(true);
+						if(CurrentExpression.Token == TokenID.LParen)
+						{
+							te.OnExpressions = ParserContainerConditional(true);
+							if(CurrentExpression.Token == TokenID.RParen)
+							{
+								NextExpression(false);
 							}
 							else
-								Error ("Expected character ')'.");
+								Error("Expected character ')'.");
 						}
 						else
-							a.OnExpressions = ParserContainerConditional ();
+							te.OnExpressions = ParserContainerConditional();
 					}
-					return a;
+					return te;
 				default:
-					return a;
+					return te;
 				}
-				NextExpression (true);
+				NextExpression(true);
 			}
 		}
-		private ContainerSqlExpression ParserContainerConditional ()
+
+		/// <summary>
+		/// Executa o parser de um container condicional.
+		/// </summary>
+		/// <returns></returns>
+		private ContainerSqlExpression ParserContainerConditional()
 		{
-			return ParserContainerConditional (false);
+			return ParserContainerConditional(false);
 		}
-		private ContainerSqlExpression ParserContainerConditional (bool a)
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="jumpFirstExpression">Identifica se deve pular a primeira expressão.</param>
+		/// <returns></returns>
+		private ContainerSqlExpression ParserContainerConditional(bool jumpFirstExpression)
 		{
-			ContainerSqlExpression b = new ContainerSqlExpression (CurrentExpression);
-			if (a || CurrentExpression.Token == TokenID.LParen)
-				NextExpression (true);
-			Stack<ContainerSqlExpression> c = new Stack<ContainerSqlExpression> ();
-			bool d = false;
-			while (true) {
-				switch (CurrentExpression.Token) {
+			ContainerSqlExpression container = new ContainerSqlExpression(CurrentExpression);
+			if(jumpFirstExpression || CurrentExpression.Token == TokenID.LParen)
+				NextExpression(true);
+			Stack<ContainerSqlExpression> tokensOpeneds = new Stack<ContainerSqlExpression>();
+			bool findConditional = false;
+			while (true)
+			{
+				switch(CurrentExpression.Token)
+				{
 				case TokenID.Identifier:
 				case TokenID.StringLiteral:
 				case TokenID.IntLiteral:
-					if (d) {
-						if (b.Expressions.Count > 0)
-							return b;
+					if(findConditional)
+					{
+						if(container.Expressions.Count > 0)
+							return container;
 						else
 							return null;
 					}
-					d = true;
-					b.Expressions.Add (ParserContainerSqlExpression (TokenID.Equal, TokenID.EqualEqual, TokenID.Less, TokenID.LessEqual, TokenID.Greater, TokenID.GreaterEqual, TokenID.NotEqual, TokenID.kLike, TokenID.kIs, TokenID.kNot, TokenID.kIn, TokenID.kBetween, TokenID.kAnd, TokenID.kOr, TokenID.RParen));
+					findConditional = true;
+					container.Expressions.Add(ParserContainerSqlExpression(TokenID.Equal, TokenID.EqualEqual, TokenID.Less, TokenID.LessEqual, TokenID.Greater, TokenID.GreaterEqual, TokenID.NotEqual, TokenID.kLike, TokenID.kIs, TokenID.kNot, TokenID.kIn, TokenID.kBetween, TokenID.kAnd, TokenID.kOr, TokenID.RParen));
 					VERIFYOPERATOR:
-					switch (CurrentExpression.Token) {
+					switch(CurrentExpression.Token)
+					{
 					case TokenID.Equal:
 					case TokenID.Less:
 					case TokenID.LessEqual:
 					case TokenID.Greater:
 					case TokenID.GreaterEqual:
 					case TokenID.NotEqual:
-						b.Expressions.Add (new SqlExpression (CurrentExpression));
-						NextExpression (true);
-						if (CurrentExpression.Token == TokenID.kAny || CurrentExpression.Token == TokenID.kSome || CurrentExpression.Token == TokenID.kAll) {
-							b.Expressions.Add (new SqlExpression (CurrentExpression));
-							NextExpression (true);
-							if (CurrentExpression.Token == TokenID.LParen) {
-								ContainerSqlExpression e = new ContainerSqlExpression (CurrentExpression);
-								NextExpression (true);
-								e.Expressions.Add (ParserSelect ());
-								if (CurrentExpression.Token == TokenID.RParen) {
-									NextExpression (false);
-									b.Expressions.Add (e);
-									return b;
+						container.Expressions.Add(new SqlExpression(CurrentExpression));
+						NextExpression(true);
+						if(CurrentExpression.Token == TokenID.kAny || CurrentExpression.Token == TokenID.kSome || CurrentExpression.Token == TokenID.kAll)
+						{
+							container.Expressions.Add(new SqlExpression(CurrentExpression));
+							NextExpression(true);
+							if(CurrentExpression.Token == TokenID.LParen)
+							{
+								ContainerSqlExpression ce = new ContainerSqlExpression(CurrentExpression);
+								NextExpression(true);
+								ce.Expressions.Add(ParserSelect());
+								if(CurrentExpression.Token == TokenID.RParen)
+								{
+									NextExpression(false);
+									container.Expressions.Add(ce);
+									return container;
 								}
 								else
-									Error ("Expected character '('.");
+									Error("Expected character '('.");
 							}
 							else
-								Error ("Expected character ')'.");
+								Error("Expected character ')'.");
 						}
-						else {
-							b.Expressions.Add (ParserContainerConditional ());
+						else
+						{
+							container.Expressions.Add(ParserContainerConditional());
 						}
 						continue;
 					case TokenID.kLike:
-						b.Expressions.Add (new SqlExpression (CurrentExpression));
-						NextExpression (true);
-						b.Expressions.Add (ParserContainerSqlExpression (TokenID.RParen, TokenID.kAnd, TokenID.kOr));
+						container.Expressions.Add(new SqlExpression(CurrentExpression));
+						NextExpression(true);
+						container.Expressions.Add(ParserContainerSqlExpression(TokenID.RParen, TokenID.kAnd, TokenID.kOr));
 						continue;
 					case TokenID.kBetween:
-						b.Expressions.Add (new SqlExpression (CurrentExpression));
-						NextExpression (true);
-						b.Expressions.Add (ParserContainerSqlExpression (TokenID.kAnd));
-						if (CurrentExpression.Token == TokenID.kAnd) {
-							b.Expressions.Add (new SqlExpression (CurrentExpression));
-							NextExpression (true);
-							b.Expressions.Add (ParserContainerSqlExpression (TokenID.RParen, TokenID.kAnd, TokenID.kOr));
+						container.Expressions.Add(new SqlExpression(CurrentExpression));
+						NextExpression(true);
+						container.Expressions.Add(ParserContainerSqlExpression(TokenID.kAnd));
+						if(CurrentExpression.Token == TokenID.kAnd)
+						{
+							container.Expressions.Add(new SqlExpression(CurrentExpression));
+							NextExpression(true);
+							container.Expressions.Add(ParserContainerSqlExpression(TokenID.RParen, TokenID.kAnd, TokenID.kOr));
 						}
 						else
-							Error ("Expected AND expression.");
+							Error("Expected AND expression.");
 						continue;
 					case TokenID.kIs:
-						b.Expressions.Add (new SqlExpression (CurrentExpression));
-						NextExpression (true);
-						if (CurrentExpression.Token == TokenID.kNot) {
-							b.Expressions.Add (new SqlExpression (CurrentExpression));
-							NextExpression (true);
+						container.Expressions.Add(new SqlExpression(CurrentExpression));
+						NextExpression(true);
+						if(CurrentExpression.Token == TokenID.kNot)
+						{
+							container.Expressions.Add(new SqlExpression(CurrentExpression));
+							NextExpression(true);
 						}
-						if (CurrentExpression.Token == TokenID.kNull) {
-							SqlExpression f = b.Expressions [b.Expressions.Count - 1];
-							int g = f.Value.BeginPoint;
-							int h = (CurrentExpression.BeginPoint + CurrentExpression.Length) - g;
-							StringBuilder i = new StringBuilder ();
-							i.Append (f.Value.Text);
-							i.Append (' ', CurrentExpression.BeginPoint - (f.Value.BeginPoint + f.Value.Length));
-							i.Append (CurrentExpression.Text);
-							Expression j = new Expression (TokenID.kIsNull);
-							j.BeginPoint = g;
-							j.Length = h;
-							j.Text = i.ToString ();
-							j.Line = f.Value.Line;
-							b.Expressions.RemoveAt (b.Expressions.Count - 1);
-							b.Expressions.Add (new SqlExpression (j));
-							NextExpression (false);
+						if(CurrentExpression.Token == TokenID.kNull)
+						{
+							SqlExpression sqlEx = container.Expressions[container.Expressions.Count - 1];
+							int beginPoint = sqlEx.Value.BeginPoint;
+							int length = (CurrentExpression.BeginPoint + CurrentExpression.Length) - beginPoint;
+							StringBuilder strBuilder = new StringBuilder();
+							strBuilder.Append(sqlEx.Value.Text);
+							strBuilder.Append(' ', CurrentExpression.BeginPoint - (sqlEx.Value.BeginPoint + sqlEx.Value.Length));
+							strBuilder.Append(CurrentExpression.Text);
+							Expression ee = new Expression(TokenID.kIsNull);
+							ee.BeginPoint = beginPoint;
+							ee.Length = length;
+							ee.Text = strBuilder.ToString();
+							ee.Line = sqlEx.Value.Line;
+							container.Expressions.RemoveAt(container.Expressions.Count - 1);
+							container.Expressions.Add(new SqlExpression(ee));
+							NextExpression(false);
 						}
-						else {
-							Error ("Esperado NULL");
+						else
+						{
+							Error("Esperado NULL");
 						}
 						continue;
 					case TokenID.kNot:
-						b.Expressions.Add (new SqlExpression (CurrentExpression));
-						NextExpression (false);
-						if (CurrentExpression.Token == TokenID.kIn) {
-							b.Expressions.Add (new SqlExpression (CurrentExpression));
-							NextExpression (false);
+						container.Expressions.Add(new SqlExpression(CurrentExpression));
+						NextExpression(false);
+						if(CurrentExpression.Token == TokenID.kIn)
+						{
+							goto VERIFYOPERATOR;
 						}
 						continue;
 					case TokenID.kIn:
 					case TokenID.kAll:
 					case TokenID.kAny:
 					case TokenID.kSome:
-						b.Expressions.Add (new SqlExpression (CurrentExpression));
-						NextExpression (true);
-						if (CurrentExpression.Token == TokenID.LParen) {
-							ContainerSqlExpression e = new ContainerSqlExpression (CurrentExpression);
-							NextExpression (true);
-							if (CurrentExpression.Token != TokenID.kSelect) {
-								Select k = new Select (new Expression (0, 0, CurrentExpression.Line));
-								k.Value.Text = "";
-								k.SelectPart = ParserSelectPart ();
-								e.Expressions.Add (k);
-								if (CurrentExpression.Token == TokenID.RParen || GetPreviousExpression (1).Token == TokenID.RParen) {
-									NextExpression (false);
-									b.Expressions.Add (e);
-									return b;
+						container.Expressions.Add(new SqlExpression(CurrentExpression));
+						NextExpression(true);
+						if(CurrentExpression.Token == TokenID.LParen)
+						{
+							ContainerSqlExpression ce = new ContainerSqlExpression(CurrentExpression);
+							NextExpression(true);
+							if(CurrentExpression.Token != TokenID.kSelect)
+							{
+								Select select = new Select(new Expression(0, 0, CurrentExpression.Line));
+								select.Value.Text = "";
+								select.SelectPart = ParserSelectPart();
+								ce.Expressions.Add(select);
+								if(CurrentExpression.Token == TokenID.RParen || GetPreviousExpression(1).Token == TokenID.RParen)
+								{
+									NextExpression(false);
+									container.Expressions.Add(ce);
+									return container;
 								}
 								else
-									Error ("Expected character ')'.");
+									Error("Expected character ')'.");
 							}
-							else {
-								e.Expressions.Add (ParserSelect ());
-								if (CurrentExpression.Token == TokenID.RParen || (CurrentExpression.Token == TokenID.End && GetPreviousExpression (1).Token == TokenID.RParen)) {
-									NextExpression (false);
-									b.Expressions.Add (e);
-									return b;
+							else
+							{
+								ce.Expressions.Add(ParserSelect());
+								if(CurrentExpression.Token == TokenID.RParen || (CurrentExpression.Token == TokenID.End && GetPreviousExpression(1).Token == TokenID.RParen))
+								{
+									NextExpression(false);
+									container.Expressions.Add(ce);
+									return container;
 								}
-								else if (CurrentExpression.Token != TokenID.RParen && GetPreviousExpression (1).Token == TokenID.RParen) {
-									b.Expressions.Add (e);
+								else if(CurrentExpression.Token != TokenID.RParen && GetPreviousExpression(1).Token == TokenID.RParen)
+								{
+									container.Expressions.Add(ce);
 								}
 								else
-									Error ("Expected character ')'.");
+									Error("Expected character ')'.");
 							}
 						}
 						else
-							Error ("Expected '('.");
+							Error("Expected '('.");
 						continue;
 					case TokenID.RParen:
-						return b;
+						return container;
 					case TokenID.kAnd:
 					case TokenID.kOr:
 						continue;
@@ -787,65 +1019,71 @@ namespace GDA.Sql.InterpreterExpression
 					}
 					break;
 				case TokenID.LParen:
-					d = true;
-					b.Expressions.Add (ParserContainerConditional (true));
-					if (GetPreviousExpression (1).Token == TokenID.RParen)
+					findConditional = true;
+					container.Expressions.Add(ParserContainerConditional(true));
+					if(GetPreviousExpression(1).Token == TokenID.RParen)
 						continue;
-					else if (CurrentExpression.Token == TokenID.RParen)
+					else if(CurrentExpression.Token == TokenID.RParen)
 						continue;
 					else
-						Error ("Expected character ')'.");
-					return b;
+						Error("Expected character ')'.");
+					return container;
 				case TokenID.RParen:
-					if (b.ContainerToken == TokenID.LParen)
-						NextExpression (false);
-					return b;
+					if(container.ContainerToken == TokenID.LParen)
+						NextExpression(false);
+					return container;
 				case TokenID.kSelect:
-					if (GetPreviousExpression (1).Token == TokenID.LParen) {
-						b.Expressions.Add (ParserSelect ());
+					if(GetPreviousExpression(1).Token == TokenID.LParen)
+					{
+						container.Expressions.Add(ParserSelect());
 						continue;
 					}
 					else
-						return b;
+						return container;
 				case TokenID.kExists:
-					b.Expressions.Add (new SqlExpression (CurrentExpression) {
+					container.Expressions.Add(new SqlExpression(CurrentExpression) {
 						Type = SqlExpressionType.Function
 					});
-					NextExpression (true);
-					if (CurrentExpression.Token == TokenID.LParen) {
-						ContainerSqlExpression e = new ContainerSqlExpression (CurrentExpression);
-						NextExpression (true);
-						if (CurrentExpression.Token == TokenID.Identifier) {
-							e.Expressions.Add (new SelectVariable (CurrentExpression));
-							NextExpression (true);
+					NextExpression(true);
+					if(CurrentExpression.Token == TokenID.LParen)
+					{
+						ContainerSqlExpression ce = new ContainerSqlExpression(CurrentExpression);
+						NextExpression(true);
+						if(CurrentExpression.Token == TokenID.Identifier)
+						{
+							ce.Expressions.Add(new SelectVariable(CurrentExpression));
+							NextExpression(true);
 						}
 						else
-							e.Expressions.Add (ParserSelect ());
-						if (CurrentExpression.Token == TokenID.RParen) {
-							NextExpression (false);
-							b.Expressions.Add (e);
-							return b;
+							ce.Expressions.Add(ParserSelect());
+						if(CurrentExpression.Token == TokenID.RParen)
+						{
+							NextExpression(false);
+							container.Expressions.Add(ce);
+							return container;
 						}
 						else
-							Error ("Expected character '('.");
+							Error("Expected character '('.");
 					}
 					else
-						Error ("Expected character ')'.");
+						Error("Expected character ')'.");
 					continue;
 				case TokenID.kAnd:
 				case TokenID.kOr:
-					d = false;
-					b.Expressions.Add (new SqlExpression (CurrentExpression));
-					b.Expressions.Add (ParserContainerConditional (true));
+					findConditional = false;
+					container.Expressions.Add(new SqlExpression(CurrentExpression));
+					container.Expressions.Add(ParserContainerConditional(true));
 					continue;
 				case TokenID.End:
-					if (b.Expressions.Count > 0)
-						return b;
+					if(container.Expressions.Count > 0)
+						return container;
 					else
 						return null;
 				default:
-					if (CurrentExpression.Token.ToString () [0] == 'k') {
-						switch (CurrentExpression.Token) {
+					if(CurrentExpression.Token.ToString()[0] == 'k')
+					{
+						switch(CurrentExpression.Token)
+						{
 						case TokenID.kLike:
 						case TokenID.kIs:
 						case TokenID.kIn:
@@ -864,116 +1102,150 @@ namespace GDA.Sql.InterpreterExpression
 						case TokenID.kHour:
 						case TokenID.kMinute:
 						case TokenID.kSecond:
-							Error ("Invalid keyword " + CurrentExpression.Token.ToString ().Substring (1));
+							Error("Invalid keyword " + CurrentExpression.Token.ToString().Substring(1));
 							break;
 						default:
-							if (GetNextExpression (1).Token == TokenID.LParen) {
-								NextExpression (true);
-								b.Expressions.Add (ParserFunction ());
-								d = true;
+							if(GetNextExpression(1).Token == TokenID.LParen)
+							{
+								NextExpression(true);
+								container.Expressions.Add(ParserFunction());
+								findConditional = true;
 								goto VERIFYOPERATOR;
 								continue;
 							}
 							break;
 						}
 					}
-					return b;
+					return container;
 				}
 			}
 		}
-		private WherePart ParserWherePart ()
+
+		private WherePart ParserWherePart()
 		{
-			WherePart a = new WherePart ();
-			a.Where = CurrentExpression;
-			NextExpression (true);
-			ContainerSqlExpression b = ParserContainerConditional ();
-			a.Expressions = b.Expressions;
-			if (b.ContainerToken == TokenID.LParen) {
-				NextExpression (false);
+			WherePart wherePart = new WherePart();
+			wherePart.Where = CurrentExpression;
+			NextExpression(true);
+			ContainerSqlExpression ce = ParserContainerConditional();
+			wherePart.Expressions = ce.Expressions;
+			if(ce.ContainerToken == TokenID.LParen)
+			{
+				NextExpression(false);
 			}
-			return a;
+			return wherePart;
 		}
-		private GroupByPart ParserGroupByPart ()
+
+		private GroupByPart ParserGroupByPart()
 		{
-			return ParserGroupByPart (false);
+			return ParserGroupByPart(false);
 		}
-		private GroupByPart ParserGroupByPart (bool a)
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="ignoreOrderByExpression">
+		/// Ignora a existencia da expressão group by e não 
+		/// pula para a próxima expressão para começar a fazer a analise.
+		/// </param>
+		/// <returns></returns>
+		private GroupByPart ParserGroupByPart(bool ignoreGroupByExpression)
 		{
-			GroupByPart b = new GroupByPart ();
-			if (!a) {
-				b.Group = GetPreviousExpression (1);
-				b.By = CurrentExpression;
-				NextExpression (true);
+			GroupByPart groupByPart = new GroupByPart();
+			if(!ignoreGroupByExpression)
+			{
+				groupByPart.Group = GetPreviousExpression(1);
+				groupByPart.By = CurrentExpression;
+				NextExpression(true);
 			}
-			while (true) {
-				ContainerSqlExpression c = ParserContainerSqlExpression (TokenID.Comma);
-				if (c != null) {
-					b.Expressions.Add (c);
-					if (CurrentExpression.Token == TokenID.Comma)
-						NextExpression (true);
+			while (true)
+			{
+				ContainerSqlExpression ce = ParserContainerSqlExpression(TokenID.Comma);
+				if(ce != null)
+				{
+					groupByPart.Expressions.Add(ce);
+					if(CurrentExpression.Token == TokenID.Comma)
+						NextExpression(true);
 					else
 						break;
 				}
 				else
 					break;
 			}
-			return b;
+			return groupByPart;
 		}
-		public OrderByPart ParserOrderByPart ()
+
+		public OrderByPart ParserOrderByPart()
 		{
-			return ParserOrderByPart (false);
+			return ParserOrderByPart(false);
 		}
-		public OrderByPart ParserOrderByPart (bool a)
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="ignoreOrderByExpression">
+		/// Ignora a existencia da expressão order by e não 
+		/// pula para a próxima expressão para começar a fazer a analise.
+		/// </param>
+		/// <returns></returns>
+		public OrderByPart ParserOrderByPart(bool ignoreOrderByExpression)
 		{
-			OrderByPart b = new OrderByPart ();
-			if (!a)
-				NextExpression (true);
-			while (true) {
-				ContainerSqlExpression c = ParserContainerSqlExpression (TokenID.Comma, TokenID.kAsc, TokenID.kDesc, TokenID.kNulls, TokenID.RParen, TokenID.Semi);
-				if (c != null) {
-					OrderByExpression d = new OrderByExpression ();
-					d.Expression = c;
-					if (CurrentExpression.Token == TokenID.kAsc || CurrentExpression.Token == TokenID.kDesc) {
-						d.AscOrDesc = CurrentExpression;
-						d.Asc = (CurrentExpression.Token == TokenID.kAsc);
-						NextExpression (false);
+			OrderByPart orderByPart = new OrderByPart();
+			if(!ignoreOrderByExpression)
+				NextExpression(true);
+			while (true)
+			{
+				ContainerSqlExpression ce = ParserContainerSqlExpression(TokenID.Comma, TokenID.kAsc, TokenID.kDesc, TokenID.kNulls, TokenID.RParen, TokenID.Semi);
+				if(ce != null)
+				{
+					OrderByExpression obe = new OrderByExpression();
+					obe.Expression = ce;
+					if(CurrentExpression.Token == TokenID.kAsc || CurrentExpression.Token == TokenID.kDesc)
+					{
+						obe.AscOrDesc = CurrentExpression;
+						obe.Asc = (CurrentExpression.Token == TokenID.kAsc);
+						NextExpression(false);
 					}
-					if (CurrentExpression.Token == TokenID.kNulls) {
-						d.Nulls = true;
-						NextExpression (false);
-						if (CurrentExpression.Token == TokenID.kFirst || CurrentExpression.Token == TokenID.kLast) {
-							d.First = (CurrentExpression.Token == TokenID.kFirst);
-							NextExpression (false);
+					if(CurrentExpression.Token == TokenID.kNulls)
+					{
+						obe.Nulls = true;
+						NextExpression(false);
+						if(CurrentExpression.Token == TokenID.kFirst || CurrentExpression.Token == TokenID.kLast)
+						{
+							obe.First = (CurrentExpression.Token == TokenID.kFirst);
+							NextExpression(false);
 						}
 					}
-					b.OrderByExpressions.Add (d);
-					if (CurrentExpression.Token == TokenID.Comma)
-						NextExpression (true);
+					orderByPart.OrderByExpressions.Add(obe);
+					if(CurrentExpression.Token == TokenID.Comma)
+						NextExpression(true);
 					else
 						break;
 				}
 				else
 					break;
 			}
-			return b;
+			return orderByPart;
 		}
-		private HavingPart ParserHavingPart ()
+
+		private HavingPart ParserHavingPart()
 		{
-			HavingPart a = new HavingPart ();
-			NextExpression (true);
-			while (true) {
-				ContainerSqlExpression b = ParserContainerConditional ();
-				if (b != null) {
-					a.Expressions.Add (b);
-					if (CurrentExpression.Token == TokenID.Comma)
-						NextExpression (true);
+			HavingPart havingPart = new HavingPart();
+			NextExpression(true);
+			while (true)
+			{
+				ContainerSqlExpression ce = ParserContainerConditional();
+				if(ce != null)
+				{
+					havingPart.Expressions.Add(ce);
+					if(CurrentExpression.Token == TokenID.Comma)
+						NextExpression(true);
 					else
 						break;
 				}
 				else
 					break;
 			}
-			return a;
+			return havingPart;
 		}
 	}
 }

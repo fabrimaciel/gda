@@ -1,93 +1,202 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Sql.InterpreterExpression;
 using System.Reflection;
 using GDA.Caching;
+
 namespace GDA.Sql
 {
+	/// <summary>
+	/// Armazena as informações de um tabela.
+	/// </summary>
 	public class TableInfo
 	{
+		/// <summary>
+		/// Expressão que armazena o nome da tabela.
+		/// </summary>
 		private InterpreterExpression.Nodes.TableNameExpression _tableNameExpression;
+
+		/// <summary>
+		/// Expressão que armazena o apelido da tabela.
+		/// </summary>
 		private Expression _tableAlias;
+
+		/// <summary>
+		/// Nome da tabela.
+		/// </summary>
 		private TableName _tableName;
-		private List<ColumnInfo> _columns = new List<ColumnInfo> ();
+
+		/// <summary>
+		/// Lista das colunas relacionadas com a tabela.
+		/// </summary>
+		private List<ColumnInfo> _columns = new List<ColumnInfo>();
+
+		/// <summary>
+		/// Tipo da classe que a tabela está relacionada.
+		/// </summary>
 		private Type _classTypeRelated;
+
 		private ISelectStatementReferences _references;
+
+		/// <summary>
+		/// Armazena as informações do tipo relacionado com o nome da tabela.
+		/// </summary>
 		private Mapping.TypeInfo _typeInfo;
-		public Type ClassTypeRelated {
-			get {
+
+		/// <summary>
+		/// Tipo da classe que a tabela está relacionada.
+		/// </summary>
+		public Type ClassTypeRelated
+		{
+			get
+			{
 				return _classTypeRelated;
 			}
-			set {
+			set
+			{
 				_classTypeRelated = value;
 			}
 		}
-		public List<ColumnInfo> Columns {
-			get {
+
+		/// <summary>
+		/// Lista das colunas relacionadas com a tabela.
+		/// </summary>
+		public List<ColumnInfo> Columns
+		{
+			get
+			{
 				return _columns;
 			}
 		}
-		public TableName TableName {
-			get {
+
+		/// <summary>
+		/// Nome da tabela.
+		/// </summary>
+		public TableName TableName
+		{
+			get
+			{
 				return _tableName;
 			}
 		}
-		public string TableAlias {
-			get {
-				if (_tableAlias != null)
+
+		/// <summary>
+		/// Apelido da tabela.
+		/// </summary>
+		public string TableAlias
+		{
+			get
+			{
+				if(_tableAlias != null)
 					return _tableAlias.Text;
 				else
 					return null;
 			}
 		}
-		public Mapping.TypeInfo TypeInfo {
-			get {
-				if (_typeInfo == null)
-					_typeInfo = _references.GetTypeInfo (this);
+
+		/// <summary>
+		/// Informações do tipo relacionado com a tabela.
+		/// </summary>
+		public Mapping.TypeInfo TypeInfo
+		{
+			get
+			{
+				if(_typeInfo == null)
+					_typeInfo = _references.GetTypeInfo(this);
 				return _typeInfo;
 			}
 		}
-		internal TableInfo (ISelectStatementReferences a, InterpreterExpression.Nodes.TableNameExpression b, Expression c)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="tableName">Referência da expressão que armazena o nome da tabela.</param>
+		/// <param name="tableAlias">Expressão que armazena o apelido da tabela.</param>
+		internal TableInfo(ISelectStatementReferences references, InterpreterExpression.Nodes.TableNameExpression tableName, Expression tableAlias)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("references");
-			_references = a;
-			_tableNameExpression = b;
+			if(references == null)
+				throw new ArgumentNullException("references");
+			_references = references;
+			_tableNameExpression = tableName;
 			_tableName = new TableName {
-				Name = b.Name,
-				Schema = b.Schema
+				Name = tableName.Name,
+				Schema = tableName.Schema
 			};
-			_tableAlias = c;
+			_tableAlias = tableAlias;
 		}
-		internal bool ExistsColumn (string a)
+
+		/// <summary>
+		/// Verifica se a tabela contem a coluna mencionada.
+		/// </summary>
+		/// <param name="columnName">Nome da coluna.</param>
+		/// <returns></returns>
+		internal bool ExistsColumn(string columnName)
 		{
-			return !string.IsNullOrEmpty (_references.GetPropertyMapping (TypeInfo, a));
+			return !string.IsNullOrEmpty(_references.GetPropertyMapping(TypeInfo, columnName));
 		}
-		internal bool ExistsColumn (ColumnInfo a)
+
+		/// <summary>
+		/// Verifica se a tabela contém a coluna mencionada.
+		/// </summary>
+		/// <param name="column"></param>
+		/// <returns></returns>
+		internal bool ExistsColumn(ColumnInfo column)
 		{
-			if (!string.IsNullOrEmpty (a.TableNameOrTableAlias) && (string.Compare (a.TableNameOrTableAlias, this.TableAlias, true) != 0 || string.Compare (a.TableNameOrTableAlias, this.TableName.Name, true) != 0)) {
+			if(!string.IsNullOrEmpty(column.TableNameOrTableAlias) && (string.Compare(column.TableNameOrTableAlias, this.TableAlias, true) != 0 || string.Compare(column.TableNameOrTableAlias, this.TableName.Name, true) != 0))
+			{
 				return false;
 			}
-			return ExistsColumn (a.ColumnName);
+			return ExistsColumn(column.ColumnName);
 		}
-		internal void AddColumn (ColumnInfo a)
+
+		/// <summary>
+		/// Adiciona um coluna na tabela.
+		/// </summary>
+		/// <param name="ci"></param>
+		internal void AddColumn(ColumnInfo ci)
 		{
-			a.DBColumnName = _references.GetPropertyMapping (TypeInfo, a.ColumnName);
-			_columns.Add (a);
+			ci.DBColumnName = _references.GetPropertyMapping(TypeInfo, ci.ColumnName);
+			_columns.Add(ci);
 		}
-		internal void RenameToMapper ()
+
+		/// <summary>
+		/// Renomeia as entrada para o mapeamento.
+		/// </summary>
+		internal void RenameToMapper()
 		{
-			var a = _references.GetTableName (TypeInfo);
-			if (a == null)
-				throw new GDAException ("Table name not found to type \"" + TypeInfo.FullnameWithAssembly + "\"");
-			_tableName = a;
-			_tableNameExpression.Name = a.Name;
-			_tableNameExpression.Schema = a.Schema;
+			var name = _references.GetTableName(TypeInfo);
+			if(name == null)
+				throw new GDAException("Table name not found to type \"" + TypeInfo.FullnameWithAssembly + "\"");
+			_tableName = name;
+			_tableNameExpression.Name = name.Name;
+			_tableNameExpression.Schema = name.Schema;
 		}
-		public override string ToString ()
+
+		public override string ToString()
 		{
-			return TableName.ToString () + (_tableAlias != null ? " AS " + _tableAlias.Text : "");
+			return TableName.ToString() + (_tableAlias != null ? " AS " + _tableAlias.Text : "");
 		}
 	}
 }

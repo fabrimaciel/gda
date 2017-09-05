@@ -38,7 +38,7 @@
     <DebugSymbols>false</DebugSymbols>
     <DebugType>none</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\..\bin\Providers\Oracle\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>0</WarningLevel>
@@ -54,7 +54,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="GDA">
-      <HintPath>..\..\source\bin\Debug\GDA.dll</HintPath>
+      <HintPath>..\..\bin\GDA.dll</HintPath>
     </Reference>
     <Reference Include="Oracle.DataAccess">
       <SpecificVersion>False</SpecificVersion>

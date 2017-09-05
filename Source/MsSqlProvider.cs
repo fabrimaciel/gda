@@ -1,26 +1,67 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data.SqlClient;
 using System.Data;
+
 namespace GDA.Provider.MsSql
 {
+	/// <summary>
+	/// Provide da base de dados Microsoft SqlServer.
+	/// </summary>
 	public class MsSqlProvider : Provider
 	{
 		private static System.Collections.Generic.List<string> reservedsWords;
+
+		/// <summary>
+		/// Dialeto padrão do provedor.
+		/// </summary>
 		private MsSqlProviderDialects _msSqlDialect = MsSqlProviderDialects.MsSql2000;
-		public MsSqlProviderDialects MsSqlDialect {
-			get {
+
+		/// <summary>
+		/// Dialeto do Provider.
+		/// </summary>
+		public MsSqlProviderDialects MsSqlDialect
+		{
+			get
+			{
 				return _msSqlDialect;
 			}
-			set {
+			set
+			{
 				_msSqlDialect = value;
 			}
 		}
-		public MsSqlProvider () : base ("MsSql", typeof(SqlConnection), typeof(SqlDataAdapter), typeof(SqlCommand), typeof(SqlParameter), "@", "select @@IDENTITY;", true)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		public MsSqlProvider() : base("MsSql", typeof(SqlConnection), typeof(SqlDataAdapter), typeof(SqlCommand), typeof(SqlParameter), "@", "select @@IDENTITY;", true)
 		{
-			if (reservedsWords == null) {
-				reservedsWords = new List<string> (new string[] {
+			if(reservedsWords == null)
+			{
+				reservedsWords = new List<string>(new string[] {
 					"ABSOLUTE",
 					"ACTION",
 					"ADA",
@@ -417,162 +458,229 @@ namespace GDA.Provider.MsSql
 				});
 			}
 		}
-		public override string SQLCommandLimit (List<Mapper> a, string b, int c, int d)
+
+		/// <summary>
+		/// Métodos responsável por tratar o comando sql e adapta-lo para executar
+		/// estruturas de paginação.
+		/// </summary>
+		/// <param name="sqlQuery">Clausula SQL que será tratada.</param>
+		/// <param name="startRecord">Apartir da qual deve começar o resultado.</param>
+		/// <param name="size">Quantidade de registros por resultado.</param>
+		/// <returns>Consulta sql tratada</returns>
+		public override string SQLCommandLimit(List<Mapper> mapping, string sqlQuery, int startRecord, int size)
 		{
-			if (c == 0 && d > 0) {
-				var e = b.IndexOf ("SELECT", 0, StringComparison.InvariantCultureIgnoreCase);
-				var f = b.IndexOf ("FROM", 0, StringComparison.InvariantCultureIgnoreCase);
-				if (e >= 0) {
-					e += "SELECT".Length;
-					if (f > e && b.IndexOf ("DISTINC", e, f - e, StringComparison.InvariantCultureIgnoreCase) < 0)
-						return b.Substring (0, e) + " TOP " + d + " " + b.Substring (e);
+			if(startRecord == 0 && size > 0)
+			{
+				var selectIndex = sqlQuery.IndexOf("SELECT", 0, StringComparison.InvariantCultureIgnoreCase);
+				var fromIndex = sqlQuery.IndexOf("FROM", 0, StringComparison.InvariantCultureIgnoreCase);
+				if(selectIndex >= 0)
+				{
+					selectIndex += "SELECT".Length;
+					if(fromIndex > selectIndex && sqlQuery.IndexOf("DISTINC", selectIndex, fromIndex - selectIndex, StringComparison.InvariantCultureIgnoreCase) < 0)
+						return sqlQuery.Substring(0, selectIndex) + " TOP " + size + " " + sqlQuery.Substring(selectIndex);
 				}
 			}
-			string g = "";
-			string[] h = null;
-			string[] i = null;
-			if (b.IndexOf ("ORDER BY", 0, StringComparison.OrdinalIgnoreCase) < 0) {
-				if (a == null)
-					throw new GDAException ("On MSQL 2000 for paging is required at least one ordered field");
-				Mapper j = a.Find (delegate (Mapper k) {
-					return (k.ParameterType == PersistenceParameterType.IdentityKey || k.ParameterType == PersistenceParameterType.Key);
+			string order = "";
+			string[] fieldOrderBy = null;
+			string[] directionFieldOrderBy = null;
+			if(sqlQuery.IndexOf("ORDER BY", 0, StringComparison.OrdinalIgnoreCase) < 0)
+			{
+				if(mapping == null)
+					throw new GDAException("On MSQL 2000 for paging is required at least one ordered field");
+				Mapper field = mapping.Find(delegate(Mapper m) {
+					return (m.ParameterType == PersistenceParameterType.IdentityKey || m.ParameterType == PersistenceParameterType.Key);
 				});
-				if (j == null)
-					j = a [0];
-				var e = b.IndexOf ("SELECT", 0, StringComparison.OrdinalIgnoreCase);
-				var f = b.IndexOf ("FROM", 0, StringComparison.OrdinalIgnoreCase);
-				if (e >= 0 && f >= "SELECT".Length + 1) {
-					var l = b.Substring (e + "SELECT".Length, f - (e + "SELECT".Length));
-					if (l.IndexOf ("*", 0) < 0 && l.IndexOf (j.Name, 0, StringComparison.OrdinalIgnoreCase) < 0) {
-						b = b.Substring (0, f) + ", " + QuoteExpression (j.Name) + " " + b.Substring (f);
+				if(field == null)
+					field = mapping[0];
+				var selectIndex = sqlQuery.IndexOf("SELECT", 0, StringComparison.OrdinalIgnoreCase);
+				var fromIndex = sqlQuery.IndexOf("FROM", 0, StringComparison.OrdinalIgnoreCase);
+				if(selectIndex >= 0 && fromIndex >= "SELECT".Length + 1)
+				{
+					var columnsPart = sqlQuery.Substring(selectIndex + "SELECT".Length, fromIndex - (selectIndex + "SELECT".Length));
+					if(columnsPart.IndexOf("*", 0) < 0 && columnsPart.IndexOf(field.Name, 0, StringComparison.OrdinalIgnoreCase) < 0)
+					{
+						sqlQuery = sqlQuery.Substring(0, fromIndex) + ", " + QuoteExpression(field.Name) + " " + sqlQuery.Substring(fromIndex);
 					}
 				}
-				var m = j.Name.LastIndexOf ('.');
-				if (m >= 0)
-					b += " ORDER BY " + QuoteExpression (j.Name.Substring (m + 1));
+				var lastIndex = field.Name.LastIndexOf('.');
+				if(lastIndex >= 0)
+					sqlQuery += " ORDER BY " + QuoteExpression(field.Name.Substring(lastIndex + 1));
 				else
-					b += " ORDER BY " + QuoteExpression (j.Name);
+					sqlQuery += " ORDER BY " + QuoteExpression(field.Name);
 			}
-			int n = b.IndexOf ("ORDER BY", 0, StringComparison.OrdinalIgnoreCase);
-			if (n >= 0) {
-				g = b.Substring (n + "ORDER BY".Length, b.Length - (n + "ORDER BY".Length));
-				g = g.Trim ('\r', '\n');
-				h = g.Split (',');
-				i = new string[h.Length];
-				for (int o = 0; o < h.Length; o++) {
-					int p = 0;
-					if (h [o].TrimEnd (' ').EndsWith (" DESC", StringComparison.OrdinalIgnoreCase)) {
-						p = h [o].TrimEnd (' ').LastIndexOf (" DESC", StringComparison.OrdinalIgnoreCase);
-						i [o] = "DESC";
-						h [o] = h [o].Substring (0, p).Trim ();
+			int orderBy = sqlQuery.IndexOf("ORDER BY", 0, StringComparison.OrdinalIgnoreCase);
+			if(orderBy >= 0)
+			{
+				order = sqlQuery.Substring(orderBy + "ORDER BY".Length, sqlQuery.Length - (orderBy + "ORDER BY".Length));
+				order = order.Trim('\r', '\n');
+				fieldOrderBy = order.Split(',');
+				directionFieldOrderBy = new string[fieldOrderBy.Length];
+				for(int i = 0; i < fieldOrderBy.Length; i++)
+				{
+					int posDi = 0;
+					if(fieldOrderBy[i].TrimEnd(' ').EndsWith(" DESC", StringComparison.OrdinalIgnoreCase))
+					{
+						posDi = fieldOrderBy[i].TrimEnd(' ').LastIndexOf(" DESC", StringComparison.OrdinalIgnoreCase);
+						directionFieldOrderBy[i] = "DESC";
+						fieldOrderBy[i] = fieldOrderBy[i].Substring(0, posDi).Trim();
 					}
-					else {
-						i [o] = "ASC";
-						p = h [o].IndexOf (" ASC", 0, StringComparison.OrdinalIgnoreCase);
-						if (p >= 0)
-							h [o] = h [o].Substring (0, p).Trim ();
+					else
+					{
+						directionFieldOrderBy[i] = "ASC";
+						posDi = fieldOrderBy[i].IndexOf(" ASC", 0, StringComparison.OrdinalIgnoreCase);
+						if(posDi >= 0)
+							fieldOrderBy[i] = fieldOrderBy[i].Substring(0, posDi).Trim();
 						else
-							h [o] = h [o].Trim ();
+							fieldOrderBy[i] = fieldOrderBy[i].Trim();
 					}
-					int q = h [o].LastIndexOf ('.');
-					if (q >= 0)
-						h [o] = h [o].Substring (q + 1);
+					int dotPos = fieldOrderBy[i].LastIndexOf('.');
+					if(dotPos >= 0)
+						fieldOrderBy[i] = fieldOrderBy[i].Substring(dotPos + 1);
 				}
 			}
-			if (MsSqlDialect == MsSqlProviderDialects.MsSql2005) {
-				if (h.Length > 0) {
-					string[] r = new string[h.Length];
-					for (int o = 0; o < h.Length; o++)
-						r [o] = h [o] + " " + i [o];
-					g = string.Join (", ", r);
+			if(MsSqlDialect == MsSqlProviderDialects.MsSql2005)
+			{
+				if(fieldOrderBy.Length > 0)
+				{
+					string[] orderParts = new string[fieldOrderBy.Length];
+					for(int i = 0; i < fieldOrderBy.Length; i++)
+						orderParts[i] = fieldOrderBy[i] + " " + directionFieldOrderBy[i];
+					order = string.Join(", ", orderParts);
 				}
-				int s = b.IndexOf ("SELECT", 0, StringComparison.OrdinalIgnoreCase);
-				b = "SELECT * FROM (\r\n" + b.Substring (0, s) + string.Format ("SELECT *, [!RowNum] = ROW_NUMBER() OVER (ORDER BY {0}) FROM (", g) + ((n - s) > 0 ? b.Substring (s, n - s) : b.Substring (s)) + string.Format ("\r\n) tmp1) tmp2 WHERE [!RowNum] > {0}{1}", c, (d > 0 ? string.Format (" AND [!RowNum] <= {0}", c + d) : ""));
-				if (n >= 0) {
-					b += " ORDER BY ";
-					for (int o = 0; o < h.Length; o++) {
-						s = h [o].IndexOf ('.');
-						b += (s > 0 ? h [o].Substring (s + 1) : h [o]) + " " + i [o];
-						if ((o + 1) != h.Length)
-							b += ", ";
+				int pos = sqlQuery.IndexOf("SELECT", 0, StringComparison.OrdinalIgnoreCase);
+				sqlQuery = "SELECT * FROM (\r\n" + sqlQuery.Substring(0, pos) + string.Format("SELECT *, [!RowNum] = ROW_NUMBER() OVER (ORDER BY {0}) FROM (", order) + ((orderBy - pos) > 0 ? sqlQuery.Substring(pos, orderBy - pos) : sqlQuery.Substring(pos)) + string.Format("\r\n) tmp1) tmp2 WHERE [!RowNum] > {0}{1}", startRecord, (size > 0 ? string.Format(" AND [!RowNum] <= {0}", startRecord + size) : ""));
+				if(orderBy >= 0)
+				{
+					sqlQuery += " ORDER BY ";
+					for(int i = 0; i < fieldOrderBy.Length; i++)
+					{
+						pos = fieldOrderBy[i].IndexOf('.');
+						sqlQuery += (pos > 0 ? fieldOrderBy[i].Substring(pos + 1) : fieldOrderBy[i]) + " " + directionFieldOrderBy[i];
+						if((i + 1) != fieldOrderBy.Length)
+							sqlQuery += ", ";
 					}
 				}
-				return b;
+				return sqlQuery;
 			}
-			else {
-				int s = b.IndexOf ("SELECT", 0, StringComparison.OrdinalIgnoreCase);
-				int t = b.IndexOf ("FROM", 0, StringComparison.OrdinalIgnoreCase);
-				bool u = false;
-				if (s >= 0 && t > s) {
-					int v = b.Substring (s, t - s).IndexOf ("DISTINCT ", 0, StringComparison.OrdinalIgnoreCase);
-					if (v >= 0) {
-						u = true;
-						b = b.Substring (0, v) + b.Substring (v + "DISTINCT ".Length);
+			else
+			{
+				int pos = sqlQuery.IndexOf("SELECT", 0, StringComparison.OrdinalIgnoreCase);
+				int fromPos = sqlQuery.IndexOf("FROM", 0, StringComparison.OrdinalIgnoreCase);
+				bool hasDisctint = false;
+				if(pos >= 0 && fromPos > pos)
+				{
+					int distinctPos = sqlQuery.Substring(pos, fromPos - pos).IndexOf("DISTINCT ", 0, StringComparison.OrdinalIgnoreCase);
+					if(distinctPos >= 0)
+					{
+						hasDisctint = true;
+						sqlQuery = sqlQuery.Substring(0, distinctPos) + sqlQuery.Substring(distinctPos + "DISTINCT ".Length);
 					}
 				}
-				b = String.Format ("SELECT{0}TOP {1}", u ? " DISTINCT " : " ", (c + d).ToString ()) + b.Substring (s + "SELECT".Length);
-				b = String.Format ("SELECT * FROM (SELECT TOP {0} * FROM ({1}) AS inner_tbl", d, b);
-				if (n >= 0) {
-					b += " ORDER BY ";
-					for (int o = 0; o < h.Length; o++) {
-						b += h [o] + " " + ((i [o] == "ASC") ? "DESC" : "ASC");
-						if ((o + 1) != h.Length)
-							b += ", ";
+				sqlQuery = String.Format("SELECT{0}TOP {1}", hasDisctint ? " DISTINCT " : " ", (startRecord + size).ToString()) + sqlQuery.Substring(pos + "SELECT".Length);
+				sqlQuery = String.Format("SELECT * FROM (SELECT TOP {0} * FROM ({1}) AS inner_tbl", size, sqlQuery);
+				if(orderBy >= 0)
+				{
+					sqlQuery += " ORDER BY ";
+					for(int i = 0; i < fieldOrderBy.Length; i++)
+					{
+						sqlQuery += fieldOrderBy[i] + " " + ((directionFieldOrderBy[i] == "ASC") ? "DESC" : "ASC");
+						if((i + 1) != fieldOrderBy.Length)
+							sqlQuery += ", ";
 					}
 				}
-				b += ") AS outer_tbl";
-				if (n >= 0) {
-					b += " ORDER BY ";
-					for (int o = 0; o < h.Length; o++) {
-						b += h [o] + " " + i [o];
-						if ((o + 1) != h.Length)
-							b += ", ";
+				sqlQuery += ") AS outer_tbl";
+				if(orderBy >= 0)
+				{
+					sqlQuery += " ORDER BY ";
+					for(int i = 0; i < fieldOrderBy.Length; i++)
+					{
+						sqlQuery += fieldOrderBy[i] + " " + directionFieldOrderBy[i];
+						if((i + 1) != fieldOrderBy.Length)
+							sqlQuery += ", ";
 					}
 				}
-				return b;
+				return sqlQuery;
 			}
 		}
-		public override bool SupportSQLCommandLimit {
-			get {
+
+		/// <summary>
+		/// Identifica que o provider suporta paginação usando o comando sql.
+		/// </summary>
+		public override bool SupportSQLCommandLimit
+		{
+			get
+			{
 				return true;
 			}
 		}
-		public override string QuoteExpressionBegin {
-			get {
+
+		/// <summary>
+		/// Quote inicial da expressão.
+		/// </summary>
+		public override string QuoteExpressionBegin
+		{
+			get
+			{
 				return "[";
 			}
 		}
-		public override string QuoteExpressionEnd {
-			get {
+
+		/// <summary>
+		/// Quote final da expressão.
+		/// </summary>
+		public override string QuoteExpressionEnd
+		{
+			get
+			{
 				return "]";
 			}
 		}
-		public override long GetDbType (Type a)
+
+		/// <summary>
+		/// Obtem um número inteiro que corresponde ao tipo da base de dados que representa o tipo
+		/// informado. O valor de retorno pode ser convertido em um tipo válido (enum value) para 
+		/// o atual provider. Esse method é chamado para traduzir os tipos do sistema para os tipos
+		/// do banco de dados que não são convertidos explicitamento.
+		/// </summary>
+		/// <param name="type">Tipo do sistema.</param>
+		/// <returns>Tipo correspondente da base de dados.</returns>
+		public override long GetDbType(Type type)
 		{
-			SqlDbType b = SqlDbType.Int;
-			if (a.Equals (typeof(int)) || a.IsEnum)
-				b = SqlDbType.Int;
-			else if (a.Equals (typeof(long)))
-				b = SqlDbType.BigInt;
-			else if (a.Equals (typeof(double)))
-				b = SqlDbType.Float;
-			else if (a.Equals (typeof(DateTime)))
-				b = SqlDbType.DateTime;
-			else if (a.Equals (typeof(bool)))
-				b = SqlDbType.Bit;
-			else if (a.Equals (typeof(string)))
-				b = SqlDbType.Text;
-			else if (a.Equals (typeof(decimal)))
-				b = SqlDbType.Decimal;
-			else if (a.Equals (typeof(byte[])))
-				b = SqlDbType.Image;
-			else if (a.Equals (typeof(Guid)))
-				b = SqlDbType.UniqueIdentifier;
-			return (long)b;
+			SqlDbType result = SqlDbType.Int;
+			if(type.Equals(typeof(int)) || type.IsEnum)
+				result = SqlDbType.Int;
+			else if(type.Equals(typeof(long)))
+				result = SqlDbType.BigInt;
+			else if(type.Equals(typeof(double)))
+				result = SqlDbType.Float;
+			else if(type.Equals(typeof(DateTime)))
+				result = SqlDbType.DateTime;
+			else if(type.Equals(typeof(bool)))
+				result = SqlDbType.Bit;
+			else if(type.Equals(typeof(string)))
+				result = SqlDbType.Text;
+			else if(type.Equals(typeof(decimal)))
+				result = SqlDbType.Decimal;
+			else if(type.Equals(typeof(byte[])))
+				result = SqlDbType.Image;
+			else if(type.Equals(typeof(Guid)))
+				result = SqlDbType.UniqueIdentifier;
+			return (long)result;
 		}
-		public override long GetDbType (string a, bool b)
+
+		/// <summary>
+		/// Esse método converte a string (extraída da tabelas do banco de dados) para o tipo do system
+		/// correspondente.
+		/// </summary>
+		/// <param name="dbType">Nome do tipo usado no banco de dados.</param>
+		/// <param name="isUnsigned">Valor boolean que identifica se o tipo é unsigned.</param>
+		/// <returns>Valor do enumerator do tipo correspondente do banco de dados. O retorno é um número
+		/// inteiro por causa que em alguns provider o enumerations não seguem o padrão do DbType definido
+		/// no System.Data.</returns>
+		public override long GetDbType(string dbType, bool isUnsigned)
 		{
-			switch (a) {
+			switch(dbType)
+			{
 			case "bit":
 				return (long)SqlDbType.Bit;
 			case "tinyint":
@@ -621,10 +729,18 @@ namespace GDA.Provider.MsSql
 				return No_DbType;
 			}
 		}
-		public override Type GetSystemType (long a)
+
+		/// <summary>
+		/// Esse método retorna o tipo do sistema correspodente ao tipo specifico indicado no long.
+		/// A implementação padrão não retorna exception, mas sim null.
+		/// </summary>
+		/// <param name="dbType">Tipo especifico do provider.</param>
+		/// <returns>Tipo do sistema correspondente.</returns>
+		public override Type GetSystemType(long dbType)
 		{
-			SqlDbType b = (SqlDbType)Enum.ToObject (typeof(SqlDbType), a);
-			switch (b) {
+			SqlDbType sqlDbType = (SqlDbType)Enum.ToObject(typeof(SqlDbType), dbType);
+			switch(sqlDbType)
+			{
 			case SqlDbType.BigInt:
 				return typeof(long);
 			case SqlDbType.Binary:
@@ -677,23 +793,39 @@ namespace GDA.Provider.MsSql
 				return typeof(object);
 			}
 		}
-		public override char QuoteCharacter {
-			get {
+
+		/// <summary>
+		/// Obtem o caracter usado para delimitar os parametros de string.
+		/// </summary>
+		/// <returns>The quote character.</returns>
+		public override char QuoteCharacter
+		{
+			get
+			{
 				return '\'';
 			}
 		}
-		public override string QuoteExpression (string a)
+
+		/// <summary>
+		/// Obtem uma container (Quote) para permitir que colunas com nomes especiais
+		/// sejam inseridas na consulta.
+		/// </summary>
+		/// <param name="word">Nome da coluna ou do paramenrto.</param>
+		/// <returns>Expressão com a formatação adequada.</returns>
+		public override string QuoteExpression(string word)
 		{
-			if (a != null) {
-				var b = a.TrimEnd (' ').TrimStart (' ');
-				if (b.Length > 3 && b [0] == '[' && b [b.Length - 1] == ']')
-					return a;
+			if(word != null)
+			{
+				var trimWord = word.TrimEnd(' ').TrimStart(' ');
+				if(trimWord.Length > 3 && trimWord[0] == '[' && trimWord[trimWord.Length - 1] == ']')
+					return word;
 			}
-			return "[" + a + "]";
+			return "[" + word + "]";
 		}
-		public override bool IsReservedWord (string a)
+
+		public override bool IsReservedWord(string word)
 		{
-			return (reservedsWords.BinarySearch (a) >= 0);
+			return (reservedsWords.BinarySearch(word) >= 0);
 		}
 	}
 }

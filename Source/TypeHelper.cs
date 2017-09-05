@@ -1,94 +1,164 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Reflection;
+
 namespace GDA.Helper
 {
+	/// <summary>
+	/// Auxilia na manipulação dos tipos.
+	/// </summary>
 	internal class TypeHelper
 	{
-		internal static bool IsNullableType (Type a)
+		/// <summary>
+		/// Verifica se é um tipo Nullable;
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		internal static bool IsNullableType(Type type)
 		{
-			return (((a != null) && a.IsGenericType) && (a.GetGenericTypeDefinition () == typeof(Nullable<>)));
+			return (((type != null) && type.IsGenericType) && (type.GetGenericTypeDefinition() == typeof(Nullable<>)));
 		}
-		internal static Type GetElementType (Type a)
+
+		/// <summary>
+		/// Recupera o tipo do elemento da enumeração.
+		/// </summary>
+		/// <param name="seqType"></param>
+		/// <returns></returns>
+		internal static Type GetElementType(Type seqType)
 		{
-			Type b = FindIEnumerable (a);
-			if (b == null) {
-				return a;
+			Type type = FindIEnumerable(seqType);
+			if(type == null)
+			{
+				return seqType;
 			}
-			return b.GetGenericArguments () [0];
+			return type.GetGenericArguments()[0];
 		}
-		private static Type FindIEnumerable (Type a)
+
+		/// <summary>
+		/// Recupera o tipo do elemento da enumeração.
+		/// </summary>
+		/// <param name="seqType"></param>
+		/// <returns></returns>
+		private static Type FindIEnumerable(Type seqType)
 		{
-			if ((a != null) && (a != typeof(string))) {
-				if (a.IsArray) {
-					return typeof(IEnumerable<>).MakeGenericType (new[] {
-						a.GetElementType ()
+			if((seqType != null) && (seqType != typeof(string)))
+			{
+				if(seqType.IsArray)
+				{
+					return typeof(IEnumerable<>).MakeGenericType(new[] {
+						seqType.GetElementType()
 					});
 				}
-				if (a.IsGenericType) {
-					foreach (Type type in a.GetGenericArguments ()) {
-						Type b = typeof(IEnumerable<>).MakeGenericType (new[] {
+				if(seqType.IsGenericType)
+				{
+					foreach (Type type in seqType.GetGenericArguments())
+					{
+						Type type2 = typeof(IEnumerable<>).MakeGenericType(new[] {
 							type
 						});
-						if (b.IsAssignableFrom (a)) {
-							return b;
+						if(type2.IsAssignableFrom(seqType))
+						{
+							return type2;
 						}
 					}
 				}
-				Type[] c = a.GetInterfaces ();
-				if ((c != null) && (c.Length > 0)) {
-					foreach (Type type3 in c) {
-						Type d = FindIEnumerable (type3);
-						if (d != null) {
-							return d;
+				Type[] interfaces = seqType.GetInterfaces();
+				if((interfaces != null) && (interfaces.Length > 0))
+				{
+					foreach (Type type3 in interfaces)
+					{
+						Type type4 = FindIEnumerable(type3);
+						if(type4 != null)
+						{
+							return type4;
 						}
 					}
 				}
-				if ((a.BaseType != null) && (a.BaseType != typeof(object))) {
-					return FindIEnumerable (a.BaseType);
+				if((seqType.BaseType != null) && (seqType.BaseType != typeof(object)))
+				{
+					return FindIEnumerable(seqType.BaseType);
 				}
 			}
 			return null;
 		}
-		internal static Type GetMemberType (MemberInfo a)
+
+		/// <summary>
+		/// What is the type of the current member?
+		/// </summary>
+		internal static Type GetMemberType(MemberInfo mi)
 		{
-			FieldInfo b = a as FieldInfo;
-			if (b != null)
-				return b.FieldType;
-			PropertyInfo c = a as PropertyInfo;
-			if (c != null)
-				return c.PropertyType;
-			EventInfo d = a as EventInfo;
-			if (d != null)
-				return d.EventHandlerType;
+			FieldInfo info = mi as FieldInfo;
+			if(info != null)
+				return info.FieldType;
+			PropertyInfo info2 = mi as PropertyInfo;
+			if(info2 != null)
+				return info2.PropertyType;
+			EventInfo info3 = mi as EventInfo;
+			if(info3 != null)
+				return info3.EventHandlerType;
 			return null;
 		}
-		internal static void SetMemberValue (object a, MemberInfo b, object c)
+
+		/// <summary>
+		/// If mi is a Property, then its sets it value to value
+		/// If mi is a Field, it assigns value to it
+		/// </summary>
+		internal static void SetMemberValue(object instance, MemberInfo mi, object value)
 		{
-			FieldInfo d = b as FieldInfo;
-			if (d != null) {
-				d.SetValue (a, c, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance, null, null);
+			FieldInfo info = mi as FieldInfo;
+			if(info != null)
+			{
+				info.SetValue(instance, value, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance, null, null);
 				return;
 			}
-			PropertyInfo e = b as PropertyInfo;
-			if (e != null) {
-				e.SetValue (a, c, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance, null, null, null);
+			PropertyInfo info2 = mi as PropertyInfo;
+			if(info2 != null)
+			{
+				info2.SetValue(instance, value, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance, null, null, null);
 				return;
 			}
-			throw new NotSupportedException ("The member type is not supported!");
+			throw new NotSupportedException("The member type is not supported!");
 		}
-		internal static object GetMemberValue (object a, MemberInfo b)
+
+		/// <summary>
+		/// If mi is a Property, then it returns its value
+		/// If mi is a Field, then it returns its value
+		/// </summary>
+		internal static object GetMemberValue(object instance, MemberInfo mi)
 		{
-			FieldInfo c = b as FieldInfo;
-			if (c != null) {
-				return c.GetValue (a);
+			FieldInfo info = mi as FieldInfo;
+			if(info != null)
+			{
+				return info.GetValue(instance);
 			}
-			PropertyInfo d = b as PropertyInfo;
-			if (d != null) {
-				return d.GetValue (a, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance, null, null, null);
+			PropertyInfo info2 = mi as PropertyInfo;
+			if(info2 != null)
+			{
+				return info2.GetValue(instance, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance, null, null, null);
 			}
-			throw new NotSupportedException ("The member type is not supported!");
+			throw new NotSupportedException("The member type is not supported!");
 		}
 	}
 }

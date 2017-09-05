@@ -1,44 +1,89 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using System.Reflection;
 using System.Globalization;
 using System.Collections;
+
 namespace GDA.Helper.Serialization
 {
+	/// <summary>
+	/// Atributo para identifica que aquele campo ou método não será serializado.
+	/// </summary>
 	public class BNonSerializeAttribute : Attribute
 	{
 	}
+	/// <summary>
+	/// Atribute que identifica o tamanho máximo em byte que o campo pode conter.
+	/// </summary>
 	public class SerializableMaxLenghtAttribute : Attribute
 	{
 		private int _maxLenght;
-		public int MaxLenght {
-			get {
+
+		/// <summary>
+		/// Gets a quantidade máxima de byte que o campo suporta.
+		/// </summary>
+		public int MaxLenght
+		{
+			get
+			{
 				return _maxLenght;
 			}
 		}
-		public SerializableMaxLenghtAttribute (int a)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="maxLenght">Tamanho máximo para serializar.</param>
+		public SerializableMaxLenghtAttribute(int maxLenght)
 		{
-			_maxLenght = a;
+			_maxLenght = maxLenght;
 		}
 	}
 	internal class PropertyInfoComparer : IComparer<PropertyInfo>
 	{
-		public int Compare (PropertyInfo a, PropertyInfo b)
+		public int Compare(PropertyInfo x, PropertyInfo y)
 		{
-			return Comparer.Default.Compare (a.Name, b.Name);
+			return Comparer.Default.Compare(x.Name, y.Name);
 		}
 	}
 	internal class FieldInfoComparer : IComparer<FieldInfo>
 	{
-		public int Compare (FieldInfo a, FieldInfo b)
+		public int Compare(FieldInfo x, FieldInfo y)
 		{
-			return Comparer.Default.Compare (a.Name, b.Name);
+			return Comparer.Default.Compare(x.Name, y.Name);
 		}
 	}
+	/// <summary>
+	/// Serializa e deserializa um objeto em um junto de dados binários.
+	/// </summary>
 	public class BFormatter
 	{
+		/// <summary>
+		/// Tipos básico suportados para serialização
+		/// </summary>
 		private readonly static Type[] coreTypes =  {
 			typeof(byte[]),
 			typeof(byte),
@@ -55,680 +100,958 @@ namespace GDA.Helper.Serialization
 			typeof(string),
 			typeof(DateTime)
 		};
-		private static List<Type> fullSerializeTypes = new List<Type> (new Type[] {
+
+		/// <summary>
+		/// Tipos que terão uma serialização completa.
+		/// </summary>
+		private static List<Type> fullSerializeTypes = new List<Type>(new Type[] {
 			typeof(Guid)
 		});
+
+		/// <summary>
+		/// Armazena as informações sobre os tipos suportados.
+		/// </summary>
 		internal class InfoCoreSupport
 		{
-			public InfoCoreSupport (bool a, bool b)
+			/// <summary>
+			/// Construtor padrão
+			/// </summary>
+			/// <param name="coreTypeSupported">Identifica se é um tipo básico suportado.</param>
+			/// <param name="allowNullValue">Permite valores nulos.</param>
+			public InfoCoreSupport(bool coreTypeSupported, bool allowNullValue)
 			{
-				this.coreTypeSupported = a;
-				this.allowNullValue = b;
+				this.coreTypeSupported = coreTypeSupported;
+				this.allowNullValue = allowNullValue;
 				fieldInfo = null;
 				propertyInfo = null;
 			}
+
+			/// <summary>
+			/// Identifica se o tipo do paramentro é suportado
+			/// </summary>
 			public bool coreTypeSupported;
+
+			/// <summary>
+			/// Identifica se o tipo do paramentro suporta valor nulos.
+			/// </summary>
 			public bool allowNullValue;
+
+			/// <summary>
+			/// Informações sobre o campo.
+			/// </summary>
 			public FieldInfo fieldInfo;
+
+			/// <summary>
+			/// Informações sobre a propriedade.
+			/// </summary>
 			public PropertyInfo propertyInfo;
+
+			/// <summary>
+			/// Tamanho máximo do membro.
+			/// </summary>
 			public int maxLenght;
-			public object GetValue (object a)
+
+			/// <summary>
+			/// Recupera o valor do membro do objeto informado. 
+			/// </summary>
+			/// <param name="graph"></param>
+			/// <returns></returns>
+			public object GetValue(object graph)
 			{
-				if (fieldInfo != null)
-					return fieldInfo.GetValue (a);
-				else if (propertyInfo != null)
-					return propertyInfo.GetValue (a, null);
+				if(fieldInfo != null)
+					return fieldInfo.GetValue(graph);
+				else if(propertyInfo != null)
+					return propertyInfo.GetValue(graph, null);
 				else
-					throw new InvalidOperationException ();
+					throw new InvalidOperationException();
 			}
-			public Type GetMemberType ()
+
+			/// <summary>
+			/// Recupera o tipo do membro.
+			/// </summary>
+			/// <returns></returns>
+			public Type GetMemberType()
 			{
-				if (fieldInfo != null)
+				if(fieldInfo != null)
 					return fieldInfo.FieldType;
-				else if (propertyInfo != null)
+				else if(propertyInfo != null)
 					return propertyInfo.PropertyType;
 				else
-					throw new InvalidOperationException ();
+					throw new InvalidOperationException();
 			}
 		}
-		public static bool IsStruct (Type a)
+
+		/// <summary>
+		/// Verifica se o tipo informado é uma estrutura.
+		/// </summary>
+		/// <param name="type">Tipo.</param>
+		/// <returns></returns>
+		public static bool IsStruct(Type type)
 		{
-			return a.IsValueType && !a.IsPrimitive && a.BaseType == typeof(ValueType);
+			return type.IsValueType && !type.IsPrimitive && type.BaseType == typeof(ValueType);
 		}
-		private static bool IsCoreType (Type a)
+
+		/// <summary>
+		/// Verifica se é um tipo básico aceitável para serialização.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		private static bool IsCoreType(Type type)
 		{
 			foreach (Type t in coreTypes)
-				if (t == a)
+				if(t == type)
 					return true;
 			return false;
 		}
-		private static InfoCoreSupport Support (Type a)
+
+		/// <summary>
+		/// Verifica se o tipo é suportado pela serialização.
+		/// </summary>
+		/// <param name="type">Tipo a ser verificado.</param>
+		/// <returns>
+		/// <list type="bool">
+		/// <item>True: o tipo é suportado.</item>
+		/// <item>False: o tipo não é suportado.</item>
+		/// </list>
+		/// </returns>
+		private static InfoCoreSupport Support(Type type)
 		{
-			InfoCoreSupport b = new InfoCoreSupport (false, false);
-			if (a.Name == "Nullable`1") {
-				b.allowNullValue = true;
-				a = Nullable.GetUnderlyingType (a);
+			InfoCoreSupport icts = new InfoCoreSupport(false, false);
+			if(type.Name == "Nullable`1")
+			{
+				icts.allowNullValue = true;
+				type = Nullable.GetUnderlyingType(type);
 			}
-			if (a.IsEnum) {
-				a = Enum.GetUnderlyingType (a);
+			if(type.IsEnum)
+			{
+				type = Enum.GetUnderlyingType(type);
 			}
-			if (a.IsArray && a.GetElementType () != typeof(object)) {
-				b.coreTypeSupported = true;
-				b.allowNullValue = true;
-				return b;
+			if(type.IsArray && type.GetElementType() != typeof(object))
+			{
+				icts.coreTypeSupported = true;
+				icts.allowNullValue = true;
+				return icts;
 			}
-			else if (IsStruct (a)) {
-				b.coreTypeSupported = true;
-				return b;
+			else if(IsStruct(type))
+			{
+				icts.coreTypeSupported = true;
+				return icts;
 			}
 			foreach (Type supportedType in BFormatter.coreTypes)
-				if (supportedType.IsAssignableFrom (a)) {
-					b.coreTypeSupported = true;
-					if (!b.allowNullValue && (supportedType.IsAssignableFrom (typeof(string)) || supportedType.IsAssignableFrom (typeof(byte[]))))
-						b.allowNullValue = true;
-					return b;
+				if(supportedType.IsAssignableFrom(type))
+				{
+					icts.coreTypeSupported = true;
+					if(!icts.allowNullValue && (supportedType.IsAssignableFrom(typeof(string)) || supportedType.IsAssignableFrom(typeof(byte[]))))
+						icts.allowNullValue = true;
+					return icts;
 				}
-			b.allowNullValue = true;
-			b.coreTypeSupported = true;
-			return b;
+			icts.allowNullValue = true;
+			icts.coreTypeSupported = true;
+			return icts;
 		}
-		private static void WriteData (Stream a, object b, Type c, int d)
+
+		/// <summary>
+		/// Escreve o valor do objeto na stream.
+		/// </summary>
+		/// <param name="stream">Stream aonde serão salvos os dados do objeto.</param>
+		/// <param name="o">Objeto contendo os dados.</param>
+		/// <param name="type">Tipo do valor a ser serializado.</param>
+		/// <param name="maxLenght">Tamanho máximo a ser serializado.</param>
+		private static void WriteData(Stream stream, object o, Type type, int maxLenght)
 		{
-			if (c.IsAssignableFrom (typeof(string)) && b == null)
-				b = "";
-			if (c.Name == "Nullable`1") {
-				c = Nullable.GetUnderlyingType (c);
-				if (b == null)
-					b = Activator.CreateInstance (c);
+			if(type.IsAssignableFrom(typeof(string)) && o == null)
+				o = "";
+			if(type.Name == "Nullable`1")
+			{
+				type = Nullable.GetUnderlyingType(type);
+				if(o == null)
+					o = Activator.CreateInstance(type);
 			}
-			if (c.IsEnum) {
-				c = Enum.GetUnderlyingType (c);
-				switch (c.Name) {
+			if(type.IsEnum)
+			{
+				type = Enum.GetUnderlyingType(type);
+				switch(type.Name)
+				{
 				case "Int16":
-					b = (short)b;
+					o = (short)o;
 					break;
 				case "UInt16":
-					b = (ushort)b;
+					o = (ushort)o;
 					break;
 				case "Int32":
-					b = (int)b;
+					o = (int)o;
 					break;
 				case "UInt32":
-					b = (uint)b;
+					o = (uint)o;
 					break;
 				case "Byte":
-					b = (byte)b;
+					o = (byte)o;
 					break;
 				default:
-					b = (int)b;
+					o = (int)o;
 					break;
 				}
 			}
-			else if (IsStruct (c) && !c.IsAssignableFrom (typeof(DateTime)) && !c.IsAssignableFrom (typeof(decimal))) {
-				SerializeBase (a, null, 0, 0, b);
+			else if(IsStruct(type) && !type.IsAssignableFrom(typeof(DateTime)) && !type.IsAssignableFrom(typeof(decimal)))
+			{
+				SerializeBase(stream, null, 0, 0, o);
 				return;
 			}
-			if (c.IsAssignableFrom (typeof(string))) {
-				string e = (string)b;
-				int f = 0;
-				int g = e.Length;
-				if (d > 0) {
-					g = (g > d ? d : g);
-					if (d < byte.MaxValue)
-						f = 1;
-					else if (d < ushort.MaxValue)
-						f = sizeof(ushort);
-					else if (d < int.MaxValue)
-						f = sizeof(uint);
+			if(type.IsAssignableFrom(typeof(string)))
+			{
+				string s = (string)o;
+				int size = 0;
+				int lenght = s.Length;
+				if(maxLenght > 0)
+				{
+					lenght = (lenght > maxLenght ? maxLenght : lenght);
+					if(maxLenght < byte.MaxValue)
+						size = 1;
+					else if(maxLenght < ushort.MaxValue)
+						size = sizeof(ushort);
+					else if(maxLenght < int.MaxValue)
+						size = sizeof(uint);
 				}
-				else {
-					f = sizeof(ushort);
-					g = e.Length;
+				else
+				{
+					size = sizeof(ushort);
+					lenght = s.Length;
 				}
-				a.Write (BitConverter.GetBytes (g), 0, f);
-				a.Write (Encoding.Default.GetBytes (e), 0, g);
+				stream.Write(BitConverter.GetBytes(lenght), 0, size);
+				stream.Write(Encoding.Default.GetBytes(s), 0, lenght);
 			}
-			else if (c.IsAssignableFrom (typeof(DateTime))) {
-				a.Write (BitConverter.GetBytes (((DateTime)b).Ticks), 0, sizeof(long));
+			else if(type.IsAssignableFrom(typeof(DateTime)))
+			{
+				stream.Write(BitConverter.GetBytes(((DateTime)o).Ticks), 0, sizeof(long));
 			}
-			else if (c.IsAssignableFrom (typeof(decimal))) {
-				a.Write (DecimalToBytes (Convert.ToDecimal (b)), 0, sizeof(decimal));
+			else if(type.IsAssignableFrom(typeof(decimal)))
+			{
+				stream.Write(DecimalToBytes(Convert.ToDecimal(o)), 0, sizeof(decimal));
 			}
-			else if (c.IsAssignableFrom (typeof(byte))) {
-				a.WriteByte ((byte)b);
+			else if(type.IsAssignableFrom(typeof(byte)))
+			{
+				stream.WriteByte((byte)o);
 			}
-			else if (c.IsAssignableFrom (typeof(byte[]))) {
-				byte[] h = (byte[])b;
-				int f = 0;
-				int g = h.Length;
-				if (d > 0) {
-					g = (g > d ? d : g);
-					if (d < byte.MaxValue)
-						f = 1;
-					else if (d < ushort.MaxValue)
-						f = sizeof(ushort);
-					else if (d < int.MaxValue)
-						f = sizeof(uint);
+			else if(type.IsAssignableFrom(typeof(byte[])))
+			{
+				byte[] buffer = (byte[])o;
+				int size = 0;
+				int lenght = buffer.Length;
+				if(maxLenght > 0)
+				{
+					lenght = (lenght > maxLenght ? maxLenght : lenght);
+					if(maxLenght < byte.MaxValue)
+						size = 1;
+					else if(maxLenght < ushort.MaxValue)
+						size = sizeof(ushort);
+					else if(maxLenght < int.MaxValue)
+						size = sizeof(uint);
 				}
-				else {
-					f = sizeof(ushort);
-					g = h.Length;
+				else
+				{
+					size = sizeof(ushort);
+					lenght = buffer.Length;
 				}
-				a.Write (BitConverter.GetBytes (g), 0, f);
-				a.Write (h, 0, g);
+				stream.Write(BitConverter.GetBytes(lenght), 0, size);
+				stream.Write(buffer, 0, lenght);
 			}
-			else if (c.IsArray) {
-				SerializeBase (a, null, 0, d, b);
+			else if(type.IsArray)
+			{
+				SerializeBase(stream, null, 0, maxLenght, o);
 			}
-			else {
-				int f = 0;
-				if (c.IsAssignableFrom (typeof(bool)))
-					f = sizeof(bool);
-				else if (c.IsAssignableFrom (typeof(char)))
-					f = sizeof(char);
-				else if (!Array.Exists (coreTypes, delegate (Type i) {
-					return i == c;
-				})) {
-					SerializeBase (a, null, 0, 0, b);
+			else
+			{
+				int size = 0;
+				if(type.IsAssignableFrom(typeof(bool)))
+					size = sizeof(bool);
+				else if(type.IsAssignableFrom(typeof(char)))
+					size = sizeof(char);
+				else if(!Array.Exists(coreTypes, delegate(Type tc1) {
+					return tc1 == type;
+				}))
+				{
+					SerializeBase(stream, null, 0, 0, o);
 					return;
 				}
-				else {
-					try {
-						f = System.Runtime.InteropServices.Marshal.SizeOf (c);
+				else
+				{
+					try
+					{
+						size = System.Runtime.InteropServices.Marshal.SizeOf(type);
 					}
-					catch (ArgumentException) {
-						var h = BFormatter.Serialize (b);
-						a.Write (BitConverter.GetBytes (h.Length), 0, sizeof(int));
-						a.Write (h, 0, h.Length);
+					catch(ArgumentException)
+					{
+						var buffer = BFormatter.Serialize(o);
+						stream.Write(BitConverter.GetBytes(buffer.Length), 0, sizeof(int));
+						stream.Write(buffer, 0, buffer.Length);
 						return;
 					}
 				}
-				MethodInfo j = typeof(BitConverter).GetMethod ("GetBytes", BindingFlags.Public | BindingFlags.Static, null, new Type[] {
-					c
+				MethodInfo m = typeof(BitConverter).GetMethod("GetBytes", BindingFlags.Public | BindingFlags.Static, null, new Type[] {
+					type
 				}, null);
-				a.Write ((byte[])j.Invoke (null, BindingFlags.Default, null, new object[] {
-					b
-				}, CultureInfo.CurrentCulture), 0, f);
+				stream.Write((byte[])m.Invoke(null, BindingFlags.Default, null, new object[] {
+					o
+				}, CultureInfo.CurrentCulture), 0, size);
 			}
 		}
-		private static object ReadData (Stream a, Type b, int c)
+
+		/// <summary>
+		/// Lê os dados da stream e salva no objeto
+		/// </summary>
+		/// <param name="stream"></param>
+		/// <param name="type">Tipo de dado a ser lido.</param>
+		/// <return>Valor lido.</return>
+		private static object ReadData(Stream stream, Type type, int maxLenght)
 		{
-			if (b.Name == "Nullable`1")
-				b = Nullable.GetUnderlyingType (b);
-			Type d = null;
-			if (b.IsEnum) {
-				d = b;
-				b = Enum.GetUnderlyingType (b);
+			if(type.Name == "Nullable`1")
+				type = Nullable.GetUnderlyingType(type);
+			Type typeEnum = null;
+			if(type.IsEnum)
+			{
+				typeEnum = type;
+				type = Enum.GetUnderlyingType(type);
 			}
-			else if (IsStruct (b) && !b.IsAssignableFrom (typeof(DateTime)) && !b.IsAssignableFrom (typeof(decimal))) {
-				object e = Activator.CreateInstance (b);
-				DeserializeBase (a, b, null, 0, 0, e);
-				return e;
+			else if(IsStruct(type) && !type.IsAssignableFrom(typeof(DateTime)) && !type.IsAssignableFrom(typeof(decimal)))
+			{
+				object obj = Activator.CreateInstance(type);
+				DeserializeBase(stream, type, null, 0, 0, obj);
+				return obj;
 			}
-			int f = 0;
-			if (b.IsAssignableFrom (typeof(string))) {
-				if (c > 0) {
-					if (c < byte.MaxValue)
-						f = 1;
-					else if (c < ushort.MaxValue)
-						f = sizeof(ushort);
-					else if (c < int.MaxValue)
-						f = sizeof(uint);
-				}
-				else {
-					f = sizeof(ushort);
-				}
-				byte[] g = new byte[f];
-				a.Read (g, 0, f);
-				if (c > 0) {
-					if (c < byte.MaxValue)
-						f = (int)g [0];
-					else if (c < ushort.MaxValue)
-						f = BitConverter.ToInt16 (g, 0);
-					else if (c < int.MaxValue)
-						f = BitConverter.ToInt32 (g, 0);
+			int size = 0;
+			if(type.IsAssignableFrom(typeof(string)))
+			{
+				if(maxLenght > 0)
+				{
+					if(maxLenght < byte.MaxValue)
+						size = 1;
+					else if(maxLenght < ushort.MaxValue)
+						size = sizeof(ushort);
+					else if(maxLenght < int.MaxValue)
+						size = sizeof(uint);
 				}
 				else
-					f = BitConverter.ToUInt16 (g, 0);
-			}
-			else if (b.IsAssignableFrom (typeof(bool)))
-				f = sizeof(bool);
-			else if (b.IsAssignableFrom (typeof(DateTime)))
-				f = sizeof(long);
-			else if (b.IsAssignableFrom (typeof(decimal)))
-				f = sizeof(decimal);
-			else if (b.IsAssignableFrom (typeof(char)))
-				f = sizeof(char);
-			else if (b.IsAssignableFrom (typeof(byte)))
-				f = sizeof(byte);
-			else if (b.IsAssignableFrom (typeof(byte[]))) {
-				if (c > 0) {
-					if (c < byte.MaxValue)
-						f = 1;
-					else if (c < ushort.MaxValue)
-						f = sizeof(ushort);
-					else if (c < int.MaxValue)
-						f = sizeof(uint);
+				{
+					size = sizeof(ushort);
 				}
-				else {
-					f = sizeof(ushort);
-				}
-				byte[] g = new byte[f];
-				a.Read (g, 0, f);
-				if (c > 0) {
-					if (c < byte.MaxValue)
-						f = (int)g [0];
-					else if (c < ushort.MaxValue)
-						f = BitConverter.ToInt16 (g, 0);
-					else if (c < int.MaxValue)
-						f = BitConverter.ToInt32 (g, 0);
+				byte[] bufferAux = new byte[size];
+				stream.Read(bufferAux, 0, size);
+				if(maxLenght > 0)
+				{
+					if(maxLenght < byte.MaxValue)
+						size = (int)bufferAux[0];
+					else if(maxLenght < ushort.MaxValue)
+						size = BitConverter.ToInt16(bufferAux, 0);
+					else if(maxLenght < int.MaxValue)
+						size = BitConverter.ToInt32(bufferAux, 0);
 				}
 				else
-					f = BitConverter.ToUInt16 (g, 0);
-				g = new byte[f];
-				a.Read (g, 0, f);
-				return g;
+					size = BitConverter.ToUInt16(bufferAux, 0);
 			}
-			else if (!b.IsArray && !Array.Exists (coreTypes, delegate (Type h) {
-				return h == b;
-			})) {
-				return DeserializeBase (a, b, null, 0, c, null);
-			}
-			else {
-				try {
-					f = System.Runtime.InteropServices.Marshal.SizeOf (b);
+			else if(type.IsAssignableFrom(typeof(bool)))
+				size = sizeof(bool);
+			else if(type.IsAssignableFrom(typeof(DateTime)))
+				size = sizeof(long);
+			else if(type.IsAssignableFrom(typeof(decimal)))
+				size = sizeof(decimal);
+			else if(type.IsAssignableFrom(typeof(char)))
+				size = sizeof(char);
+			else if(type.IsAssignableFrom(typeof(byte)))
+				size = sizeof(byte);
+			else if(type.IsAssignableFrom(typeof(byte[])))
+			{
+				if(maxLenght > 0)
+				{
+					if(maxLenght < byte.MaxValue)
+						size = 1;
+					else if(maxLenght < ushort.MaxValue)
+						size = sizeof(ushort);
+					else if(maxLenght < int.MaxValue)
+						size = sizeof(uint);
 				}
-				catch (ArgumentException) {
-					byte[] i = new byte[sizeof(int)];
-					a.Read (i, 0, sizeof(int));
-					f = BitConverter.ToInt16 (i, 0);
-					i = new byte[f];
-					a.Read (i, 0, f);
-					return BFormatter.Deserialize (i, b);
+				else
+				{
+					size = sizeof(ushort);
+				}
+				byte[] bufferAux = new byte[size];
+				stream.Read(bufferAux, 0, size);
+				if(maxLenght > 0)
+				{
+					if(maxLenght < byte.MaxValue)
+						size = (int)bufferAux[0];
+					else if(maxLenght < ushort.MaxValue)
+						size = BitConverter.ToInt16(bufferAux, 0);
+					else if(maxLenght < int.MaxValue)
+						size = BitConverter.ToInt32(bufferAux, 0);
+				}
+				else
+					size = BitConverter.ToUInt16(bufferAux, 0);
+				bufferAux = new byte[size];
+				stream.Read(bufferAux, 0, size);
+				return bufferAux;
+			}
+			else if(!type.IsArray && !Array.Exists(coreTypes, delegate(Type tc1) {
+				return tc1 == type;
+			}))
+			{
+				return DeserializeBase(stream, type, null, 0, maxLenght, null);
+			}
+			else
+			{
+				try
+				{
+					size = System.Runtime.InteropServices.Marshal.SizeOf(type);
+				}
+				catch(ArgumentException)
+				{
+					byte[] buffer = new byte[sizeof(int)];
+					stream.Read(buffer, 0, sizeof(int));
+					size = BitConverter.ToInt16(buffer, 0);
+					buffer = new byte[size];
+					stream.Read(buffer, 0, size);
+					return BFormatter.Deserialize(buffer, type);
 				}
 			}
-			if (b.IsArray) {
-				return DeserializeBase (a, b, null, 0, c, null);
+			if(type.IsArray)
+			{
+				return DeserializeBase(stream, type, null, 0, maxLenght, null);
 			}
-			else {
-				byte[] i = new byte[f];
-				a.Read (i, 0, f);
-				if (b.IsAssignableFrom (typeof(string)))
-					return Encoding.Default.GetString (i, 0, f);
-				else if (b.IsAssignableFrom (typeof(byte[])))
-					return i;
-				else if (b.IsAssignableFrom (typeof(byte)))
-					return i [0];
-				else if (b.IsAssignableFrom (typeof(DateTime)))
-					return new DateTime (BitConverter.ToInt64 (i, 0));
-				else if (b.IsAssignableFrom (typeof(decimal)))
-					return BytesToDecimal (i);
-				else {
-					MethodInfo j = typeof(BitConverter).GetMethod ("To" + b.Name);
-					if (d != null) {
-						return Enum.ToObject (d, j.Invoke (null, new object[] {
-							i,
+			else
+			{
+				byte[] buffer = new byte[size];
+				stream.Read(buffer, 0, size);
+				if(type.IsAssignableFrom(typeof(string)))
+					return Encoding.Default.GetString(buffer, 0, size);
+				else if(type.IsAssignableFrom(typeof(byte[])))
+					return buffer;
+				else if(type.IsAssignableFrom(typeof(byte)))
+					return buffer[0];
+				else if(type.IsAssignableFrom(typeof(DateTime)))
+					return new DateTime(BitConverter.ToInt64(buffer, 0));
+				else if(type.IsAssignableFrom(typeof(decimal)))
+					return BytesToDecimal(buffer);
+				else
+				{
+					MethodInfo m = typeof(BitConverter).GetMethod("To" + type.Name);
+					if(typeEnum != null)
+					{
+						return Enum.ToObject(typeEnum, m.Invoke(null, new object[] {
+							buffer,
 							0
 						}));
 					}
 					else
-						return j.Invoke (null, new object[] {
-							i,
+						return m.Invoke(null, new object[] {
+							buffer,
 							0
 						});
 				}
 			}
 		}
-		private static void Export (Stream a, InfoCoreSupport[] b, short c, object d)
+
+		/// <summary>
+		/// Extrai os dados do objeto.
+		/// </summary>
+		/// <param name="streamOut">Stream onde será armazenado os dados extraídos.</param>
+		/// <param name="supports">Informações dos membros onde estão os dados.</param>
+		/// <param name="membersAllowNullCount">Quantidade de membros que aceitam valores nulos.</param>
+		/// <param name="graph">Objeto de onde será estraído os dados.</param>
+		private static void Export(Stream streamOut, InfoCoreSupport[] supports, short membersAllowNullCount, object graph)
 		{
-			int e = (int)a.Position;
-			int f = Convert.ToInt32 (Math.Ceiling (c / 8.0d));
-			byte[] g = new byte[f];
-			a.Write (g, 0, g.Length);
-			bool[] h = new bool[c];
+			int beginStreamPos = (int)streamOut.Position;
+			int nBytesAllowNull = Convert.ToInt32(Math.Ceiling(membersAllowNullCount / 8.0d));
+			byte[] bAllowNull = new byte[nBytesAllowNull];
+			streamOut.Write(bAllowNull, 0, bAllowNull.Length);
+			bool[] memberNulls = new bool[membersAllowNullCount];
 			int i = 0;
-			foreach (InfoCoreSupport sp in b) {
-				object j = sp.GetValue (d);
-				if (sp.allowNullValue)
-					h [i++] = (j == null);
-				if (!sp.allowNullValue || j != null)
-					WriteData (a, j, sp.GetMemberType (), sp.maxLenght);
+			foreach (InfoCoreSupport sp in supports)
+			{
+				object value = sp.GetValue(graph);
+				if(sp.allowNullValue)
+					memberNulls[i++] = (value == null);
+				if(!sp.allowNullValue || value != null)
+					WriteData(streamOut, value, sp.GetMemberType(), sp.maxLenght);
 			}
-			int k = 0, l = 0;
-			for (i = 0; i < f; i++) {
-				g [i] = 0x00;
-				l = 0;
-				for (; (l < 8) && (k < (f * 8)) && k < c; k++) {
-					if (h [k]) {
-						g [i] = (byte)(g [i] | (byte)Convert.ToInt32 (Math.Pow (2.0d, (double)l)));
+			int j = 0, x = 0;
+			for(i = 0; i < nBytesAllowNull; i++)
+			{
+				bAllowNull[i] = 0x00;
+				x = 0;
+				for(; (x < 8) && (j < (nBytesAllowNull * 8)) && j < membersAllowNullCount; j++)
+				{
+					if(memberNulls[j])
+					{
+						bAllowNull[i] = (byte)(bAllowNull[i] | (byte)Convert.ToInt32(Math.Pow(2.0d, (double)x)));
 					}
-					l++;
+					x++;
 				}
 			}
-			int m = (int)a.Position;
-			a.Seek (e, SeekOrigin.Begin);
-			a.Write (g, 0, g.Length);
-			a.Seek (m, SeekOrigin.Begin);
+			int pos = (int)streamOut.Position;
+			streamOut.Seek(beginStreamPos, SeekOrigin.Begin);
+			streamOut.Write(bAllowNull, 0, bAllowNull.Length);
+			streamOut.Seek(pos, SeekOrigin.Begin);
 		}
-		private static void Import (Stream a, InfoCoreSupport[] b, short c, object d)
+
+		/// <summary>
+		/// Importa os dados do objeto contidos na stream.
+		/// </summary>
+		/// <param name="streamIn">Stream onde estão os dados a serem importados.</param>
+		/// <param name="supports">Informações dos membros que mapeam os dados.</param>
+		/// <param name="memberAllowNullCount">Quantidade de membros que aceitam valores nulos.</param>
+		/// <param name="graph">Objeto onde os dados importados serão salvos.</param>
+		private static void Import(Stream streamIn, InfoCoreSupport[] supports, short memberAllowNullCount, object graph)
 		{
-			int e = Convert.ToInt32 (Math.Ceiling (c / 8.0d));
-			bool[] f = new bool[c];
-			if (e > 0) {
-				byte[] g = new byte[e];
-				a.Read (g, 0, e);
-				int h, i = 0;
-				for (int j = 0; j < e; j++) {
-					h = 0;
-					for (; h < 8 && h < c; h++) {
-						f [i++] = (((g [j] >> h) % 2) != 0);
+			int n = Convert.ToInt32(Math.Ceiling(memberAllowNullCount / 8.0d));
+			bool[] fieldsNulls = new bool[memberAllowNullCount];
+			if(n > 0)
+			{
+				byte[] buffer = new byte[n];
+				streamIn.Read(buffer, 0, n);
+				int j, x = 0;
+				for(int i = 0; i < n; i++)
+				{
+					j = 0;
+					for(; j < 8 && j < memberAllowNullCount; j++)
+					{
+						fieldsNulls[x++] = (((buffer[i] >> j) % 2) != 0);
 					}
-					c -= 8;
+					memberAllowNullCount -= 8;
 				}
 			}
-			c = 0;
-			object[] k;
-			int l = 0;
-			for (int j = 0; j < b.Length; j++) {
-				if (b [j].fieldInfo != null) {
-					if (b [j].allowNullValue && f [c++]) {
-						b [j].fieldInfo.SetValue (d, null);
+			memberAllowNullCount = 0;
+			object[] attributes;
+			int maxLenght = 0;
+			for(int i = 0; i < supports.Length; i++)
+			{
+				if(supports[i].fieldInfo != null)
+				{
+					if(supports[i].allowNullValue && fieldsNulls[memberAllowNullCount++])
+					{
+						supports[i].fieldInfo.SetValue(graph, null);
 						continue;
 					}
-					k = b [j].fieldInfo.GetCustomAttributes (typeof(SerializableMaxLenghtAttribute), true);
-					if (k.Length > 0)
-						l = (int)((SerializableMaxLenghtAttribute)k [0]).MaxLenght;
+					attributes = supports[i].fieldInfo.GetCustomAttributes(typeof(SerializableMaxLenghtAttribute), true);
+					if(attributes.Length > 0)
+						maxLenght = (int)((SerializableMaxLenghtAttribute)attributes[0]).MaxLenght;
 					else
-						l = 0;
-					b [j].fieldInfo.SetValue (d, ReadData (a, b [j].fieldInfo.FieldType, l));
+						maxLenght = 0;
+					supports[i].fieldInfo.SetValue(graph, ReadData(streamIn, supports[i].fieldInfo.FieldType, maxLenght));
 				}
-				else {
-					if (b [j].allowNullValue && f [c++]) {
-						b [j].propertyInfo.SetValue (d, null, null);
+				else
+				{
+					if(supports[i].allowNullValue && fieldsNulls[memberAllowNullCount++])
+					{
+						supports[i].propertyInfo.SetValue(graph, null, null);
 						continue;
 					}
-					k = b [j].propertyInfo.GetCustomAttributes (typeof(SerializableMaxLenghtAttribute), true);
-					if (k.Length > 0)
-						l = (int)((SerializableMaxLenghtAttribute)k [0]).MaxLenght;
+					attributes = supports[i].propertyInfo.GetCustomAttributes(typeof(SerializableMaxLenghtAttribute), true);
+					if(attributes.Length > 0)
+						maxLenght = (int)((SerializableMaxLenghtAttribute)attributes[0]).MaxLenght;
 					else
-						l = 0;
-					b [j].propertyInfo.SetValue (d, ReadData (a, b [j].propertyInfo.PropertyType, l), null);
+						maxLenght = 0;
+					supports[i].propertyInfo.SetValue(graph, ReadData(streamIn, supports[i].propertyInfo.PropertyType, maxLenght), null);
 				}
 			}
 		}
-		internal static InfoCoreSupport[] LoadTypeInformation (Type a, out short b)
+
+		/// <summary>
+		/// Carrega as informações sobre o tipo.
+		/// </summary>
+		/// <param name="type">Tipo a ser examinado.</param>
+		/// <param name="membersAllowNullCount">Númeor de membros que permite valores nulos.</param>
+		/// <returns>Informações de suporte.</returns>
+		internal static InfoCoreSupport[] LoadTypeInformation(Type type, out short membersAllowNullCount)
 		{
-			short c = 0;
-			List<InfoCoreSupport> d = new List<InfoCoreSupport> ();
-			object[] e;
-			int f = 0;
-			InfoCoreSupport g;
-			List<FieldInfo> h = new List<FieldInfo> (fullSerializeTypes.Exists (delegate (Type i) {
-				return i == a;
-			}) ? a.GetFields (BindingFlags.NonPublic | BindingFlags.Instance) : a.GetFields ());
-			h.Sort (0, h.Count, new FieldInfoComparer ());
-			foreach (FieldInfo fi in h) {
-				e = fi.GetCustomAttributes (typeof(BNonSerializeAttribute), true);
-				if (e.Length > 0)
+			short allowNullCount = 0;
+			List<InfoCoreSupport> supports = new List<InfoCoreSupport>();
+			object[] attributes;
+			int maxLenght = 0;
+			InfoCoreSupport coreSupport;
+			List<FieldInfo> fsInfo = new List<FieldInfo>(fullSerializeTypes.Exists(delegate(Type tc1) {
+				return tc1 == type;
+			}) ? type.GetFields(BindingFlags.NonPublic | BindingFlags.Instance) : type.GetFields());
+			fsInfo.Sort(0, fsInfo.Count, new FieldInfoComparer());
+			foreach (FieldInfo fi in fsInfo)
+			{
+				attributes = fi.GetCustomAttributes(typeof(BNonSerializeAttribute), true);
+				if(attributes.Length > 0)
 					continue;
-				e = fi.GetCustomAttributes (typeof(SerializableMaxLenghtAttribute), true);
-				if (e.Length > 0)
-					f = (int)((SerializableMaxLenghtAttribute)e [0]).MaxLenght;
+				attributes = fi.GetCustomAttributes(typeof(SerializableMaxLenghtAttribute), true);
+				if(attributes.Length > 0)
+					maxLenght = (int)((SerializableMaxLenghtAttribute)attributes[0]).MaxLenght;
 				else
-					f = 0;
-				g = Support (fi.FieldType);
-				if (g.coreTypeSupported && !((fi.Attributes & FieldAttributes.Static) == FieldAttributes.Static)) {
-					if (g.allowNullValue)
-						c++;
-					g.fieldInfo = fi;
-					g.maxLenght = f;
-					d.Add (g);
+					maxLenght = 0;
+				coreSupport = Support(fi.FieldType);
+				if(coreSupport.coreTypeSupported && !((fi.Attributes & FieldAttributes.Static) == FieldAttributes.Static))
+				{
+					if(coreSupport.allowNullValue)
+						allowNullCount++;
+					coreSupport.fieldInfo = fi;
+					coreSupport.maxLenght = maxLenght;
+					supports.Add(coreSupport);
 				}
 			}
-			List<PropertyInfo> j = new List<PropertyInfo> (fullSerializeTypes.Exists (delegate (Type i) {
-				return i == a;
-			}) ? a.GetProperties (BindingFlags.NonPublic | BindingFlags.Instance) : a.GetProperties ());
-			j.Sort (0, j.Count, new PropertyInfoComparer ());
-			foreach (PropertyInfo pi in j) {
-				if (pi.GetSetMethod () == null)
+			List<PropertyInfo> psInfo = new List<PropertyInfo>(fullSerializeTypes.Exists(delegate(Type tc1) {
+				return tc1 == type;
+			}) ? type.GetProperties(BindingFlags.NonPublic | BindingFlags.Instance) : type.GetProperties());
+			psInfo.Sort(0, psInfo.Count, new PropertyInfoComparer());
+			foreach (PropertyInfo pi in psInfo)
+			{
+				if(pi.GetSetMethod() == null)
 					continue;
-				e = pi.GetCustomAttributes (typeof(BNonSerializeAttribute), true);
-				if (e.Length > 0)
+				attributes = pi.GetCustomAttributes(typeof(BNonSerializeAttribute), true);
+				if(attributes.Length > 0)
 					continue;
-				e = pi.GetCustomAttributes (typeof(SerializableMaxLenghtAttribute), true);
-				if (e.Length > 0)
-					f = (int)((SerializableMaxLenghtAttribute)e [0]).MaxLenght;
+				attributes = pi.GetCustomAttributes(typeof(SerializableMaxLenghtAttribute), true);
+				if(attributes.Length > 0)
+					maxLenght = (int)((SerializableMaxLenghtAttribute)attributes[0]).MaxLenght;
 				else
-					f = 0;
-				g = Support (pi.PropertyType);
-				if (g.coreTypeSupported) {
-					if (g.allowNullValue)
-						c++;
-					g.propertyInfo = pi;
-					g.maxLenght = f;
-					d.Add (g);
+					maxLenght = 0;
+				coreSupport = Support(pi.PropertyType);
+				if(coreSupport.coreTypeSupported)
+				{
+					if(coreSupport.allowNullValue)
+						allowNullCount++;
+					coreSupport.propertyInfo = pi;
+					coreSupport.maxLenght = maxLenght;
+					supports.Add(coreSupport);
 				}
 			}
-			b = c;
-			return d.ToArray ();
+			membersAllowNullCount = allowNullCount;
+			return supports.ToArray();
 		}
-		internal static object DeserializeBase (Stream a, Type b, InfoCoreSupport[] c, short d, int e, object f)
+
+		/// <summary>
+		/// Deserializa os dados.
+		/// </summary>
+		/// <param name="stream">Stream onde os dados estão armazenados.</param>
+		/// <param name="type">Tipo que será recuperado.</param>
+		/// <param name="supports">Membros mapeados.</param>
+		/// <param name="memberAllowNull">Quantidade de membros que aceitam valores nulos.</param>
+		/// <param name="maxLenght">Tamanho máximo aceito.</param>
+		/// <param name="graph">Objeto onde a deserialização será salva.</param>
+		/// <returns></returns>
+		internal static object DeserializeBase(Stream stream, Type type, InfoCoreSupport[] supports, short memberAllowNullCount, int maxLenght, object graph)
 		{
-			bool g = b.IsArray;
-			if (g)
-				b = b.GetElementType ();
-			bool h = IsCoreType (b);
-			if (h && !g) {
-				if (a.Length > 0)
-					return ReadData (a, b, 0);
+			bool isArray = type.IsArray;
+			if(isArray)
+				type = type.GetElementType();
+			bool isCore = IsCoreType(type);
+			if(isCore && !isArray)
+			{
+				if(stream.Length > 0)
+					return ReadData(stream, type, 0);
 				else
 					return null;
 			}
-			if (!b.IsArray && f == null) {
-				ConstructorInfo i = b.GetConstructor (new Type[] {
+			if(!type.IsArray && graph == null)
+			{
+				ConstructorInfo ci = type.GetConstructor(new Type[] {
+
 				});
-				if (i != null)
-					f = i.Invoke (null);
+				if(ci != null)
+					graph = ci.Invoke(null);
 				else
-					f = Activator.CreateInstance (b);
+					graph = Activator.CreateInstance(type);
 			}
-			if (g) {
-				int j = ReadArrayLenght (a, e);
-				byte[] k = new byte[sizeof(int)];
-				Array l = Array.CreateInstance (b, j);
-				for (int m = 0; m < j; m++) {
-					if (h) {
-						l.SetValue (ReadData (a, b, 0), m);
+			if(isArray)
+			{
+				int size = ReadArrayLenght(stream, maxLenght);
+				byte[] buffer = new byte[sizeof(int)];
+				Array array = Array.CreateInstance(type, size);
+				for(int j = 0; j < size; j++)
+				{
+					if(isCore)
+					{
+						array.SetValue(ReadData(stream, type, 0), j);
 					}
-					else {
-						a.Read (k, 0, sizeof(int));
-						int n = BitConverter.ToInt32 (k, 0);
-						l.SetValue (DeserializeBase (a, b, c, d, 0, null), m);
+					else
+					{
+						stream.Read(buffer, 0, sizeof(int));
+						int itemSize = BitConverter.ToInt32(buffer, 0);
+						array.SetValue(DeserializeBase(stream, type, supports, memberAllowNullCount, 0, null), j);
 					}
 				}
-				return l;
+				return array;
 			}
-			else {
-				if (c == null)
-					c = LoadTypeInformation (b, out d);
-				Import (a, c, d, f);
-				return f;
+			else
+			{
+				if(supports == null)
+					supports = LoadTypeInformation(type, out memberAllowNullCount);
+				Import(stream, supports, memberAllowNullCount, graph);
+				return graph;
 			}
 		}
-		internal static void SerializeBase (Stream a, InfoCoreSupport[] b, short c, int d, object e)
+
+		/// <summary>
+		/// Serializa os dados.
+		/// </summary>
+		/// <param name="stream">Stream onde será salvo os dados.</param>
+		/// <param name="supports">Membros mapeados.</param>
+		/// <param name="membersAllowNull">Quantidade de membros que aceitam valores nulos.</param>
+		/// <param name="maxLenght">Tamanho máximo aceito.</param>
+		/// <param name="graph">Objeto que será serializado.</param>
+		internal static void SerializeBase(Stream stream, InfoCoreSupport[] supports, short membersAllowNullCount, int maxLenght, object graph)
 		{
-			if (e == null)
-				throw new ArgumentException ("graph");
-			Type f = e.GetType ();
-			bool g = f.IsArray;
-			if (g) {
-				f = f.GetElementType ();
+			if(graph == null)
+				throw new ArgumentException("graph");
+			Type t = graph.GetType();
+			bool isArray = t.IsArray;
+			if(isArray)
+			{
+				t = t.GetElementType();
 			}
-			bool h = IsCoreType (f);
-			if (h && !g) {
-				if (e != null)
-					WriteData (a, e, f, 0);
+			bool isCore = IsCoreType(t);
+			if(isCore && !isArray)
+			{
+				if(graph != null)
+					WriteData(stream, graph, t, 0);
 				return;
 			}
-			if (b == null) {
-				if (!h)
-					b = LoadTypeInformation (f, out c);
+			if(supports == null)
+			{
+				if(!isCore)
+					supports = LoadTypeInformation(t, out membersAllowNullCount);
 				else
-					b = new InfoCoreSupport[0];
+					supports = new InfoCoreSupport[0];
 			}
-			if (g) {
-				Array i = (Array)e;
-				int j = 0;
-				int k = i.Length;
-				if (d > 0) {
-					k = (k > d ? d : k);
-					if (d < byte.MaxValue)
-						j = 1;
-					else if (d < ushort.MaxValue)
-						j = sizeof(ushort);
-					else if (d < int.MaxValue)
-						j = sizeof(uint);
+			if(isArray)
+			{
+				Array array = (Array)graph;
+				int size = 0;
+				int lenght = array.Length;
+				if(maxLenght > 0)
+				{
+					lenght = (lenght > maxLenght ? maxLenght : lenght);
+					if(maxLenght < byte.MaxValue)
+						size = 1;
+					else if(maxLenght < ushort.MaxValue)
+						size = sizeof(ushort);
+					else if(maxLenght < int.MaxValue)
+						size = sizeof(uint);
 				}
 				else
-					j = sizeof(ushort);
-				a.Write (BitConverter.GetBytes (k), 0, j);
-				for (int l = 0; l < k; l++) {
-					object m = i.GetValue (l);
-					if (h) {
-						WriteData (a, m, f, 0);
+					size = sizeof(ushort);
+				stream.Write(BitConverter.GetBytes(lenght), 0, size);
+				for(int i = 0; i < lenght; i++)
+				{
+					object obj = array.GetValue(i);
+					if(isCore)
+					{
+						WriteData(stream, obj, t, 0);
 					}
-					else {
-						int n = (int)a.Position;
-						a.Write (new byte[sizeof(int)], 0, sizeof(int));
-						Export (a, b, c, m);
-						int o = (int)a.Position;
-						a.Seek (n, SeekOrigin.Begin);
-						a.Write (BitConverter.GetBytes ((int)(o - (n + sizeof(int)))), 0, sizeof(int));
-						a.Seek (o, SeekOrigin.Begin);
+					else
+					{
+						int pos = (int)stream.Position;
+						stream.Write(new byte[sizeof(int)], 0, sizeof(int));
+						Export(stream, supports, membersAllowNullCount, obj);
+						int endPos = (int)stream.Position;
+						stream.Seek(pos, SeekOrigin.Begin);
+						stream.Write(BitConverter.GetBytes((int)(endPos - (pos + sizeof(int)))), 0, sizeof(int));
+						stream.Seek(endPos, SeekOrigin.Begin);
 					}
 				}
 				return;
 			}
 			else
-				Export (a, b, c, e);
+				Export(stream, supports, membersAllowNullCount, graph);
 		}
-		public static void RegisterFullSerializeType (Type a)
+
+		/// <summary>
+		/// Registra o tipo que terá uma serialização completa.
+		/// </summary>
+		/// <param name="type"></param>
+		public static void RegisterFullSerializeType(Type type)
 		{
-			if (!fullSerializeTypes.Exists (delegate (Type b) {
-				return b == a;
+			if(!fullSerializeTypes.Exists(delegate(Type tc1) {
+				return tc1 == type;
 			}))
-				fullSerializeTypes.Add (a);
+				fullSerializeTypes.Add(type);
 		}
-		public static int ReadArrayLenght (Stream a, int b)
+
+		/// <summary>
+		/// Lê o tamanho do vetor serializado no stream.
+		/// </summary>
+		/// <param name="stream">Stream onde está armazenada os dados.</param>
+		/// <param name="maxLenght">Tamanho máximo do vetor.</param>
+		/// <returns>Tamanho do vetor salvo no arquivo.</returns>
+		public static int ReadArrayLenght(Stream stream, int maxLenght)
 		{
-			int c = 0;
-			if (b > 0) {
-				if (b <= byte.MaxValue)
-					c = 1;
-				else if (b <= ushort.MaxValue)
-					c = sizeof(ushort);
-				else if (b <= int.MaxValue)
-					c = sizeof(uint);
+			int size = 0;
+			if(maxLenght > 0)
+			{
+				if(maxLenght <= byte.MaxValue)
+					size = 1;
+				else if(maxLenght <= ushort.MaxValue)
+					size = sizeof(ushort);
+				else if(maxLenght <= int.MaxValue)
+					size = sizeof(uint);
 			}
 			else
-				c = sizeof(int);
-			byte[] d = new byte[c];
-			a.Read (d, 0, c);
-			if (b > 0) {
-				if (b <= byte.MaxValue)
-					c = (int)d [0];
-				else if (b <= ushort.MaxValue)
-					c = BitConverter.ToInt16 (d, 0);
-				else if (b <= int.MaxValue)
-					c = BitConverter.ToInt32 (d, 0);
+				size = sizeof(int);
+			byte[] buffer = new byte[size];
+			stream.Read(buffer, 0, size);
+			if(maxLenght > 0)
+			{
+				if(maxLenght <= byte.MaxValue)
+					size = (int)buffer[0];
+				else if(maxLenght <= ushort.MaxValue)
+					size = BitConverter.ToInt16(buffer, 0);
+				else if(maxLenght <= int.MaxValue)
+					size = BitConverter.ToInt32(buffer, 0);
 			}
 			else
-				c = BitConverter.ToInt32 (d, 0);
-			return c;
+				size = BitConverter.ToInt32(buffer, 0);
+			return size;
 		}
-		public static byte[] Serialize (object a)
+
+		/// <summary>
+		/// Serializa o objeto passado, e armazena os dados na stream.
+		/// </summary>
+		/// <param name="graph">Objeto a serializado.</param>
+		public static byte[] Serialize(object graph)
 		{
-			if (a == null)
-				throw new ArgumentException ("graph");
-			byte[] b = null;
-			using (MemoryStream c = new MemoryStream ()) {
-				Serialize (c, a);
-				c.Seek (0, SeekOrigin.Begin);
-				b = new byte[c.Length];
-				c.Read (b, 0, b.Length);
+			if(graph == null)
+				throw new ArgumentException("graph");
+			byte[] buffer = null;
+			using (MemoryStream stream = new MemoryStream())
+			{
+				Serialize(stream, graph);
+				stream.Seek(0, SeekOrigin.Begin);
+				buffer = new byte[stream.Length];
+				stream.Read(buffer, 0, buffer.Length);
 			}
-			return b;
+			return buffer;
 		}
-		public static void Serialize (Stream a, object b)
+
+		/// <summary>
+		/// Serializa o objeto passado, e armazena os dados na stream.
+		/// </summary>
+		/// <param name="serializationStream">Stream aonde serão armazenados os dados.</param>
+		/// <param name="graph">Objeto a serializado.</param>
+		/// movimentar o curso da stream para o inicio.</param>
+		public static void Serialize(Stream serializationStream, object graph)
 		{
-			SerializeBase (a, null, 0, 0, b);
+			SerializeBase(serializationStream, null, 0, 0, graph);
 		}
-		public static object Deserialize (Stream a, Type b)
+
+		/// <summary>
+		/// Deseriliza os dados contidos na stream e retorna o objeto do tipo passado com os dados preenchidos.
+		/// </summary>
+		/// <param name="serializationStream">Stream onde estão os dados para serem deserializados.</param>
+		/// <param name="typeReturn">Tipo de retorno do elemento.</param>
+		/// <returns>Objeto com os dados dados preenchidos.</returns>
+		public static object Deserialize(Stream serializationStream, Type typeReturn)
 		{
-			return DeserializeBase (a, b, null, 0, 0, null);
+			return DeserializeBase(serializationStream, typeReturn, null, 0, 0, null);
 		}
-		public static object Deserialize (byte[] a, Type b)
+
+		/// <summary>
+		/// Deseriliza os dados contidos no buffer e retorna o objeto do tipo passado com os dados preenchidos.
+		/// </summary>
+		/// <param name="buffer">Buffer onde estão os dados para serem deserializados.</param>
+		/// <param name="typeReturn">Tipo de retorno do elemento.</param>
+		/// <returns>Objeto com os dados dados preenchidos.</returns>
+		public static object Deserialize(byte[] buffer, Type typeReturn)
 		{
-			using (Stream c = new MemoryStream (a, 0, a.Length)) {
-				return Deserialize (c, b);
+			using (Stream stream = new MemoryStream(buffer, 0, buffer.Length))
+			{
+				return Deserialize(stream, typeReturn);
 			}
 		}
-		public static object Deserialize (byte[] a, Type b, object c)
+
+		/// <summary>
+		/// Deseriliza os dados contidos no buffer e retorna o objeto do tipo passado com os dados preenchidos.
+		/// </summary>
+		/// <param name="buffer">Buffer onde estão os dados para serem deserializados.</param>
+		/// <param name="typeReturn">Tipo de retorno do elemento.</param>
+		/// <returns>Objeto com os dados dados preenchidos.</returns>
+		public static object Deserialize(byte[] buffer, Type typeReturn, object destination)
 		{
-			using (Stream d = new MemoryStream (a, 0, a.Length)) {
-				return DeserializeBase (d, b, null, 0, 0, c);
+			using (Stream stream = new MemoryStream(buffer, 0, buffer.Length))
+			{
+				return DeserializeBase(stream, typeReturn, null, 0, 0, destination);
 			}
 		}
-		public static T CopyInstance<T> (T a) where T : new()
+
+		/// <summary>
+		/// Copia os dados de uma instância para a outra sem
+		/// nenhum vinculo de ponteiro.
+		/// </summary>
+		/// <typeparam name="T">Tipo que será usado para cópia.</typeparam>
+		/// <param name="source">Objeto contendo a fonte dos dados.</param>
+		/// <returns>Objeto para onde dados foram copiados.</returns>
+		public static T CopyInstance<T>(T source) where T : new()
 		{
-			T b = new T ();
-			CopyInstance<T> (a, b);
-			return b;
+			T destination = new T();
+			CopyInstance<T>(source, destination);
+			return destination;
 		}
-		public static void CopyInstance<T> (T a, T b) where T : new()
+
+		/// <summary>
+		/// Copia os dados de uma instância para a outra sem
+		/// nenhum vinculo de ponteiro.
+		/// </summary>
+		/// <typeparam name="T">Tipo que será usado para cópia.</typeparam>
+		/// <param name="source">Objeto contendo a fonte dos dados.</param>
+		/// <param name="destination">Objeto para onde será copiado os dados.</param>
+		public static void CopyInstance<T>(T source, T destination) where T : new()
 		{
-			if (a == null)
-				throw new ArgumentException ("source");
-			using (MemoryStream c = new MemoryStream ()) {
-				Serialize (c, a);
-				c.Seek (0, SeekOrigin.Begin);
-				DeserializeBase (c, typeof(T), null, 0, 0, b);
+			if(source == null)
+				throw new ArgumentException("source");
+			using (MemoryStream ms = new MemoryStream())
+			{
+				Serialize(ms, source);
+				ms.Seek(0, SeekOrigin.Begin);
+				DeserializeBase(ms, typeof(T), null, 0, 0, destination);
 			}
 		}
-		private static decimal BytesToDecimal (byte[] a)
+
+		/// <summary>
+		/// Converte um array de bytes para decimal.
+		/// </summary>
+		/// <param name="bytes">O array de bytes que será convertido.</param>
+		/// <returns></returns>
+		private static decimal BytesToDecimal(byte[] bytes)
 		{
-			int[] b = new int[4];
-			b [0] = ((a [0] | (a [1] << 8)) | (a [2] << 0x10)) | (a [3] << 0x18);
-			b [1] = ((a [4] | (a [5] << 8)) | (a [6] << 0x10)) | (a [7] << 0x18);
-			b [2] = ((a [8] | (a [9] << 8)) | (a [10] << 0x10)) | (a [11] << 0x18);
-			b [3] = ((a [12] | (a [13] << 8)) | (a [14] << 0x10)) | (a [15] << 0x18);
-			return new decimal (b);
+			int[] bits = new int[4];
+			bits[0] = ((bytes[0] | (bytes[1] << 8)) | (bytes[2] << 0x10)) | (bytes[3] << 0x18);
+			bits[1] = ((bytes[4] | (bytes[5] << 8)) | (bytes[6] << 0x10)) | (bytes[7] << 0x18);
+			bits[2] = ((bytes[8] | (bytes[9] << 8)) | (bytes[10] << 0x10)) | (bytes[11] << 0x18);
+			bits[3] = ((bytes[12] | (bytes[13] << 8)) | (bytes[14] << 0x10)) | (bytes[15] << 0x18);
+			return new decimal(bits);
 		}
-		private static byte[] DecimalToBytes (decimal a)
+
+		/// <summary>
+		/// Converte um decimal para um array de bytes.
+		/// </summary>
+		/// <param name="d">O decimal que será convertido.</param>
+		/// <returns></returns>
+		private static byte[] DecimalToBytes(decimal d)
 		{
-			byte[] b = new byte[16];
-			int[] c = decimal.GetBits (a);
-			int d = c [0];
-			int e = c [1];
-			int f = c [2];
-			int g = c [3];
-			b [0] = (byte)d;
-			b [1] = (byte)(d >> 8);
-			b [2] = (byte)(d >> 0x10);
-			b [3] = (byte)(d >> 0x18);
-			b [4] = (byte)e;
-			b [5] = (byte)(e >> 8);
-			b [6] = (byte)(e >> 0x10);
-			b [7] = (byte)(e >> 0x18);
-			b [8] = (byte)f;
-			b [9] = (byte)(f >> 8);
-			b [10] = (byte)(f >> 0x10);
-			b [11] = (byte)(f >> 0x18);
-			b [12] = (byte)g;
-			b [13] = (byte)(g >> 8);
-			b [14] = (byte)(g >> 0x10);
-			b [15] = (byte)(g >> 0x18);
-			return b;
+			byte[] bytes = new byte[16];
+			int[] bits = decimal.GetBits(d);
+			int lo = bits[0];
+			int mid = bits[1];
+			int hi = bits[2];
+			int flags = bits[3];
+			bytes[0] = (byte)lo;
+			bytes[1] = (byte)(lo >> 8);
+			bytes[2] = (byte)(lo >> 0x10);
+			bytes[3] = (byte)(lo >> 0x18);
+			bytes[4] = (byte)mid;
+			bytes[5] = (byte)(mid >> 8);
+			bytes[6] = (byte)(mid >> 0x10);
+			bytes[7] = (byte)(mid >> 0x18);
+			bytes[8] = (byte)hi;
+			bytes[9] = (byte)(hi >> 8);
+			bytes[10] = (byte)(hi >> 0x10);
+			bytes[11] = (byte)(hi >> 0x18);
+			bytes[12] = (byte)flags;
+			bytes[13] = (byte)(flags >> 8);
+			bytes[14] = (byte)(flags >> 0x10);
+			bytes[15] = (byte)(flags >> 0x18);
+			return bytes;
 		}
 	}
 }

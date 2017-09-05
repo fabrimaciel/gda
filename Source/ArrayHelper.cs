@@ -1,40 +1,98 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
+
 namespace GDA.Sql.InterpreterExpression
 {
 	static class ArrayHelper
 	{
-		public static bool Exists<T> (T[] a, Predicate<T> b)
+		/// <summary>
+		/// Verifica se o elemento tratado pelo Predicate está contido no Array.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="array"></param>
+		/// <param name="match"></param>
+		/// <returns></returns>
+		public static bool Exists<T>(T[] array, Predicate<T> match)
 		{
-			return (FindIndex<T> (a, b) != -1);
+			return (FindIndex<T>(array, match) != -1);
 		}
-		public static int FindIndex<T> (T[] a, Predicate<T> b)
+
+		/// <summary>
+		/// Localiza o indice do elemento procurado no Array passado.
+		/// </summary>
+		/// <typeparam name="T">Tipo do elemento de Array que serà localizado.</typeparam>
+		/// <param name="array">Array onde o elemento será procurado.</param>
+		/// <param name="match">Predicate que será acionado para verificar o elemento.</param>
+		/// <returns>-1 ou a posição do indice encontrado.</returns>
+		public static int FindIndex<T>(T[] array, Predicate<T> match)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("array");
-			return FindIndex<T> (a, 0, a.Length, b);
+			if(array == null)
+				throw new ArgumentNullException("array");
+			return FindIndex<T>(array, 0, array.Length, match);
 		}
-		public static int FindIndex<T> (T[] a, int b, Predicate<T> c)
+
+		/// <summary>
+		/// Localiza o indice do elemento procurado no Array passado.
+		/// </summary>
+		/// <typeparam name="T">Tipo do elemento de Array que serà localizado.</typeparam>
+		/// <param name="array">Array onde o elemento será procurado.</param>
+		/// <param name="startIndex">Posição inicial da pesquisa.</param>
+		/// <param name="match">Predicate que será acionado para verificar o elemento.</param>
+		/// <returns>-1 ou a posição do indice encontrado.</returns>
+		public static int FindIndex<T>(T[] array, int startIndex, Predicate<T> match)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("array");
-			return FindIndex<T> (a, b, a.Length - b, c);
+			if(array == null)
+				throw new ArgumentNullException("array");
+			return FindIndex<T>(array, startIndex, array.Length - startIndex, match);
 		}
-		public static int FindIndex<T> (T[] a, int b, int c, Predicate<T> d)
+
+		/// <summary>
+		/// Localiza o indice do elemento procurado no Array passado.
+		/// </summary>
+		/// <typeparam name="T">Tipo do elemento de Array que serà localizado.</typeparam>
+		/// <param name="array">Array onde o elemento será procurado.</param>
+		/// <param name="startIndex">Posição inicial da pesquisa.</param>
+		/// <param name="count">Quantidade de itens que deveram ser procurados.</param>
+		/// <param name="match">Predicate que será acionado para verificar o elemento.</param>
+		/// <returns>-1 ou a posição do indice encontrado.</returns>
+		public static int FindIndex<T>(T[] array, int startIndex, int count, Predicate<T> match)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("array");
-			if ((b < 0) || (b > a.Length))
-				throw new ArgumentOutOfRangeException ("startIndex", "ArgumentOutOfRange Index");
-			if ((c < 0) || (b > (a.Length - c)))
-				throw new ArgumentOutOfRangeException ("count", "ArgumentOutOfRange Count");
-			if (d == null)
-				throw new ArgumentNullException ("match");
-			int e = b + c;
-			for (int f = b; f < e; f++) {
-				if (d (a [f])) {
-					return f;
+			if(array == null)
+				throw new ArgumentNullException("array");
+			if((startIndex < 0) || (startIndex > array.Length))
+				throw new ArgumentOutOfRangeException("startIndex", "ArgumentOutOfRange Index");
+			if((count < 0) || (startIndex > (array.Length - count)))
+				throw new ArgumentOutOfRangeException("count", "ArgumentOutOfRange Count");
+			if(match == null)
+				throw new ArgumentNullException("match");
+			int num = startIndex + count;
+			for(int i = startIndex; i < num; i++)
+			{
+				if(match(array[i]))
+				{
+					return i;
 				}
 			}
 			return -1;

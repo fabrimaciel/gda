@@ -1,6 +1,28 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
+
 namespace GDA.Sql.InterpreterExpression.Grammar
 {
 	enum ExpressionComparerType
@@ -10,66 +32,129 @@ namespace GDA.Sql.InterpreterExpression.Grammar
 	}
 	class ExpressionComparer
 	{
+		/// <summary>
+		/// Tipo de comparação a ser feita.
+		/// </summary>
 		private ExpressionComparerType _type = ExpressionComparerType.Simple;
+
+		/// <summary>
+		/// Texto usado na comparação.
+		/// </summary>
 		private string _textComparer;
+
+		/// <summary>
+		/// Identifica se a comparação é case sensitive.
+		/// </summary>
 		private bool _caseSensitive = false;
+
+		/// <summary>
+		/// Número de expressões anteriores que são usadas na comparação.
+		/// </summary>
 		private uint _numberPreviousExpressions;
+
+		/// <summary>
+		/// Número de expressões próximas que são usadas na comparação.
+		/// </summary>
 		private uint _numberNextExpressions;
-		public ExpressionComparerType Type {
-			get {
+
+		/// <summary>
+		/// Tipo de comparação a ser feita.
+		/// </summary>
+		public ExpressionComparerType Type
+		{
+			get
+			{
 				return _type;
 			}
-			set {
+			set
+			{
 				_type = value;
 			}
 		}
-		public string TextComparer {
-			get {
+
+		/// <summary>
+		/// Texto usado na comparação.
+		/// </summary>
+		public string TextComparer
+		{
+			get
+			{
 				return _textComparer;
 			}
-			set {
+			set
+			{
 				_textComparer = value;
 			}
 		}
-		public bool CaseSensitive {
-			get {
+
+		/// <summary>
+		/// Identifica se a comparação é case sensitive.
+		/// </summary>
+		public bool CaseSensitive
+		{
+			get
+			{
 				return _caseSensitive;
 			}
-			set {
+			set
+			{
 				_caseSensitive = value;
 			}
 		}
-		public uint NumberPreviousExpressions {
-			get {
+
+		/// <summary>
+		/// Número de expressões anteriores que são usadas na comparação.
+		/// </summary>
+		public uint NumberPreviousExpressions
+		{
+			get
+			{
 				return _numberPreviousExpressions;
 			}
-			set {
+			set
+			{
 				_numberPreviousExpressions = value;
 			}
 		}
-		public uint NumberNextExpressions {
-			get {
+
+		/// <summary>
+		/// Número de expressões próximas que são usadas na comparação.
+		/// </summary>
+		public uint NumberNextExpressions
+		{
+			get
+			{
 				return _numberNextExpressions;
 			}
-			set {
+			set
+			{
 				_numberNextExpressions = value;
 			}
 		}
-		public uint JumpNextExpressions {
-			get {
+
+		/// <summary>
+		/// Número de expressões que o comparador saltou.
+		/// </summary>
+		public uint JumpNextExpressions
+		{
+			get
+			{
 				return 1 + _numberNextExpressions;
 			}
 		}
-		public ExpressionComparer (string a) : this (a, ExpressionComparerType.Simple, false)
+
+		public ExpressionComparer(string text) : this(text, ExpressionComparerType.Simple, false)
 		{
 		}
-		public ExpressionComparer (string a, ExpressionComparerType b, bool c)
+
+		public ExpressionComparer(string text, ExpressionComparerType type, bool caseSensitive)
 		{
-			_textComparer = a;
-			_type = b;
-			_caseSensitive = c;
+			_textComparer = text;
+			_type = type;
+			_caseSensitive = caseSensitive;
 		}
-		public bool Comparer (Expression a)
+
+		public bool Comparer(Expression expr)
 		{
 			return false;
 		}

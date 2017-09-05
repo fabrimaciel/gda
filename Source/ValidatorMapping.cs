@@ -1,97 +1,146 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+
 namespace GDA.Mapping
 {
+	/// <summary>
+	/// Armazena os dados do validador que será usado no propriedade.
+	/// </summary>
 	public class ValidatorMapping : ElementMapping
 	{
-		public string Name {
-			get;
-			set;
-		}
-		public List<ValidatorParamMapping> Parameters {
-			get;
-			set;
-		}
-		public ValidatorMapping (XmlElement a)
+		/// <summary>
+		/// Nome do tipo.
+		/// </summary>
+		public string Name
 		{
-			if (a == null)
-				throw new ArgumentNullException ("element");
-			Name = GetAttributeString (a, "name", true);
-			Parameters = new List<ValidatorParamMapping> ();
-			foreach (XmlElement i in a.GetElementsByTagName ("param")) {
-				var b = new ValidatorParamMapping (i);
-				if (!Parameters.Exists (c => c.Name == b.Name))
-					Parameters.Add (b);
+			get;
+			set;
+		}
+
+		/// <summary>
+		/// Parametros do validador.
+		/// </summary>
+		public List<ValidatorParamMapping> Parameters
+		{
+			get;
+			set;
+		}
+
+		public ValidatorMapping(XmlElement element)
+		{
+			if(element == null)
+				throw new ArgumentNullException("element");
+			Name = GetAttributeString(element, "name", true);
+			Parameters = new List<ValidatorParamMapping>();
+			foreach (XmlElement i in element.GetElementsByTagName("param"))
+			{
+				var vp = new ValidatorParamMapping(i);
+				if(!Parameters.Exists(f => f.Name == vp.Name))
+					Parameters.Add(vp);
 			}
 		}
-		public ValidatorMapping (string a, IEnumerable<ValidatorParamMapping> b)
+
+		/// <summary>
+		/// Constrói uma instancia do mapeamento da validador.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="parameters"></param>
+		public ValidatorMapping(string name, IEnumerable<ValidatorParamMapping> parameters)
 		{
-			if (string.IsNullOrEmpty (a))
-				throw new ArgumentNullException ("name");
-			this.Name = a;
-			Parameters = new List<ValidatorParamMapping> ();
-			if (b != null)
-				foreach (var i in b)
-					if (!Parameters.Exists (c => c.Name == i.Name))
-						Parameters.Add (i);
+			if(string.IsNullOrEmpty(name))
+				throw new ArgumentNullException("name");
+			this.Name = name;
+			Parameters = new List<ValidatorParamMapping>();
+			if(parameters != null)
+				foreach (var i in parameters)
+					if(!Parameters.Exists(f => f.Name == i.Name))
+						Parameters.Add(i);
 		}
-		public ValidatorAttribute GetValidator ()
+
+		public ValidatorAttribute GetValidator()
 		{
-			var a = Name;
-			Type b = null;
-			switch (Name) {
+			var typeName = Name;
+			Type type = null;
+			switch(Name)
+			{
 			case "Unique":
-				b = typeof(UniqueAttribute);
+				type = typeof(UniqueAttribute);
 				break;
 			case "RangeValidator":
 			case "Range":
-				b = typeof(RangeValidatorAttribute);
+				type = typeof(RangeValidatorAttribute);
 				break;
 			case "RequiredValidator":
 			case "Required":
-				b = typeof(RequiredValidatorAttribute);
+				type = typeof(RequiredValidatorAttribute);
 				break;
 			default:
-				b = Type.GetType (a, false, true);
+				type = Type.GetType(typeName, false, true);
 				break;
 			}
-			if (b == null) {
-				var c = a.Split (',');
-				a = c [0].Trim () + "Attribute";
-				if (c.Length > 1)
-					a += ", " + c [1];
-				b = Type.GetType (a, false, true);
-				if (b == null)
-					throw new GDAMappingException ("Fail on instance validator type \"{0}\"", Name);
+			if(type == null)
+			{
+				var parts = typeName.Split(',');
+				typeName = parts[0].Trim() + "Attribute";
+				if(parts.Length > 1)
+					typeName += ", " + parts[1];
+				type = Type.GetType(typeName, false, true);
+				if(type == null)
+					throw new GDAMappingException("Fail on instance validator type \"{0}\"", Name);
 			}
-			var d = Activator.CreateInstance (b) as ValidatorAttribute;
-			if (d == null)
+			var instance = Activator.CreateInstance(type) as ValidatorAttribute;
+			if(instance == null)
 				return null;
-			foreach (var i in Parameters) {
-				var e = b.GetProperty (i.Name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-				if (e != null && e.CanWrite && !string.IsNullOrEmpty (i.Value)) {
-					try {
-						if (e.PropertyType.IsEnum)
-							e.SetValue (d, Enum.Parse (e.PropertyType, i.Value, true), null);
-						else if (e.PropertyType == typeof(string))
-							e.SetValue (d, i.Value, null);
+			foreach (var i in Parameters)
+			{
+				var pi = type.GetProperty(i.Name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+				if(pi != null && pi.CanWrite && !string.IsNullOrEmpty(i.Value))
+				{
+					try
+					{
+						if(pi.PropertyType.IsEnum)
+							pi.SetValue(instance, Enum.Parse(pi.PropertyType, i.Value, true), null);
+						else if(pi.PropertyType == typeof(string))
+							pi.SetValue(instance, i.Value, null);
 						else
-							e.SetValue (d, typeof(Convert).GetMethod ("To" + e.PropertyType.Name, new Type[] {
+							pi.SetValue(instance, typeof(Convert).GetMethod("To" + pi.PropertyType.Name, new Type[] {
 								typeof(string)
-							}).Invoke (null, new object[] {
+							}).Invoke(null, new object[] {
 								i.Value
 							}), null);
 					}
-					catch (Exception ex) {
-						if (ex is System.Reflection.TargetInvocationException)
+					catch(Exception ex)
+					{
+						if(ex is System.Reflection.TargetInvocationException)
 							ex = ex.InnerException;
-						throw new GDAMappingException (string.Format ("Fail on set validator \"{0}\" property \"{1}\" value \"{2}\"", Name, e.Name, i.Value), ex);
+						throw new GDAMappingException(string.Format("Fail on set validator \"{0}\" property \"{1}\" value \"{2}\"", Name, pi.Name, i.Value), ex);
 					}
 				}
 			}
-			return d;
+			return instance;
 		}
 	}
 }

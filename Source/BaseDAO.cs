@@ -1,4 +1,25 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Provider;
@@ -8,286 +29,768 @@ using GDA.Collections;
 using GDA.Interfaces;
 using GDA.Sql;
 using GDA.Caching;
+
 namespace GDA
 {
 	public class BaseDAO<Model> : GDA.Interfaces.IBaseDAO<Model> where Model : new()
 	{
+		/// <summary>
+		/// PersistenceObject que será responsável por tratar o acesso a dados
+		/// </summary>
 		private PersistenceObject<Model> currentPersistenceObject;
-		protected PersistenceObject<Model> CurrentPersistenceObject {
-			get {
+
+		/// <summary>
+		/// Gets PersistenceObject que será responsável por tratar o acesso a dados
+		/// </summary>
+		protected PersistenceObject<Model> CurrentPersistenceObject
+		{
+			get
+			{
 				return currentPersistenceObject;
 			}
 		}
-		public IProviderConfiguration Configuration {
-			get {
+
+		/// <summary>
+		/// Provider de configuração usado na DAO.
+		/// </summary>
+		public IProviderConfiguration Configuration
+		{
+			get
+			{
 				return currentPersistenceObject.Configuration;
 			}
 		}
-		public BaseDAO (IProviderConfiguration a)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="providerConfig">Provider com todo a configuração para acesso a dados.</param>
+		public BaseDAO(IProviderConfiguration providerConfig)
 		{
-			currentPersistenceObject = new PersistenceObject<Model> (a);
-			RegisterCurrentDAOInModel ();
+			currentPersistenceObject = new PersistenceObject<Model>(providerConfig);
+			RegisterCurrentDAOInModel();
 		}
-		public BaseDAO ()
+
+		/// <summary>
+		/// Constrói uma instancia de BaseDAO e carrega as configuração do arquivo de configuração.
+		/// </summary>
+		/// <exception cref="GDAException"></exception>
+		public BaseDAO()
 		{
-			GDASettings.LoadConfiguration ();
-			PersistenceProviderAttribute a = MappingManager.GetPersistenceProviderAttribute (typeof(Model));
-			IProviderConfiguration b = null;
-			if (a != null) {
-				if (!string.IsNullOrEmpty (a.ProviderConfigurationName))
-					b = GDASettings.GetProviderConfiguration (a.ProviderConfigurationName);
+			GDASettings.LoadConfiguration();
+			PersistenceProviderAttribute providerAttr = MappingManager.GetPersistenceProviderAttribute(typeof(Model));
+			IProviderConfiguration providerConfig = null;
+			if(providerAttr != null)
+			{
+				if(!string.IsNullOrEmpty(providerAttr.ProviderConfigurationName))
+					providerConfig = GDASettings.GetProviderConfiguration(providerAttr.ProviderConfigurationName);
 				else
-					b = GDASettings.CreateProviderConfiguration (a.ProviderName, a.ConnectionString);
+					providerConfig = GDASettings.CreateProviderConfiguration(providerAttr.ProviderName, providerAttr.ConnectionString);
 			}
 			else
-				b = GDASettings.DefaultProviderConfiguration;
-			currentPersistenceObject = new PersistenceObject<Model> (b);
-			RegisterCurrentDAOInModel ();
+				providerConfig = GDASettings.DefaultProviderConfiguration;
+			currentPersistenceObject = new PersistenceObject<Model>(providerConfig);
+			RegisterCurrentDAOInModel();
 		}
-		private void RegisterCurrentDAOInModel ()
+
+		private void RegisterCurrentDAOInModel()
 		{
-			GDAOperations.AddMemberDAO (typeof(Model), this);
+			GDAOperations.AddMemberDAO(typeof(Model), this);
 		}
-		internal GDAList<Model> GetSqlData (string a, List<GDAParameter> b, InfoSortExpression c, InfoPaging d)
+
+		internal GDAList<Model> GetSqlData(string sql, List<GDAParameter> parameters, InfoSortExpression sortExpression, InfoPaging paging)
 		{
-			return CurrentPersistenceObject.LoadDataWithSortExpression (a, c, d, b.ToArray ());
+			return CurrentPersistenceObject.LoadDataWithSortExpression(sql, sortExpression, paging, parameters.ToArray());
 		}
-		public virtual GDACursor<Model> Select ()
+
+		/// <summary>
+		/// Carrega todos os dados contidos na tabela.
+		/// </summary>
+		/// <returns>Todos os dados da tabela.</returns>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAColumnNotFoundException"></exception>
+		public virtual GDACursor<Model> Select()
 		{
-			return CurrentPersistenceObject.Select ();
+			return CurrentPersistenceObject.Select();
 		}
-		public virtual GDACursor<Model> Select (GDASession a)
+
+		/// <summary>
+		/// Carrega todos os dados contidos na tabela.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <returns>Todos os dados da tabela.</returns>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAColumnNotFoundException"></exception>
+		public virtual GDACursor<Model> Select(GDASession session)
 		{
-			return CurrentPersistenceObject.Select (a);
+			return CurrentPersistenceObject.Select(session);
 		}
-		public virtual GDACursor<Model> Select (IQuery a)
+
+		/// <summary>
+		/// Carrega os dados com base na consulta informada.
+		/// </summary>
+		/// <param name="query">Dados da consulta.</param>
+		/// <returns></returns>
+		public virtual GDACursor<Model> Select(IQuery query)
 		{
-			a.ReturnTypeQuery = typeof(Model);
-			return CurrentPersistenceObject.Select (a);
+			query.ReturnTypeQuery = typeof(Model);
+			return CurrentPersistenceObject.Select(query);
 		}
-		public virtual GDACursor<Model> Select (GDASession a, IQuery b)
+
+		/// <summary>
+		/// Carrega os dados com base na consulta informada.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Dados da consulta.</param>
+		/// <returns></returns>
+		public virtual GDACursor<Model> Select(GDASession session, IQuery query)
 		{
-			b.ReturnTypeQuery = typeof(Model);
-			return CurrentPersistenceObject.Select (a, b);
+			query.ReturnTypeQuery = typeof(Model);
+			return CurrentPersistenceObject.Select(session, query);
 		}
-		public GDADataRecordCursor<Model> SelectToDataRecord (GDASession a, IQuery b)
+
+		/// <summary>
+		/// Busca os dados relacionados com a consulta submetida.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta.</param>
+		/// <returns></returns>
+		public GDADataRecordCursor<Model> SelectToDataRecord(GDASession session, IQuery query)
 		{
-			b.ReturnTypeQuery = typeof(Model);
-			return CurrentPersistenceObject.SelectToDataRecord (a, b);
+			query.ReturnTypeQuery = typeof(Model);
+			return CurrentPersistenceObject.SelectToDataRecord(session, query);
 		}
-		public virtual long Count (GDASession a, Query b)
+
+		/// <summary>
+		/// Recupera a quantidade de registros com base na Query.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public virtual long Count(GDASession session, Query query)
 		{
-			b.ReturnTypeQuery = typeof(Model);
-			return CurrentPersistenceObject.Count (a, b);
+			query.ReturnTypeQuery = typeof(Model);
+			return CurrentPersistenceObject.Count(session, query);
 		}
-		public virtual long Count ()
+
+		/// <summary>
+		/// Recupera a quantidade de registros da tabela no banco.
+		/// </summary>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public virtual long Count()
 		{
-			return CurrentPersistenceObject.Count ();
+			return CurrentPersistenceObject.Count();
 		}
-		public virtual long Count (GDASession a)
+
+		/// <summary>
+		/// Recupera a quantidade de registros da tabela no banco.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public virtual long Count(GDASession session)
 		{
-			return CurrentPersistenceObject.Count (a, null);
+			return CurrentPersistenceObject.Count(session, null);
 		}
-		public virtual long Count (Query a)
+
+		/// <summary>
+		/// Recupera a quantidade de registros com base na Query.
+		/// </summary>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public virtual long Count(Query query)
 		{
-			a.ReturnTypeQuery = typeof(Model);
-			return CurrentPersistenceObject.Count (a);
+			query.ReturnTypeQuery = typeof(Model);
+			return CurrentPersistenceObject.Count(query);
 		}
-		public double Sum (GDASession a, Query b)
+
+		/// <summary>
+		/// Efetua a soma de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Soma dos valores ou zero</returns>
+		public double Sum(GDASession session, Query query)
 		{
-			b.ReturnTypeQuery = typeof(Model);
-			return CurrentPersistenceObject.Sum (a, b);
+			query.ReturnTypeQuery = typeof(Model);
+			return CurrentPersistenceObject.Sum(session, query);
 		}
-		public double Max (GDASession a, Query b)
+
+		/// <summary>
+		/// Recupera o item com o maior valor.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Maior valor encontrado ou zero.</returns>
+		public double Max(GDASession session, Query query)
 		{
-			b.ReturnTypeQuery = typeof(Model);
-			return CurrentPersistenceObject.Max (a, b);
+			query.ReturnTypeQuery = typeof(Model);
+			return CurrentPersistenceObject.Max(session, query);
 		}
-		public double Min (GDASession a, Query b)
+
+		/// <summary>
+		/// Recupera o item com o menor valor.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Menor valor encontrado.</returns>
+		public double Min(GDASession session, Query query)
 		{
-			b.ReturnTypeQuery = typeof(Model);
-			return CurrentPersistenceObject.Min (a, b);
+			query.ReturnTypeQuery = typeof(Model);
+			return CurrentPersistenceObject.Min(session, query);
 		}
-		public double Avg (GDASession a, Query b)
+
+		/// <summary>
+		/// Recupera a média dos valores da propriedade especificada na consulta.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Valor medio encontrado ou zero.</returns>
+		public double Avg(GDASession session, Query query)
 		{
-			b.ReturnTypeQuery = typeof(Model);
-			return CurrentPersistenceObject.Avg (a, b);
+			query.ReturnTypeQuery = typeof(Model);
+			return CurrentPersistenceObject.Avg(session, query);
 		}
-		public bool CheckExist (GDASession a, ValidationMode b, string c, object d, Model e)
+
+		/// <summary>
+		/// Verifica se o valor da propriedade informada existe no banco de dados.
+		/// </summary>
+		/// <param name="session">Sessão de conexão que será usada na verificação.</param>
+		/// <param name="mode">Modo de validação.</param>
+		/// <param name="propertyName">Nome da propriedade que será verificada.</param>
+		/// <param name="propertyValue">Valor da propriedade que será verificada.</param>
+		/// <param name="parent">Elemento que contém a propriedade</param>
+		/// <returns>True caso existir.</returns>
+		public bool CheckExist(GDASession session, ValidationMode mode, string propertyName, object propertyValue, Model parent)
 		{
-			return CurrentPersistenceObject.CheckExist (a, b, c, d, e);
+			return CurrentPersistenceObject.CheckExist(session, mode, propertyName, propertyValue, parent);
 		}
-		public virtual Model RecoverData (Model a)
+
+		/// <summary>
+		/// Recupera os dados do objeto submetido tem como base os valores
+		/// da chave contidos no objeto submetido.
+		/// </summary>
+		/// <param name="objData">Objeto contendo os dados das chaves.</param>
+		/// <returns>Model com os dados recuperados.</returns>
+		/// <exception cref="GDAColumnNotFoundException"></exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual Model RecoverData(Model objData)
 		{
-			return RecoverData (null, a);
+			return RecoverData(null, objData);
 		}
-		public virtual Model RecoverData (GDASession a, Model b)
+
+		/// <summary>
+		/// Recupera os dados do objeto submetido tem como base os valores
+		/// da chave contidos no objeto submetido.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objData">Objeto contendo os dados das chaves.</param>
+		/// <returns>Model com os dados recuperados.</returns>
+		/// <exception cref="GDAColumnNotFoundException"></exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual Model RecoverData(GDASession session, Model objData)
 		{
-			return CurrentPersistenceObject.RecoverData (a, b);
+			return CurrentPersistenceObject.RecoverData(session, objData);
 		}
-		public virtual uint Insert (GDASession a, Model b, string c, DirectionPropertiesName d)
+
+		/// <summary>
+		/// Inseri os dados contidos no objInsert no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objInsert">Objeto com os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que serão inseridos no comando.</param>
+		/// <param name="direction">Direção que os nomes das propriedades terão no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <returns>Chave inserido.</returns>
+		/// <exception cref="ArgumentNullException">ObjInsert it cannot be null.</exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual uint Insert(GDASession session, Model objInsert, string propertiesNamesInsert, DirectionPropertiesName direction)
 		{
-			return CurrentPersistenceObject.Insert (a, b, c, d);
+			return CurrentPersistenceObject.Insert(session, objInsert, propertiesNamesInsert, direction);
 		}
-		public virtual uint Insert (GDASession a, Model b, string c)
+
+		/// <summary>
+		/// Inseri os dados contidos no objInsert no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objInsert">Objeto com os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que serão inseridos no comando.</param>
+		/// <returns>Chave inserido.</returns>
+		/// <exception cref="ArgumentNullException">ObjInsert it cannot be null.</exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual uint Insert(GDASession session, Model objInsert, string propertiesNamesInsert)
 		{
-			return CurrentPersistenceObject.Insert (a, b, c, DirectionPropertiesName.Inclusion);
+			return CurrentPersistenceObject.Insert(session, objInsert, propertiesNamesInsert, DirectionPropertiesName.Inclusion);
 		}
-		public virtual uint Insert (GDASession a, Model b)
+
+		/// <summary>
+		/// Inseri os dados contidos no objInsert no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objInsert">Objeto com os dados a serem inseridos.</param>
+		/// <returns>Chave inserido.</returns>
+		/// <exception cref="ArgumentNullException">ObjInsert it cannot be null.</exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual uint Insert(GDASession session, Model objInsert)
 		{
-			return CurrentPersistenceObject.Insert (a, b, null, DirectionPropertiesName.Inclusion);
+			return CurrentPersistenceObject.Insert(session, objInsert, null, DirectionPropertiesName.Inclusion);
 		}
-		public virtual uint Insert (Model a, string b, DirectionPropertiesName c)
+
+		/// <summary>
+		/// Inseri os dados contidos no objInsert no BD.
+		/// </summary>
+		/// <param name="objInsert">Objeto com os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que serão inseridos no comando.</param>
+		/// <param name="direction">Direção que os nomes das propriedades terão no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <returns>Chave inserido.</returns>
+		/// <exception cref="ArgumentNullException">ObjInsert it cannot be null.</exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual uint Insert(Model objInsert, string propertiesNamesInsert, DirectionPropertiesName direction)
 		{
-			return CurrentPersistenceObject.Insert (a, b, c);
+			return CurrentPersistenceObject.Insert(objInsert, propertiesNamesInsert, direction);
 		}
-		public uint Insert (Model a, string b)
+
+		/// <summary>
+		/// Inseri os dados contidos no objInsert no BD.
+		/// </summary>
+		/// <param name="objInsert">Objeto com os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que serão inseridos no comando.</param>
+		/// <returns>Chave inserido.</returns>
+		/// <exception cref="ArgumentNullException">ObjInsert it cannot be null.</exception>
+		/// <exception cref="GDAException"></exception>
+		public uint Insert(Model objInsert, string propertiesNamesInsert)
 		{
-			return CurrentPersistenceObject.Insert (a, b);
+			return CurrentPersistenceObject.Insert(objInsert, propertiesNamesInsert);
 		}
-		public virtual uint Insert (Model a)
+
+		/// <summary>
+		/// Insere os dados no BD.
+		/// </summary>
+		/// <param name="objInsert">Objeto contendo os dados a serem inseridos.</param>
+		/// <returns>Identidade gerada.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual uint Insert(Model objInsert)
 		{
-			return CurrentPersistenceObject.Insert (a);
+			return CurrentPersistenceObject.Insert(objInsert);
 		}
-		public virtual int Update (GDASession a, Model b, string c, DirectionPropertiesName d)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objUpdate">Objeto com os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separados por virgula, que serão atualizadas no comando.</param>
+		/// <param name="direction">Direção que os nomes das propriedades terão no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>Número de linhas afetadas.</returns>
+		public virtual int Update(GDASession session, Model objUpdate, string propertiesNamesUpdate, DirectionPropertiesName direction)
 		{
-			return CurrentPersistenceObject.Update (a, b, c, d);
+			return CurrentPersistenceObject.Update(session, objUpdate, propertiesNamesUpdate, direction);
 		}
-		public virtual int Update (GDASession a, Model b, string c)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objUpdate">Objeto com os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separados por virgula, que serão atualizadas no comando.</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>Número de linhas afetadas.</returns>
+		public virtual int Update(GDASession session, Model objUpdate, string propertiesNamesUpdate)
 		{
-			return CurrentPersistenceObject.Update (a, b, c, DirectionPropertiesName.Inclusion);
+			return CurrentPersistenceObject.Update(session, objUpdate, propertiesNamesUpdate, DirectionPropertiesName.Inclusion);
 		}
-		public virtual int Update (GDASession a, Model b)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objUpdate">Objeto com os dados a serem atualizados.</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>Número de linhas afetadas.</returns>
+		public virtual int Update(GDASession session, Model objUpdate)
 		{
-			return CurrentPersistenceObject.Update (a, b, null, DirectionPropertiesName.Inclusion);
+			return CurrentPersistenceObject.Update(session, objUpdate, null, DirectionPropertiesName.Inclusion);
 		}
-		public virtual int Update (Model a, string b, DirectionPropertiesName c)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="objUpdate">Objeto com os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separados por virgula, que serão atualizadas no comando.</param>
+		/// <param name="direction">Direção que os nomes das propriedades terão no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>Número de linhas afetadas.</returns>
+		public virtual int Update(Model objUpdate, string propertiesNamesUpdate, DirectionPropertiesName direction)
 		{
-			return CurrentPersistenceObject.Update (a, b, c);
+			return CurrentPersistenceObject.Update(objUpdate, propertiesNamesUpdate, direction);
 		}
-		public virtual int Update (Model a, string b)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="objUpdate">Objeto com os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separados por virgula, que serão atualizadas no comando.</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>Número de linhas afetadas.</returns>
+		public virtual int Update(Model objUpdate, string propertiesNamesUpdate)
 		{
-			return CurrentPersistenceObject.Update (a, b);
+			return CurrentPersistenceObject.Update(objUpdate, propertiesNamesUpdate);
 		}
-		public virtual int Update (Model a)
+
+		/// <summary>
+		/// Atualiza os dados no BD.
+		/// </summary>
+		/// <param name="objUpdate">Objeto contendo os dados a serem atualizados.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual int Update(Model objUpdate)
 		{
-			return CurrentPersistenceObject.Update (a);
+			return CurrentPersistenceObject.Update(objUpdate);
 		}
-		public virtual int Delete (GDASession a, Model b)
+
+		/// <summary>
+		/// Remove os dados no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objDelete">Objeto contendo os dados a serem removidos.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual int Delete(GDASession session, Model objDelete)
 		{
-			return CurrentPersistenceObject.Delete (a, b);
+			return CurrentPersistenceObject.Delete(session, objDelete);
 		}
-		public virtual int Delete (Model a)
+
+		/// <summary>
+		/// Remove os dados no BD.
+		/// </summary>
+		/// <param name="objDelete">Objeto contendo os dados a serem removidos.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual int Delete(Model objDelete)
 		{
-			return CurrentPersistenceObject.Delete (a);
+			return CurrentPersistenceObject.Delete(objDelete);
 		}
-		public virtual int Delete (GDASession a, Query b)
+
+		/// <summary>
+		/// Remove o conjunto de itens relacionados com a model com base na consulta fornecida.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Filtro para os itens a serem removidos.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException">ObjDelete it cannot be null.</exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to contruir the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual int Delete(GDASession session, Query query)
 		{
-			return CurrentPersistenceObject.Delete (a, b);
+			return CurrentPersistenceObject.Delete(session, query);
 		}
-		public virtual int Delete (Query a)
+
+		/// <summary>
+		/// Remove o conjunto de itens relacionados com a model com base na consulta fornecida.
+		/// </summary>
+		/// <param name="query">Filtro para os itens a serem removidos.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException">ObjDelete it cannot be null.</exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to contruir the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual int Delete(Query query)
 		{
-			return CurrentPersistenceObject.Delete (a);
+			return CurrentPersistenceObject.Delete(query);
 		}
-		public virtual uint InsertOrUpdate (GDASession a, Model b)
+
+		/// <summary>
+		/// Se o registro já existir, atualiza, caso contrário insere.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objUpdate">Objeto contendo os dados.</param>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual uint InsertOrUpdate(GDASession session, Model objUpdate)
 		{
-			return CurrentPersistenceObject.InsertOrUpdate (a, b);
+			return CurrentPersistenceObject.InsertOrUpdate(session, objUpdate);
 		}
-		public virtual uint InsertOrUpdate (Model a)
+
+		/// <summary>
+		/// Se o registro já existir, atualiza, caso contrário insere.
+		/// </summary>
+		/// <param name="objUpdate">Objeto contendo os dados.</param>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual uint InsertOrUpdate(Model objUpdate)
 		{
-			return CurrentPersistenceObject.InsertOrUpdate (a);
+			return CurrentPersistenceObject.InsertOrUpdate(objUpdate);
 		}
-		public virtual uint Insert (GDASession a, object b, string c, DirectionPropertiesName d)
+
+		/// <summary>
+		/// Inseri os dados contidos no objInsert no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objInsert">Objeto com os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que serão inseridos no comando.</param>
+		/// <param name="direction">Direção que os nomes das propriedades terão no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <returns>Chave inserido.</returns>
+		/// <exception cref="ArgumentNullException">ObjInsert it cannot be null.</exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual uint Insert(GDASession session, object objInsert, string propertiesNamesInsert, DirectionPropertiesName direction)
 		{
-			return Insert (a, (Model)b, c, d);
+			return Insert(session, (Model)objInsert, propertiesNamesInsert, direction);
 		}
-		public virtual uint Insert (object a, string b, DirectionPropertiesName c)
+
+		/// <summary>
+		/// Inseri os dados contidos no objInsert no BD.
+		/// </summary>
+		/// <param name="objInsert">Objeto com os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que serão inseridos no comando.</param>
+		/// <param name="direction">Direção que os nomes das propriedades terão no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <returns>Chave inserido.</returns>
+		/// <exception cref="ArgumentNullException">ObjInsert it cannot be null.</exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual uint Insert(object objInsert, string propertiesNamesInsert, DirectionPropertiesName direction)
 		{
-			return Insert ((Model)a, b, c);
+			return Insert((Model)objInsert, propertiesNamesInsert, direction);
 		}
-		public virtual uint Insert (GDASession a, object b, string c)
+
+		/// <summary>
+		/// Inseri os dados contidos no objInsert no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objInsert">Objeto com os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que serão inseridos no comando.</param>
+		/// <returns>Chave inserido.</returns>
+		public virtual uint Insert(GDASession session, object objInsert, string propertiesNamesInsert)
 		{
-			return Insert (a, (Model)b, c);
+			return Insert(session, (Model)objInsert, propertiesNamesInsert);
 		}
-		public virtual uint Insert (object a, string b)
+
+		/// <summary>
+		/// Inseri os dados contidos no objInsert no BD.
+		/// </summary>
+		/// <param name="objInsert">Objeto com os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que serão inseridos no comando.</param>
+		/// <returns>Chave inserido.</returns>
+		public virtual uint Insert(object objInsert, string propertiesNamesInsert)
 		{
-			return Insert ((Model)a, b);
+			return Insert((Model)objInsert, propertiesNamesInsert);
 		}
-		public virtual uint Insert (GDASession a, object b)
+
+		/// <summary>
+		/// Insere os dados no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objInsert">Objeto contendo os dados a serem inseridos.</param>
+		/// <returns>Identidade gerada.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual uint Insert(GDASession session, object objInsert)
 		{
-			return Insert (a, (Model)b);
+			return Insert(session, (Model)objInsert);
 		}
-		public virtual uint Insert (object a)
+
+		/// <summary>
+		/// Insere os dados no BD.
+		/// </summary>
+		/// <param name="objInsert">Objeto contendo os dados a serem inseridos.</param>
+		/// <returns>Identidade gerada.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		public virtual uint Insert(object objInsert)
 		{
-			return Insert ((Model)a);
+			return Insert((Model)objInsert);
 		}
-		public virtual int Update (GDASession a, object b, string c, DirectionPropertiesName d)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objUpdate">Objeto com os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separados por virgula, que serão atualizadas no comando.</param>
+		/// <param name="direction">Direção que os nomes das propriedades terão no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>Número de linhas afetadas.</returns>
+		public virtual int Update(GDASession session, object objUpdate, string propertiesNamesUpdate, DirectionPropertiesName direction)
 		{
-			return Update (a, (Model)b, c, d);
+			return Update(session, (Model)objUpdate, propertiesNamesUpdate, direction);
 		}
-		public virtual int Update (object a, string b, DirectionPropertiesName c)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="objUpdate">Objeto com os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separados por virgula, que serão atualizadas no comando.</param>
+		/// <param name="direction">Direção que os nomes das propriedades terão no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>Número de linhas afetadas.</returns>
+		public virtual int Update(object objUpdate, string propertiesNamesUpdate, DirectionPropertiesName direction)
 		{
-			return Update ((Model)a, b, c);
+			return Update((Model)objUpdate, propertiesNamesUpdate, direction);
 		}
-		public virtual int Update (GDASession a, object b, string c)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objUpdate">Objeto com os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separados por virgula, que serão atualizadas no comando.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		public virtual int Update(GDASession session, object objUpdate, string propertiesNamesUpdate)
 		{
-			return Update (a, (Model)b, c);
+			return Update(session, (Model)objUpdate, propertiesNamesUpdate);
 		}
-		public virtual int Update (object a, string b)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="objUpdate">Objeto com os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separados por virgula, que serão atualizadas no comando.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		public virtual int Update(object objUpdate, string propertiesNamesUpdate)
 		{
-			return Update ((Model)a, b);
+			return Update((Model)objUpdate, propertiesNamesUpdate);
 		}
-		public virtual int Update (GDASession a, object b)
+
+		/// <summary>
+		/// Atualiza os dados no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objUpdate">Objeto contendo os dados a serem atualizados.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual int Update(GDASession session, object objUpdate)
 		{
-			return Update (a, (Model)b);
+			return Update(session, (Model)objUpdate);
 		}
-		public virtual int Update (object a)
+
+		/// <summary>
+		/// Atualiza os dados no BD.
+		/// </summary>
+		/// <param name="objUpdate">Objeto contendo os dados a serem atualizados.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual int Update(object objUpdate)
 		{
-			return Update ((Model)a);
+			return Update((Model)objUpdate);
 		}
-		public virtual int Delete (GDASession a, object b)
+
+		/// <summary>
+		/// Remove os dados no BD.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objDelete">Objeto contendo os dados a serem removidos.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual int Delete(GDASession session, object objDelete)
 		{
-			return CurrentPersistenceObject.Delete (a, (Model)b);
+			return CurrentPersistenceObject.Delete(session, (Model)objDelete);
 		}
-		public virtual int Delete (object a)
+
+		/// <summary>
+		/// Remove os dados no BD.
+		/// </summary>
+		/// <param name="objDelete">Objeto contendo os dados a serem removidos.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual int Delete(object objDelete)
 		{
-			return Delete ((Model)a);
+			return Delete((Model)objDelete);
 		}
-		public virtual uint InsertOrUpdate (GDASession a, object b)
+
+		/// <summary>
+		/// Se o registro já existir, atualiza, caso contrário insere.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="objUpdate">Objeto contendo os dados.</param>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual uint InsertOrUpdate(GDASession session, object objUpdate)
 		{
-			return InsertOrUpdate (a, (Model)b);
+			return InsertOrUpdate(session, (Model)objUpdate);
 		}
-		public virtual uint InsertOrUpdate (object a)
+
+		/// <summary>
+		/// Se o registro já existir, atualiza, caso contrário insere.
+		/// </summary>
+		/// <param name="objUpdate">Objeto contendo os dados.</param>
+		/// <exception cref="ArgumentNullException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAConditionalClauseException"></exception>
+		public virtual uint InsertOrUpdate(object objUpdate)
 		{
-			return InsertOrUpdate ((Model)a);
+			return InsertOrUpdate((Model)objUpdate);
 		}
-		public bool CheckExist (GDASession a, ValidationMode b, string c, object d, object e)
+
+		/// <summary>
+		/// Verifica se o valor da propriedade informada existe no banco de dados.
+		/// </summary>
+		/// <param name="session">Sessão de conexão que será usada na verificação.</param>
+		/// <param name="mode">Modo de validação.</param>
+		/// <param name="propertyName">Nome da propriedade que será verificada.</param>
+		/// <param name="propertyValue">Valor da propriedade que será verificada.</param>
+		/// <param name="parent">Elemento que contém a propriedade</param>
+		/// <returns>True caso existir.</returns>
+		public bool CheckExist(GDASession session, ValidationMode mode, string propertyName, object propertyValue, object parent)
 		{
-			return CurrentPersistenceObject.CheckExist (a, b, c, d, (Model)e);
+			return CurrentPersistenceObject.CheckExist(session, mode, propertyName, propertyValue, (Model)parent);
 		}
-		public GDAList<ClassChild> LoadDataForeignKeyParentToChild<ClassChild> (Model a, string b, InfoSortExpression c, InfoPaging d) where ClassChild : new()
+
+		public GDAList<ClassChild> LoadDataForeignKeyParentToChild<ClassChild>(Model parentObj, string groupOfRelationship, InfoSortExpression sortProperty, InfoPaging paging) where ClassChild : new()
 		{
-			return CurrentPersistenceObject.LoadDataForeignKeyParentToChild<ClassChild> (a, b, c, d);
+			return CurrentPersistenceObject.LoadDataForeignKeyParentToChild<ClassChild>(parentObj, groupOfRelationship, sortProperty, paging);
 		}
-		public GDAList<ClassChild> LoadDataForeignKeyParentToChild<ClassChild> (Model a, string b, InfoSortExpression c) where ClassChild : new()
+
+		public GDAList<ClassChild> LoadDataForeignKeyParentToChild<ClassChild>(Model parentObj, string groupOfRelationship, InfoSortExpression sortProperty) where ClassChild : new()
 		{
-			return LoadDataForeignKeyParentToChild<ClassChild> (a, b, c, null);
+			return LoadDataForeignKeyParentToChild<ClassChild>(parentObj, groupOfRelationship, sortProperty, null);
 		}
-		public GDAList<ClassChild> LoadDataForeignKeyParentToChild<ClassChild> (Model a, string b) where ClassChild : new()
+
+		public GDAList<ClassChild> LoadDataForeignKeyParentToChild<ClassChild>(Model parentObj, string groupOfRelationship) where ClassChild : new()
 		{
-			return LoadDataForeignKeyParentToChild<ClassChild> (a, b, null, null);
+			return LoadDataForeignKeyParentToChild<ClassChild>(parentObj, groupOfRelationship, null, null);
 		}
-		public GDAList<ClassChild> LoadDataForeignKeyParentToChild<ClassChild> (Model a) where ClassChild : new()
+
+		public GDAList<ClassChild> LoadDataForeignKeyParentToChild<ClassChild>(Model parentObj) where ClassChild : new()
 		{
-			return LoadDataForeignKeyParentToChild<ClassChild> (a, null);
+			return LoadDataForeignKeyParentToChild<ClassChild>(parentObj, null);
 		}
-		public int CountRowForeignKeyParentToChild<ClassChild> (Model a, string b) where ClassChild : new()
+
+		public int CountRowForeignKeyParentToChild<ClassChild>(Model parentObj, string groupOfRelationship) where ClassChild : new()
 		{
-			return CurrentPersistenceObject.CountRowForeignKeyParentToChild<ClassChild> (a, b);
+			return CurrentPersistenceObject.CountRowForeignKeyParentToChild<ClassChild>(parentObj, groupOfRelationship);
 		}
-		public int CountRowForeignKeyParentToChild<ClassChild> (Model a) where ClassChild : new()
+
+		public int CountRowForeignKeyParentToChild<ClassChild>(Model parentObj) where ClassChild : new()
 		{
-			return CountRowForeignKeyParentToChild<ClassChild> (a, null);
+			return CountRowForeignKeyParentToChild<ClassChild>(parentObj, null);
 		}
 	}
 }

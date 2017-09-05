@@ -1,30 +1,61 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
+
 namespace GDA
 {
-	[AttributeUsage (AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = false, Inherited = true)]
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = false, Inherited = true)]
 	public class PersistenceBaseDAOAttribute : Attribute
 	{
 		private Type _baseDAOType;
+
 		private Type[] _baseDAOGenericTypes = null;
-		public Type BaseDAOType {
-			get {
+
+		public Type BaseDAOType
+		{
+			get
+			{
 				return _baseDAOType;
 			}
 		}
-		public Type[] BaseDAOGenericTypes {
-			get {
+
+		public Type[] BaseDAOGenericTypes
+		{
+			get
+			{
 				return _baseDAOGenericTypes;
 			}
 		}
-		public PersistenceBaseDAOAttribute (Type a)
+
+		public PersistenceBaseDAOAttribute(Type baseDAOType)
 		{
-			_baseDAOType = a;
+			_baseDAOType = baseDAOType;
 		}
-		public PersistenceBaseDAOAttribute (Type a, params Type[] b) : this (a)
+
+		public PersistenceBaseDAOAttribute(Type baseDAOType, params Type[] baseDAOGenericTypes) : this(baseDAOType)
 		{
-			_baseDAOGenericTypes = b;
+			_baseDAOGenericTypes = baseDAOGenericTypes;
 		}
 	}
 }

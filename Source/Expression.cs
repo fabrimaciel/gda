@@ -1,126 +1,272 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Sql.InterpreterExpression.Enums;
+
 namespace GDA.Sql.InterpreterExpression
 {
 	class SpecialContainer
 	{
+		/// <summary>
+		/// Caracter inicial do container aonde a expressão está contida.
+		/// </summary>
 		public readonly char BeginCharSpecialContainer;
+
+		/// <summary>
+		/// Caracter final do container aonde a expressão está contida.
+		/// </summary>
 		public readonly char EndCharSpecialContainer;
-		public SpecialContainer (char a, char b)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="beginChar"></param>
+		/// <param name="endChar"></param>
+		public SpecialContainer(char beginChar, char endChar)
 		{
-			BeginCharSpecialContainer = a;
-			EndCharSpecialContainer = b;
+			BeginCharSpecialContainer = beginChar;
+			EndCharSpecialContainer = endChar;
 		}
 	}
+	/// <summary>
+	/// Representa um expressao.
+	/// </summary>
 	class Expression
 	{
+		/// <summary>
+		/// Ponto inicial da expressão.
+		/// </summary>
 		private int beginPoint;
+
+		/// <summary>
+		/// Ponto final da expressão.
+		/// </summary>
 		private int length;
+
+		/// <summary>
+		/// Texto da expressão.
+		/// </summary>
 		private string text;
+
+		/// <summary>
+		/// Linha que a expressão está contida.
+		/// </summary>
 		private ExpressionLine line;
+
+		/// <summary>
+		/// Container aonde a expressão está contida.
+		/// </summary>
 		private ContainerExpression container;
+
+		/// <summary>
+		/// Posição da expressão no container.
+		/// </summary>
 		private int containerPosition;
+
+		/// <summary>
+		/// Token relacionado a expressão.
+		/// </summary>
 		private TokenID _token;
+
+		/// <summary>
+		/// Container especial que a expressão está contida.
+		/// </summary>
 		private SpecialContainer _currentSpecialContainer = null;
-		public int BeginPoint {
-			get {
+
+		/// <summary>
+		/// Ponto inicial da expressão.
+		/// </summary>
+		public int BeginPoint
+		{
+			get
+			{
 				return beginPoint;
 			}
-			set {
+			set
+			{
 				beginPoint = value;
 			}
 		}
-		public int Length {
-			get {
+
+		/// <summary>
+		/// Ponto final da expressão.
+		/// </summary>
+		public int Length
+		{
+			get
+			{
 				return length;
 			}
-			set {
+			set
+			{
 				length = value;
 			}
 		}
-		public string Text {
-			get {
+
+		/// <summary>
+		/// Texto da expressão.
+		/// </summary>
+		public string Text
+		{
+			get
+			{
 				return text;
 			}
-			set {
+			set
+			{
 				text = value;
 			}
 		}
-		public ExpressionLine Line {
-			get {
+
+		/// <summary>
+		/// Linha que a expressão está contida.
+		/// </summary>
+		public ExpressionLine Line
+		{
+			get
+			{
 				return line;
 			}
-			set {
+			set
+			{
 				line = value;
 			}
 		}
-		public ContainerExpression Container {
-			get {
+
+		/// <summary>
+		/// Container aonde a expressão está contida.
+		/// </summary>
+		public ContainerExpression Container
+		{
+			get
+			{
 				return container;
 			}
-			set {
+			set
+			{
 				container = value;
 			}
 		}
-		public int ContainerPosition {
-			get {
+
+		/// <summary>
+		/// Posição da expressão no container.
+		/// </summary>
+		public int ContainerPosition
+		{
+			get
+			{
 				return containerPosition;
 			}
-			set {
+			set
+			{
 				containerPosition = value;
 			}
 		}
-		public TokenID Token {
-			get {
+
+		public TokenID Token
+		{
+			get
+			{
 				return _token;
 			}
-			set {
+			set
+			{
 				_token = value;
 			}
 		}
-		public SpecialContainer CurrentSpecialContainer {
-			get {
+
+		/// <summary>
+		/// Container especial que a expressão está contida.
+		/// </summary>
+		public SpecialContainer CurrentSpecialContainer
+		{
+			get
+			{
 				return _currentSpecialContainer;
 			}
-			set {
+			set
+			{
 				_currentSpecialContainer = value;
 			}
 		}
-		public Expression ()
+
+		/// <summary>
+		/// Contrutor padrão.
+		/// </summary>
+		public Expression()
 		{
 		}
-		public Expression (TokenID a)
+
+		/// <summary>
+		/// Cria a instancia com o tipo do token informado.
+		/// </summary>
+		/// <param name="token"></param>
+		public Expression(TokenID token)
 		{
-			_token = a;
+			_token = token;
 		}
-		public Expression (int a, int b)
+
+		/// <summary>
+		/// Craia a expressão com o ponto do texto.
+		/// </summary>
+		/// <param name="beginPoint"></param>
+		/// <param name="length"></param>
+		public Expression(int beginPoint, int length)
 		{
-			this.beginPoint = a;
-			this.length = b;
+			this.beginPoint = beginPoint;
+			this.length = length;
 		}
-		public Expression (int a, int b, ExpressionLine c)
+
+		public Expression(int beginPoint, int length, ExpressionLine line)
 		{
-			this.beginPoint = a;
-			this.length = b;
-			this.line = c;
-			this.line.Expressions.Add (this);
+			this.beginPoint = beginPoint;
+			this.length = length;
+			this.line = line;
+			this.line.Expressions.Add(this);
 		}
-		public Expression (int a, int b, ExpressionLine c, string d) : this (a, b, c, d, TokenID.Identifier)
+
+		public Expression(int beginPoint, int length, ExpressionLine line, string command) : this(beginPoint, length, line, command, TokenID.Identifier)
 		{
-			this.text = d.Substring (a, b);
+			this.text = command.Substring(beginPoint, length);
 		}
-		public Expression (int a, int b, ExpressionLine c, string d, TokenID e) : this (a, b, c)
+
+		public Expression(int beginPoint, int length, ExpressionLine line, string command, TokenID token) : this(beginPoint, length, line)
 		{
-			this.text = d.Substring (a, b);
-			_token = e;
+			this.text = command.Substring(beginPoint, length);
+			_token = token;
 		}
-		public Expression (int a, ExpressionLine b, char c) : this (a, 1, b)
+
+		public Expression(int beginPoint, ExpressionLine line, char command) : this(beginPoint, 1, line)
 		{
-			this.text = new string (c, 1);
+			this.text = new string(command, 1);
 		}
-		public override string ToString ()
+
+		/// <summary>
+		/// Recupera o texto que representa a instancia.
+		/// </summary>
+		/// <returns></returns>
+		public override string ToString()
 		{
 			return text;
 		}

@@ -1,212 +1,431 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Collections;
 using System.Collections.ObjectModel;
+
 namespace GDA.Sql
 {
+	/// <summary>
+	/// Representa os argumentos para o evento de carga
+	/// da página de resultados.
+	/// </summary>
 	public class LoadResultPageArgs<Model> : EventArgs where Model : new()
 	{
-		public int PageSize {
-			get;
-			private set;
-		}
-		public int StartRow {
-			get;
-			private set;
-		}
-		public GDASession Session {
-			get;
-			private set;
-		}
-		public ReadOnlyCollection<Model> Page {
-			get;
-			private set;
-		}
-		public LoadResultPageArgs (int a, int b, GDASession c, ReadOnlyCollection<Model> d)
+		/// <summary>
+		/// Tamanho da página solicitada
+		/// </summary>
+		public int PageSize
 		{
-			PageSize = a;
-			StartRow = b;
-			Session = c;
-			Page = d;
+			get;
+			private set;
+		}
+
+		/// <summary>
+		/// Linha inicial da recuperação da página.
+		/// </summary>
+		public int StartRow
+		{
+			get;
+			private set;
+		}
+
+		/// <summary>
+		/// Sessão de conexão do GDA que foi usada na recuperação da página.
+		/// </summary>
+		public GDASession Session
+		{
+			get;
+			private set;
+		}
+
+		/// <summary>
+		/// Elementos da página.
+		/// </summary>
+		public ReadOnlyCollection<Model> Page
+		{
+			get;
+			private set;
+		}
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="pageSize"></param>
+		/// <param name="startRow"></param>
+		/// <param name="session"></param>
+		/// <param name="page"></param>
+		public LoadResultPageArgs(int pageSize, int startRow, GDASession session, ReadOnlyCollection<Model> page)
+		{
+			PageSize = pageSize;
+			StartRow = startRow;
+			Session = session;
+			Page = page;
 		}
 	}
-	public delegate void LoadResultPageHandler<Model> (object e, LoadResultPageArgs<Model> f) where Model : new();
+	/// <summary>
+	/// Representa o evento acionado quando uma página de dados é carregada.
+	/// </summary>
+	/// <typeparam name="Model">Tipo do item da página de dados.</typeparam>
+	/// <param name="sender"></param>
+	/// <param name="e"></param>
+	public delegate void LoadResultPageHandler<Model> (object sender, LoadResultPageArgs<Model> e) where Model : new();
+	/// <summary>
+	/// Lista virtual para resultados de uma consulta.
+	/// </summary>
+	/// <typeparam name="Model"></typeparam>
 	public class ResultList<Model> : IEnumerable<Model>, IEnumerable, IList<Model>, IList, ICollection<Model>, ICollection where Model : new()
 	{
+		/// <summary>
+		/// Instância da consulta usada na lista.
+		/// </summary>
 		internal protected BaseQuery _myQuery;
+
+		/// <summary>
+		/// Instancia da consulta associada.
+		/// </summary>
 		internal protected Query _queryInstance;
+
+		/// <summary>
+		/// Sessão do GDA usada para fazer as consultas.
+		/// </summary>
 		internal protected GDASession _myGDASession;
+
+		/// <summary>
+		/// Tamanho da página de cada sessão.
+		/// </summary>
 		private int _pageSize;
+
+		/// <summary>
+		/// Quantidade de elementos da lista.
+		/// </summary>
 		private int _count;
+
+		/// <summary>
+		/// Sessões onde são armazenados os elementos carregados na lista
+		/// </summary>
 		private IList<Model>[] _sessions;
+
+		/// <summary>
+		/// Versão da lista.
+		/// </summary>
 		internal int _version;
+
+		/// <summary>
+		/// Objeto usadao para garantir a sincronização da lista.
+		/// </summary>
 		private object _syncRoot;
+
 		private Func<Model, Model> _processMethod;
+
+		/// <summary>
+		/// Evento acionado quando uma página de resultado é carregada pela lista.
+		/// </summary>
 		public event LoadResultPageHandler<Model> LoadResultPage;
-		public int Count {
-			get {
+
+		public int Count
+		{
+			get
+			{
 				return _count;
 			}
 		}
-		public bool IsReadOnly {
-			get {
+
+		public bool IsReadOnly
+		{
+			get
+			{
 				return true;
 			}
 		}
-		public ResultList (int a) : this (new Query (), null, a)
+
+		/// <summary>
+		/// Construtor.
+		/// </summary>
+		/// <param name="pageSize">Tamanho da página da lista</param>
+		public ResultList(int pageSize) : this(new Query(), null, pageSize)
 		{
 		}
-		public ResultList (BaseQuery a, int b) : this (a, null, b)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="query">Consulta.</param>
+		/// <param name="pageSize">Tamanho da página da consulta.</param>
+		public ResultList(BaseQuery query, int pageSize) : this(query, null, pageSize)
 		{
 		}
-		public ResultList (BaseQuery a, GDASession b, int c)
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="query">Consulta.</param>
+		/// <param name="session">Sessão usada nas consultas.</param>
+		/// <param name="pageSize">Tamanho da página da consulta.</param>
+		public ResultList(BaseQuery query, GDASession session, int pageSize)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("query");
-			else if (c <= 0)
-				throw new ArgumentException ("Page size cannot be less or equal zero.", "pageSize");
-			_queryInstance = a as Query;
-			_pageSize = c;
-			_myQuery = a;
-			_myGDASession = b;
-			Refresh ();
+			if(query == null)
+				throw new ArgumentNullException("query");
+			else if(pageSize <= 0)
+				throw new ArgumentException("Page size cannot be less or equal zero.", "pageSize");
+			_queryInstance = query as Query;
+			_pageSize = pageSize;
+			_myQuery = query;
+			_myGDASession = session;
+			Refresh();
 		}
-		internal protected virtual Model GetItem (int a)
+
+		/// <summary>
+		/// Recupera o item na posição informada.
+		/// </summary>
+		/// <param name="index">Posição do item.</param>
+		/// <returns></returns>
+		internal protected virtual Model GetItem(int index)
 		{
-			if (a >= this.Count)
-				throw new ArgumentOutOfRangeException ();
-			int b = (int)Math.Floor (a / (double)_pageSize);
-			if (_sessions [b] == null) {
-				if (_processMethod != null) {
-					var c = _processMethod;
-					var d = new List<Model> ();
-					foreach (var item in _myQuery.BaseTake (_pageSize).BaseSkip (b * _pageSize).ToCursor<Model> (_myGDASession))
-						d.Add (c (item));
-					_sessions [b] = d;
+			if(index >= this.Count)
+				throw new ArgumentOutOfRangeException();
+			int indexSession = (int)Math.Floor(index / (double)_pageSize);
+			if(_sessions[indexSession] == null)
+			{
+				if(_processMethod != null)
+				{
+					var method = _processMethod;
+					var items = new List<Model>();
+					foreach (var item in _myQuery.BaseTake(_pageSize).BaseSkip(indexSession * _pageSize).ToCursor<Model>(_myGDASession))
+						items.Add(method(item));
+					_sessions[indexSession] = items;
 				}
 				else
-					_sessions [b] = new List<Model> (_myQuery.BaseTake (_pageSize).BaseSkip (b * _pageSize).ToCursor<Model> (_myGDASession));
-				if (LoadResultPage != null)
-					LoadResultPage (this, new LoadResultPageArgs<Model> (_pageSize, b * _pageSize, _myGDASession, new ReadOnlyCollection<Model> (_sessions [b])));
+					_sessions[indexSession] = new List<Model>(_myQuery.BaseTake(_pageSize).BaseSkip(indexSession * _pageSize).ToCursor<Model>(_myGDASession));
+				if(LoadResultPage != null)
+					LoadResultPage(this, new LoadResultPageArgs<Model>(_pageSize, indexSession * _pageSize, _myGDASession, new ReadOnlyCollection<Model>(_sessions[indexSession])));
 			}
-			return _sessions [b] [a - (b * _pageSize)];
+			return _sessions[indexSession][index - (indexSession * _pageSize)];
 		}
-		internal protected virtual void SetItem (int a, Model b)
+
+		/// <summary>
+		/// Define o item na posição informada.
+		/// </summary>
+		/// <param name="index"></param>
+		/// <param name="value"></param>
+		internal protected virtual void SetItem(int index, Model value)
 		{
-			if (a >= _count) {
-				throw new ArgumentOutOfRangeException ();
+			if(index >= _count)
+			{
+				throw new ArgumentOutOfRangeException();
 			}
-			int c = (int)Math.Floor (a / (double)_pageSize);
-			OnSet (a, GetItem (a), b);
-			_sessions [c] [a - (c * _pageSize)] = b;
+			int indexSession = (int)Math.Floor(index / (double)_pageSize);
+			OnSet(index, GetItem(index), value);
+			_sessions[indexSession][index - (indexSession * _pageSize)] = value;
 			this._version++;
-			OnSetComplete (a, b);
+			OnSetComplete(index, value);
 		}
-		public void RegisterProcessMethod (Func<Model, Model> a)
+
+		/// <summary>
+		/// Registra o método que será responsável por processar os itens carregados na coleção.
+		/// </summary>
+		/// <param name="method"></param>
+		public void RegisterProcessMethod(Func<Model, Model> method)
 		{
-			_processMethod = a;
+			_processMethod = method;
 		}
-		public void Refresh ()
+
+		/// <summary>
+		/// Atualiza os dados da lista.
+		/// </summary>
+		public void Refresh()
 		{
-			if (_myQuery is Query)
-				_count = (int)((Query)_myQuery).Count<Model> (_myGDASession);
-			else if (_myQuery is SelectStatement)
-				_count = (int)((SelectStatement)_myQuery).Count (_myGDASession);
-			else if (_myQuery is NativeQuery)
-				_count = (int)((NativeQuery)_myQuery).Count (_myGDASession);
-			int a = (int)Math.Ceiling (_count / (double)_pageSize);
-			if (_sessions != null) {
-				for (int b = 0; b < _sessions.Length; b++) {
-					if (_sessions [b] != null) {
-						_sessions [b].Clear ();
-						_sessions [b] = null;
+			if(_myQuery is Query)
+				_count = (int)((Query)_myQuery).Count<Model>(_myGDASession);
+			else if(_myQuery is SelectStatement)
+				_count = (int)((SelectStatement)_myQuery).Count(_myGDASession);
+			else if(_myQuery is NativeQuery)
+				_count = (int)((NativeQuery)_myQuery).Count(_myGDASession);
+			int numberSessions = (int)Math.Ceiling(_count / (double)_pageSize);
+			if(_sessions != null)
+			{
+				for(int i = 0; i < _sessions.Length; i++)
+				{
+					if(_sessions[i] != null)
+					{
+						_sessions[i].Clear();
+						_sessions[i] = null;
 					}
 				}
 			}
-			_sessions = new IList<Model>[a];
+			_sessions = new IList<Model>[numberSessions];
 			_version++;
-			OnRefresh ();
+			OnRefresh();
 		}
-		public Model this [int a] {
-			get {
-				return GetItem (a);
+
+		/// <summary>
+		/// Recupera o item na posição informada.
+		/// </summary>
+		/// <param name="index"></param>
+		/// <returns></returns>
+		public Model this[int index]
+		{
+			get
+			{
+				return GetItem(index);
 			}
-			set {
-				SetItem (a, value);
+			set
+			{
+				SetItem(index, value);
 			}
 		}
-		public void SetOrder (string a)
+
+		/// <summary>
+		/// Define a ordenação da lista.
+		/// </summary>
+		/// <param name="order"></param>
+		public void SetOrder(string order)
 		{
-			if (_queryInstance == null)
-				throw new GDAException ("ResultList not support for Query {0}.", _myQuery.GetType ().FullName);
-			_queryInstance.SetOrder (a);
+			if(_queryInstance == null)
+				throw new GDAException("ResultList not support for Query {0}.", _myQuery.GetType().FullName);
+			_queryInstance.SetOrder(order);
 		}
-		public void ApplyFilter (string a)
+
+		/// <summary>
+		/// Aplica um filtro para carregar os dados da lista.
+		/// </summary>
+		/// <remarks>O filtro só será aplicado realmente após a chamada do método refresh.</remarks>
+		/// <param name="filter"></param>
+		public void ApplyFilter(string filter)
 		{
-			if (_queryInstance == null)
-				throw new GDAException ("ResultList not support for Query {0}.", _myQuery.GetType ().FullName);
-			_queryInstance.SetWhere (a);
+			if(_queryInstance == null)
+				throw new GDAException("ResultList not support for Query {0}.", _myQuery.GetType().FullName);
+			_queryInstance.SetWhere(filter);
 		}
-		protected virtual void OnSet (int a, Model b, Model c)
+
+		protected virtual void OnSet(int index, Model oldValue, Model newValue)
 		{
 		}
-		protected virtual void OnSetComplete (int a, Model b)
+
+		protected virtual void OnSetComplete(int index, Model newValue)
 		{
 		}
-		protected virtual void OnRefresh ()
+
+		/// <summary>
+		/// Método acionado quando se dar um refresh na lista.
+		/// </summary>
+		protected virtual void OnRefresh()
 		{
 		}
-		IEnumerator<Model> IEnumerable<Model>.GetEnumerator ()
+
+		/// <summary>
+		/// Recupera o enumerator da lista.
+		/// </summary>
+		/// <returns></returns>
+		IEnumerator<Model> IEnumerable<Model>.GetEnumerator()
 		{
-			return new Enumerator<Model> ((ResultList<Model>)this);
+			return new Enumerator<Model>((ResultList<Model>)this);
 		}
-		IEnumerator IEnumerable.GetEnumerator ()
+
+		IEnumerator IEnumerable.GetEnumerator()
 		{
-			return new Enumerator<Model> ((ResultList<Model>)this);
+			return new Enumerator<Model>((ResultList<Model>)this);
 		}
-		public void CopyTo (Array a, int b)
+
+		public void CopyTo(Array array, int arrayIndex)
 		{
-			var c = 0;
-			for (int d = b; d < a.Length && d < Count; d++)
-				a.SetValue (this [d], c++);
+			var index = 0;
+			for(int i = arrayIndex; i < array.Length && i < Count; i++)
+				array.SetValue(this[i], index++);
 		}
-		public bool IsSynchronized {
-			get {
+
+		public bool IsSynchronized
+		{
+			get
+			{
 				return false;
 			}
 		}
-		public object SyncRoot {
-			get {
-				if (_syncRoot == null) {
-					System.Threading.Interlocked.CompareExchange (ref _syncRoot, new object (), null);
+
+		public object SyncRoot
+		{
+			get
+			{
+				if(_syncRoot == null)
+				{
+					System.Threading.Interlocked.CompareExchange(ref _syncRoot, new object(), null);
 				}
 				return _syncRoot;
 			}
 		}
+
+		/// <summary>
+		/// Enumerator usado na lista.
+		/// </summary>
+		/// <typeparam name="Model"></typeparam>
 		public struct Enumerator<Model> : IEnumerator<Model>, IDisposable, IEnumerator where Model : new()
 		{
+			/// <summary>
+			/// Lista em questão.
+			/// </summary>
 			private ResultList<Model> list;
+
+			/// <summary>
+			/// Atual index.
+			/// </summary>
 			private int index;
+
+			/// <summary>
+			/// Versão atual da lista
+			/// </summary>
 			private int version;
+
+			/// <summary>
+			/// Objeto atualmente selecionado.
+			/// </summary>
 			private Model current;
-			internal Enumerator (ResultList<Model> a)
+
+			internal Enumerator(ResultList<Model> list)
 			{
-				this.list = a;
+				this.list = list;
 				this.index = 0;
-				this.version = a._version;
+				this.version = list._version;
 				this.current = default(Model);
 			}
-			public void Dispose ()
+
+			public void Dispose()
 			{
 			}
-			public bool MoveNext ()
+
+			/// <summary>
+			/// Movimenta para o proximo objeto.
+			/// </summary>
+			/// <returns></returns>
+			public bool MoveNext()
 			{
-				if (this.version != this.list._version) {
-					throw new InvalidOperationException ("InvalidOperation_EnumFailedVersion");
+				if(this.version != this.list._version)
+				{
+					throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
 				}
-				if (this.index < this.list.Count) {
-					this.current = this.list [this.index];
+				if(this.index < this.list.Count)
+				{
+					this.current = this.list[this.index];
 					this.index++;
 					return true;
 				}
@@ -214,140 +433,203 @@ namespace GDA.Sql
 				this.current = default(Model);
 				return false;
 			}
-			public Model Current {
-				get {
+
+			/// <summary>
+			/// Atual objeto selecionado.
+			/// </summary>
+			public Model Current
+			{
+				get
+				{
 					return this.current;
 				}
 			}
-			object IEnumerator.Current {
-				get {
-					if ((this.index == 0) || (this.index == (this.list.Count + 1))) {
-						throw new InvalidOperationException ("InvalidOperation_EnumOpCantHappen");
+
+			/// <summary>
+			/// Atual objeto selecionado.
+			/// </summary>
+			object IEnumerator.Current
+			{
+				get
+				{
+					if((this.index == 0) || (this.index == (this.list.Count + 1)))
+					{
+						throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
 					}
 					return this.Current;
 				}
 			}
-			void IEnumerator.Reset ()
+
+			/// <summary>
+			/// Reseta a lista.
+			/// </summary>
+			void IEnumerator.Reset()
 			{
-				if (this.version != this.list._version) {
-					throw new InvalidOperationException ("InvalidOperation_EnumFailedVersion");
+				if(this.version != this.list._version)
+				{
+					throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
 				}
 				this.index = 0;
 				this.current = default(Model);
 			}
 		}
-		void ICollection<Model>.Add (Model a)
+
+		void ICollection<Model>.Add(Model item)
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		void ICollection<Model>.Clear ()
+
+		void ICollection<Model>.Clear()
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		bool ICollection<Model>.Contains (Model a)
+
+		bool ICollection<Model>.Contains(Model item)
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		void ICollection<Model>.CopyTo (Model[] a, int b)
+
+		void ICollection<Model>.CopyTo(Model[] array, int arrayIndex)
 		{
-			this.CopyTo (a, b);
+			this.CopyTo(array, arrayIndex);
 		}
-		int ICollection<Model>.Count {
-			get {
+
+		int ICollection<Model>.Count
+		{
+			get
+			{
 				return this.Count;
 			}
 		}
-		bool ICollection<Model>.IsReadOnly {
-			get {
+
+		bool ICollection<Model>.IsReadOnly
+		{
+			get
+			{
 				return true;
 			}
 		}
-		bool ICollection<Model>.Remove (Model a)
+
+		bool ICollection<Model>.Remove(Model item)
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		int IList<Model>.IndexOf (Model a)
+
+		int IList<Model>.IndexOf(Model item)
 		{
-			throw new NotSupportedException ("Not supported IndexOf");
+			throw new NotSupportedException("Not supported IndexOf");
 		}
-		void IList<Model>.Insert (int a, Model b)
+
+		void IList<Model>.Insert(int index, Model item)
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		void IList<Model>.RemoveAt (int a)
+
+		void IList<Model>.RemoveAt(int index)
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		Model IList<Model>.this [int index] {
-			get {
-				return GetItem (index);
+
+		Model IList<Model>.this[int index]
+		{
+			get
+			{
+				return GetItem(index);
 			}
-			set {
-				SetItem (index, value);
+			set
+			{
+				SetItem(index, value);
 			}
 		}
-		int IList.Add (object a)
+
+		int IList.Add(object value)
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		void IList.Clear ()
+
+		void IList.Clear()
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		bool IList.Contains (object a)
+
+		bool IList.Contains(object value)
 		{
-			throw new NotSupportedException ("Not supported Contains");
+			throw new NotSupportedException("Not supported Contains");
 		}
-		int IList.IndexOf (object a)
+
+		int IList.IndexOf(object value)
 		{
-			throw new NotSupportedException ("Not supported IndexOf");
+			throw new NotSupportedException("Not supported IndexOf");
 		}
-		void IList.Insert (int a, object b)
+
+		void IList.Insert(int index, object value)
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		bool IList.IsFixedSize {
-			get {
+
+		bool IList.IsFixedSize
+		{
+			get
+			{
 				return false;
 			}
 		}
-		bool IList.IsReadOnly {
-			get {
+
+		bool IList.IsReadOnly
+		{
+			get
+			{
 				return true;
 			}
 		}
-		void IList.Remove (object a)
+
+		void IList.Remove(object value)
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		void IList.RemoveAt (int index)
+
+		void IList.RemoveAt(int index)
 		{
-			throw new NotSupportedException ("Not supported readonly collection");
+			throw new NotSupportedException("Not supported readonly collection");
 		}
-		object IList.this [int index] {
-			get {
-				return this [index];
+
+		object IList.this[int index]
+		{
+			get
+			{
+				return this[index];
 			}
-			set {
-				this [index] = (Model)value;
+			set
+			{
+				this[index] = (Model)value;
 			}
 		}
-		void ICollection.CopyTo (Array array, int index)
+
+		void ICollection.CopyTo(Array array, int index)
 		{
-			this.CopyTo (array, index);
+			this.CopyTo(array, index);
 		}
-		int ICollection.Count {
-			get {
+
+		int ICollection.Count
+		{
+			get
+			{
 				return this.Count;
 			}
 		}
-		bool ICollection.IsSynchronized {
-			get {
+
+		bool ICollection.IsSynchronized
+		{
+			get
+			{
 				return this.IsSynchronized;
 			}
 		}
-		object ICollection.SyncRoot {
-			get {
+
+		object ICollection.SyncRoot
+		{
+			get
+			{
 				return this.SyncRoot;
 			}
 		}

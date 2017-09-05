@@ -1,143 +1,203 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Analysis;
 using System.Data;
 using MySql.Data.MySqlClient;
 using System.Text.RegularExpressions;
+
 namespace GDA.Provider.MySql
 {
 	public class MySqlAnalyzer : DatabaseAnalyzer
 	{
-		public MySqlAnalyzer (MySqlProviderConfiguration a) : base (a)
+		public MySqlAnalyzer(MySqlProviderConfiguration provider) : base(provider)
 		{
 		}
-		public override void Analyze (string a)
+
+		/// <summary>
+		/// Efetua a analise do banco de dados.
+		/// </summary>
+		/// <param name="tableName"></param>
+		public override void Analyze(string tableName)
 		{
-			bool b = a != null;
-			IDbConnection c = ProviderConfiguration.CreateConnection ();
-			IDbCommand d = c.CreateCommand ();
-			d.Connection = c;
-			d.CommandText = "show tables";
-			IDbDataAdapter e = ProviderConfiguration.Provider.CreateDataAdapter ();
-			e.SelectCommand = d;
-			DataSet f = new DataSet ();
-			if (c.State != ConnectionState.Open)
-				c.Open ();
-			try {
-				try {
-					e.Fill (f);
+			bool isSingleRun = tableName != null;
+			IDbConnection conn = ProviderConfiguration.CreateConnection();
+			IDbCommand cmd = conn.CreateCommand();
+			cmd.Connection = conn;
+			cmd.CommandText = "show tables";
+			IDbDataAdapter da = ProviderConfiguration.Provider.CreateDataAdapter();
+			da.SelectCommand = cmd;
+			DataSet ds = new DataSet();
+			if(conn.State != ConnectionState.Open)
+				conn.Open();
+			try
+			{
+				try
+				{
+					da.Fill(ds);
 				}
-				finally {
-					c.Close ();
+				finally
+				{
+					conn.Close();
 				}
-				DataTable g = f.Tables [0];
-				for (int h = 0; h < g.Rows.Count; h++) {
-					string i = g.Rows [h] [0].ToString ();
-					if (!b || a.ToLower ().Equals (i.ToLower ())) {
-						TableMap j = GetTableMap (i);
-						if (j == null) {
-							j = new TableMap (ProviderConfiguration, i);
-							tablesMaps [i.ToLower ()] = j;
+				DataTable dt = ds.Tables[0];
+				for(int i = 0; i < dt.Rows.Count; i++)
+				{
+					string dbTableName = dt.Rows[i][0].ToString();
+					if(!isSingleRun || tableName.ToLower().Equals(dbTableName.ToLower()))
+					{
+						TableMap map = GetTableMap(dbTableName);
+						if(map == null)
+						{
+							map = new TableMap(ProviderConfiguration, dbTableName);
+							tablesMaps[dbTableName.ToLower()] = map;
 						}
-						GetColumnData (j);
-						GetConstraintData (j);
-						if (b)
+						GetColumnData(map);
+						GetConstraintData(map);
+						if(isSingleRun)
 							break;
 					}
 				}
 			}
-			catch (Exception ex) {
-				throw new GDAException ("An error occurred while analyzing the database schema.", ex);
+			catch(Exception ex)
+			{
+				throw new GDAException("An error occurred while analyzing the database schema.", ex);
 			}
 		}
-		private void GetColumnData (TableMap a)
+
+		/// <summary>
+		/// Recupera os dados das colunas da tabela.
+		/// </summary>
+		/// <param name="map">Tabela</param>
+		private void GetColumnData(TableMap map)
 		{
-			IDbConnection b = ProviderConfiguration.CreateConnection ();
-			IDbCommand c = b.CreateCommand ();
-			c.Connection = b;
-			string d = String.Format (@"SELECT Column_Name AS Field, Column_Type AS Type, 
+			IDbConnection conn = ProviderConfiguration.CreateConnection();
+			IDbCommand cmd = conn.CreateCommand();
+			cmd.Connection = conn;
+			string sql = String.Format(@"SELECT Column_Name AS Field, Column_Type AS Type, 
                                                 Is_Nullable, Column_Key, Column_Default, Extra, Column_Comment 
                                                 FROM Information_Schema.Columns 
-                                                WHERE Table_Schema='{0}' AND Table_Name='{1}';", b.Database, a.TableName);
-			c.CommandText = d;
-			if (b.State != ConnectionState.Open)
-				b.Open ();
-			try {
-				IDataReader e = c.ExecuteReader ();
-				while (e.Read ()) {
-					string f = e ["Field"].ToString ();
-					FieldMap g = a.GetFieldMapFromColumn (f);
-					if (g == null) {
-						g = new FieldMap (a, f);
-						a.Fields.Add (g);
+                                                WHERE Table_Schema='{0}' AND Table_Name='{1}';", conn.Database, map.TableName);
+			cmd.CommandText = sql;
+			if(conn.State != ConnectionState.Open)
+				conn.Open();
+			try
+			{
+				IDataReader dr = cmd.ExecuteReader();
+				while (dr.Read())
+				{
+					string columnName = dr["Field"].ToString();
+					FieldMap fm = map.GetFieldMapFromColumn(columnName);
+					if(fm == null)
+					{
+						fm = new FieldMap(map, columnName);
+						map.Fields.Add(fm);
 					}
-					string h = e ["Type"].ToString ();
-					bool i;
-					g.SetDbType (ExtractType (h, out i), i);
-					g.Size = ExtractSize (h);
-					g.IsNullable = (e ["Is_Nullable"].ToString () == "YES");
-					g.IsPrimaryKey = (e ["Column_Key"].ToString () == "PRI");
-					if (g.IsPrimaryKey)
-						g.IsAutoGenerated = (e ["Extra"].ToString () == "auto_increment");
-					g.Comment = e.GetString (e.GetOrdinal ("Column_Comment"));
+					string typeinfo = dr["Type"].ToString();
+					bool isUnsigned;
+					fm.SetDbType(ExtractType(typeinfo, out isUnsigned), isUnsigned);
+					fm.Size = ExtractSize(typeinfo);
+					fm.IsNullable = (dr["Is_Nullable"].ToString() == "YES");
+					fm.IsPrimaryKey = (dr["Column_Key"].ToString() == "PRI");
+					if(fm.IsPrimaryKey)
+						fm.IsAutoGenerated = (dr["Extra"].ToString() == "auto_increment");
+					fm.Comment = dr.GetString(dr.GetOrdinal("Column_Comment"));
 				}
 			}
-			finally {
-				b.Close ();
+			finally
+			{
+				conn.Close();
 			}
 		}
-		private void GetConstraintData (TableMap a)
+
+		/// <summary>
+		/// Recupera os dados das contraints da tabela.
+		/// </summary>
+		/// <param name="map"></param>
+		private void GetConstraintData(TableMap map)
 		{
-			IDbConnection b = ProviderConfiguration.CreateConnection ();
-			IDbCommand c = b.CreateCommand ();
-			c.Connection = b;
-			c.CommandText = String.Format ("show create table `{0}`", a.TableName);
-			if (b.State != ConnectionState.Open)
-				b.Open ();
-			try {
-				IDataReader d = c.ExecuteReader ();
-				if (d.Read ()) {
-					string e = d.GetFieldType (1) == typeof(byte[]) ? Encoding.Default.GetString ((byte[])d [1]) : d.GetString (1);
-					if (e != null && e.Length > 5) {
-						string[] f = e.Split (',');
-						foreach (string cmt in f) {
-							string g = cmt.Trim ();
-							string h = @"\(`?(?<column>\w+)`?\) REFER .*/(?<fkTable>\w+)[`\s]+\(`?(?<fkColumn>\w+)`?\)";
-							Regex i = new Regex (h, RegexOptions.ExplicitCapture | RegexOptions.Compiled);
-							Match j = i.Match (g);
-							if (j.Success) {
-								FieldMap k = a.GetFieldMapFromColumn (j.Groups ["column"].Value);
-								if (k != null) {
-									k.ForeignKeyTableName = j.Groups ["fkTable"].Value;
-									k.ForeignKeyColumnName = j.Groups ["fkColumn"].Value;
+			IDbConnection conn = ProviderConfiguration.CreateConnection();
+			IDbCommand cmd = conn.CreateCommand();
+			cmd.Connection = conn;
+			cmd.CommandText = String.Format("show create table `{0}`", map.TableName);
+			if(conn.State != ConnectionState.Open)
+				conn.Open();
+			try
+			{
+				IDataReader dr = cmd.ExecuteReader();
+				if(dr.Read())
+				{
+					string comment = dr.GetFieldType(1) == typeof(byte[]) ? Encoding.Default.GetString((byte[])dr[1]) : dr.GetString(1);
+					if(comment != null && comment.Length > 5)
+					{
+						string[] comments = comment.Split(',');
+						foreach (string cmt in comments)
+						{
+							string tmp = cmt.Trim();
+							string pattern = @"\(`?(?<column>\w+)`?\) REFER .*/(?<fkTable>\w+)[`\s]+\(`?(?<fkColumn>\w+)`?\)";
+							Regex regex = new Regex(pattern, RegexOptions.ExplicitCapture | RegexOptions.Compiled);
+							Match m = regex.Match(tmp);
+							if(m.Success)
+							{
+								FieldMap fm = map.GetFieldMapFromColumn(m.Groups["column"].Value);
+								if(fm != null)
+								{
+									fm.ForeignKeyTableName = m.Groups["fkTable"].Value;
+									fm.ForeignKeyColumnName = m.Groups["fkColumn"].Value;
 								}
 							}
-							else {
-								h = @"[\s\w]FOREIGN KEY\s\(`?(?<column>\w+)`?\) REFERENCES `?(?<fkTable>\w+)`? \(`?(?<fkColumn>\w+)`?\)";
-								Regex l = new Regex (h, RegexOptions.ExplicitCapture | RegexOptions.Compiled);
-								Match m = l.Match (g);
-								if (m.Success) {
-									FieldMap k = a.GetFieldMapFromColumn (m.Groups ["column"].Value);
-									if (k != null) {
-										k.ForeignKeyTableName = m.Groups ["fkTable"].Value;
-										k.ForeignKeyColumnName = m.Groups ["fkColumn"].Value;
+							else
+							{
+								pattern = @"[\s\w]FOREIGN KEY\s\(`?(?<column>\w+)`?\) REFERENCES `?(?<fkTable>\w+)`? \(`?(?<fkColumn>\w+)`?\)";
+								Regex regexNew = new Regex(pattern, RegexOptions.ExplicitCapture | RegexOptions.Compiled);
+								Match mNew = regexNew.Match(tmp);
+								if(mNew.Success)
+								{
+									FieldMap fm = map.GetFieldMapFromColumn(mNew.Groups["column"].Value);
+									if(fm != null)
+									{
+										fm.ForeignKeyTableName = mNew.Groups["fkTable"].Value;
+										fm.ForeignKeyColumnName = mNew.Groups["fkColumn"].Value;
 									}
 								}
-								else if (g != null) {
-									int n = g.IndexOf ("REFER");
-									if (n > 0) {
-										string o = ExtractColumn (g.Substring (0, n - 1));
-										g = g.Substring (n + 5, g.Length - n - 5).Trim ();
-										n = g.IndexOf ("/");
-										int p = g.IndexOf ("(");
-										int q = g.IndexOf (")");
-										if (n > 0 && p > 0 && q > p) {
-											string r = g.Substring (n + 1, p - n - 1);
-											string s = g.Substring (p + 1, q - p - 1);
-											FieldMap k = a.GetFieldMapFromColumn (o);
-											k.ForeignKeyTableName = r;
-											k.ForeignKeyColumnName = s;
+								else if(tmp != null)
+								{
+									int index = tmp.IndexOf("REFER");
+									if(index > 0)
+									{
+										string columnName = ExtractColumn(tmp.Substring(0, index - 1));
+										tmp = tmp.Substring(index + 5, tmp.Length - index - 5).Trim();
+										index = tmp.IndexOf("/");
+										int start = tmp.IndexOf("(");
+										int end = tmp.IndexOf(")");
+										if(index > 0 && start > 0 && end > start)
+										{
+											string foreignTable = tmp.Substring(index + 1, start - index - 1);
+											string foreignColumn = tmp.Substring(start + 1, end - start - 1);
+											FieldMap fm = map.GetFieldMapFromColumn(columnName);
+											fm.ForeignKeyTableName = foreignTable;
+											fm.ForeignKeyColumnName = foreignColumn;
 										}
 									}
 								}
@@ -146,45 +206,68 @@ namespace GDA.Provider.MySql
 					}
 				}
 			}
-			finally {
-				b.Close ();
+			finally
+			{
+				conn.Close();
 			}
 		}
-		private static string ExtractColumn (string a)
+
+		/// <summary>
+		/// Extraí os dados da coluna fornecidor pelo banco.
+		/// </summary>
+		/// <param name="columnInfo">Informações fornecidas pelo banco.</param>
+		/// <returns></returns>
+		private static string ExtractColumn(string columnInfo)
 		{
-			string b = a.Trim ();
-			if (b.StartsWith ("("))
-				b = b.Substring (1, b.Length - 1);
-			if (b.EndsWith (")"))
-				b = b.Substring (0, b.Length - 1);
-			return b;
+			string tmp = columnInfo.Trim();
+			if(tmp.StartsWith("("))
+				tmp = tmp.Substring(1, tmp.Length - 1);
+			if(tmp.EndsWith(")"))
+				tmp = tmp.Substring(0, tmp.Length - 1);
+			return tmp;
 		}
-		private static string ExtractType (string a, out bool b)
+
+		/// <summary>
+		/// Extrai da informação do tipo fornecida pelo banco de dadaos
+		/// as informações que serão usadas no sistema.
+		/// </summary>
+		/// <param name="typeInfo">Informações do tipo fornecidas pelo banco de dados.</param>
+		/// <param name="isUnsigned">Parametro para identificar se o tipo é unsigned.</param>
+		/// <returns>Nome do tipo do sistema</returns>
+		private static string ExtractType(string typeInfo, out bool isUnsigned)
 		{
-			int c = a.IndexOf (" ");
-			b = c > 0 && a.IndexOf ("unsigned", c, a.Length - c) > 0;
-			int d = a.IndexOf ("(");
-			if (d != -1)
-				return a.Substring (0, d);
+			int sp = typeInfo.IndexOf(" ");
+			isUnsigned = sp > 0 && typeInfo.IndexOf("unsigned", sp, typeInfo.Length - sp) > 0;
+			int pos = typeInfo.IndexOf("(");
+			if(pos != -1)
+				return typeInfo.Substring(0, pos);
 			else
-				return b ? a.Substring (0, c) : a;
+				return isUnsigned ? typeInfo.Substring(0, sp) : typeInfo;
 		}
-		private static int ExtractSize (string a)
+
+		/// <summary>
+		/// Recupera o tamanho da coluna com base nas informações do tipo
+		/// fornecidas pelo banco de dados.
+		/// </summary>
+		/// <param name="typeInfo">Informações do tipo fornecidas pelo banco de dados.</param>
+		/// <returns></returns>
+		private static int ExtractSize(string typeInfo)
 		{
-			int b = a.IndexOf ("(");
-			if (b != -1) {
-				int c = a.IndexOf (")");
-				string d = a.Substring (b + 1, c - b - 1);
-				if (d.IndexOfAny (new char[] {
+			int pos = typeInfo.IndexOf("(");
+			if(pos != -1)
+			{
+				int pos2 = typeInfo.IndexOf(")");
+				string size = typeInfo.Substring(pos + 1, pos2 - pos - 1);
+				if(size.IndexOfAny(new char[] {
 					'\'',
 					'"'
 				}) != -1)
 					return 0;
-				b = d.IndexOf (",");
-				if (b != -1)
-					return Convert.ToInt32 (d.Substring (0, b));
+				pos = size.IndexOf(",");
+				if(pos != -1)
+					return Convert.ToInt32(size.Substring(0, pos));
 				else
-					return Convert.ToInt32 (d);
+					return Convert.ToInt32(size);
 			}
 			else
 				return 0;

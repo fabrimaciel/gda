@@ -1,4 +1,25 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -7,355 +28,658 @@ using GDA.Caching;
 using GDA.Sql.InterpreterExpression.Nodes;
 using GDA.Sql.InterpreterExpression;
 using GDA.Collections;
+
 namespace GDA.Sql
 {
+	/// <summary>
+	/// Armazena os dados de uma consulta nativa no banco de dados.
+	/// </summary>
 	public class NativeQuery : BaseQuery, IGDAParameterContainer
 	{
+		/// <summary>
+		/// Armanena o texto da consulta que será executada.
+		/// </summary>
 		private string _commandText;
+
+		/// <summary>
+		/// Tipo do comando que será executado.
+		/// </summary>
 		private CommandType _commandType = CommandType.Text;
+
 		private int _commandTimeout = GDASession.DefaultCommandTimeout;
-		private GDAParameterCollection _parameters = new GDAParameterCollection ();
+
+		/// <summary>
+		/// Lista dos parametros relacionados com a consulta.
+		/// </summary>
+		private GDAParameterCollection _parameters = new GDAParameterCollection();
+
+		/// <summary>
+		/// Clausula de ordenação
+		/// </summary>
 		private string _orderClause;
+
+		/// <summary>
+		/// Nome das propriedades a serem recuperadas pela consulta.
+		/// </summary>
 		private string _selectProperties;
+
+		/// <summary>
+		/// Nome do campo chave da consulta.
+		/// </summary>
 		private string _keyFieldName;
-		public string CommandText {
-			get {
+
+		/// <summary>
+		/// Armanena o texto da consulta que será executada.
+		/// </summary>
+		public string CommandText
+		{
+			get
+			{
 				return _commandText;
 			}
-			set {
+			set
+			{
 				_commandText = value;
 			}
 		}
-		public List<GDAParameter> Parameters {
-			get {
+
+		/// <summary>
+		/// Recupera a lista de parametros
+		/// </summary>
+		public List<GDAParameter> Parameters
+		{
+			get
+			{
 				return _parameters;
 			}
 		}
-		public string Order {
-			get {
+
+		/// <summary>
+		/// Recupera e define a clausula ORDER BY.
+		/// Não é usada a palavra chave ORDER BY na clausula.
+		/// </summary>
+		public string Order
+		{
+			get
+			{
 				return _orderClause;
 			}
-			set {
+			set
+			{
 				_orderClause = value;
 			}
 		}
-		public string SelectProperties {
-			get {
+
+		/// <summary>
+		/// Nome das propriedades a serem recuperadas pela consulta.
+		/// </summary>
+		public string SelectProperties
+		{
+			get
+			{
 				return _selectProperties;
 			}
 		}
-		public CommandType CommandType {
-			get {
+
+		/// <summary>
+		/// Tipo do comando que será executado.
+		/// </summary>
+		public CommandType CommandType
+		{
+			get
+			{
 				return _commandType;
 			}
-			set {
+			set
+			{
 				_commandType = value;
 			}
 		}
-		public int CommandTimeout {
-			get {
+
+		public int CommandTimeout
+		{
+			get
+			{
 				return _commandTimeout;
 			}
-			set {
+			set
+			{
 				_commandTimeout = value;
 			}
 		}
-		public string KeyFieldName {
-			get {
+
+		/// <summary>
+		/// Nome do campo chave da consulta.
+		/// </summary>
+		public string KeyFieldName
+		{
+			get
+			{
 				return _keyFieldName;
 			}
-			set {
+			set
+			{
 				_keyFieldName = value;
 			}
 		}
-		public NativeQuery ()
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		public NativeQuery()
 		{
 		}
-		public NativeQuery (string a)
+
+		/// <summary>
+		/// Inicializa a consulta já informando o texto.
+		/// </summary>
+		/// <param name="queryText"></param>
+		public NativeQuery(string queryText)
 		{
-			_commandText = a;
+			_commandText = queryText;
 		}
-		public NativeQuery Add (GDAParameter a)
+
+		/// <summary>
+		/// Adiciona um novo parametro na consulta.
+		/// </summary>
+		/// <param name="parameter">Paramentro a ser adicionado.</param>
+		/// <returns>Retorna a referencia da consulta aonde o parametro foi adicionado.</returns>
+		public NativeQuery Add(GDAParameter parameter)
 		{
-			if (a != null) {
-				var b = this._parameters.FindIndex (c => c.ParameterName == a.ParameterName);
-				if (b >= 0)
-					this._parameters.RemoveAt (b);
-				this._parameters.Add (a);
+			if(parameter != null)
+			{
+				var index = this._parameters.FindIndex(f => f.ParameterName == parameter.ParameterName);
+				if(index >= 0)
+					this._parameters.RemoveAt(index);
+				this._parameters.Add(parameter);
 			}
 			return this;
 		}
-		public NativeQuery Add (params GDAParameter[] a)
+
+		/// <summary>
+		/// Adiciona um novo conjunto de parametros na consulta.
+		/// </summary>
+		/// <param name="parameters">Parametros a serem adicionados.</param>
+		/// <returns>Retorna a referencia da consulta aonde os parametros foram adicionados.</returns>
+		public NativeQuery Add(params GDAParameter[] parameters)
 		{
-			foreach (var i in a) {
-				var b = this._parameters.FindIndex (c => c.ParameterName == i.ParameterName);
-				if (b >= 0)
-					this._parameters.RemoveAt (b);
-				this._parameters.Add (i);
+			foreach (var i in parameters)
+			{
+				var index = this._parameters.FindIndex(f => f.ParameterName == i.ParameterName);
+				if(index >= 0)
+					this._parameters.RemoveAt(index);
+				this._parameters.Add(i);
 			}
 			return this;
 		}
-		public NativeQuery Add (IEnumerable<GDAParameter> a)
+
+		/// <summary>
+		/// Adiciona um novo conjunto de parametros na consulta.
+		/// </summary>
+		/// <param name="parameters">Parametros a serem adicionados.</param>
+		/// <returns>Retorna a referencia da consulta aonde os parametros foram adicionados.</returns>
+		public NativeQuery Add(IEnumerable<GDAParameter> parameters)
 		{
-			foreach (var i in a) {
-				var b = this._parameters.FindIndex (c => c.ParameterName == i.ParameterName);
-				if (b >= 0)
-					this._parameters.RemoveAt (b);
-				this._parameters.Add (i);
+			foreach (var i in parameters)
+			{
+				var index = this._parameters.FindIndex(f => f.ParameterName == i.ParameterName);
+				if(index >= 0)
+					this._parameters.RemoveAt(index);
+				this._parameters.Add(i);
 			}
 			return this;
 		}
-		public NativeQuery Add (DbType a, object b)
+
+		/// <summary>
+		/// Adiciona um parametro na consulta.
+		/// </summary>
+		/// <param name="dbtype">Tipo usado na base de dados</param>
+		/// <param name="value">Valor do parametro.</param>
+		public NativeQuery Add(DbType dbtype, object value)
 		{
-			return Add ("", a, b);
+			return Add("", dbtype, value);
 		}
-		public NativeQuery Add (string a, DbType b, object c)
+
+		/// <summary>
+		/// Adiciona um parametro.
+		/// </summary>
+		/// <param name="name">Nome do parametro.</param>
+		/// <param name="dbtype">Tipo usado na base de dados.</param>
+		/// <param name="value">parameter value</param>
+		public NativeQuery Add(string name, DbType dbtype, object value)
 		{
-			return Add (a, b, 0, c);
+			return Add(name, dbtype, 0, value);
 		}
-		public NativeQuery Add (string a, object b)
+
+		/// <summary>
+		/// Adiciona um parametro.
+		/// </summary>
+		/// <param name="name">Nome do parametro</param>
+		/// <param name="value">Valor do parametro.</param>
+		/// <returns></returns>
+		public NativeQuery Add(string name, object value)
 		{
-			return Add (new GDAParameter (a, b));
+			return Add(new GDAParameter(name, value));
 		}
-		public NativeQuery Add (DbType a, int b, object c)
+
+		/// <summary>
+		/// Adds a parameter.
+		/// </summary>
+		/// <param name="dbtype">database data type</param>
+		/// <param name="size">size of the database data type</param>
+		/// <param name="value">parameter value</param>
+		public NativeQuery Add(DbType dbtype, int size, object value)
 		{
-			return Add ("", a, b, c);
+			return Add("", dbtype, size, value);
 		}
-		public NativeQuery Add (string a, DbType b, int c, object d)
+
+		/// <summary>
+		/// Adds a parameter.
+		/// </summary>
+		/// <param name="name">parameter name</param>
+		/// <param name="dbtype">database data type</param>
+		/// <param name="size">size of the database data type</param>
+		/// <param name="value">parameter value</param>
+		public NativeQuery Add(string name, DbType dbtype, int size, object value)
 		{
-			GDAParameter e = new GDAParameter ();
-			e.ParameterName = a;
-			e.DbType = b;
-			e.Size = c;
-			e.Value = d;
-			var f = this._parameters.FindIndex (g => g.ParameterName == e.ParameterName);
-			if (f >= 0)
-				this._parameters.RemoveAt (f);
-			this._parameters.Add (e);
+			GDAParameter p = new GDAParameter();
+			p.ParameterName = name;
+			p.DbType = dbtype;
+			p.Size = size;
+			p.Value = value;
+			var index = this._parameters.FindIndex(f => f.ParameterName == p.ParameterName);
+			if(index >= 0)
+				this._parameters.RemoveAt(index);
+			this._parameters.Add(p);
 			return this;
 		}
-		public NativeQuery Select (string a)
+
+		/// <summary>
+		/// Define os nomes das propriedades que serão recuperadas pela consulta.
+		/// </summary>
+		/// <param name="selectProperties"></param>
+		/// <returns></returns>
+		public NativeQuery Select(string selectProperties)
 		{
-			_selectProperties = a;
+			_selectProperties = selectProperties;
 			return this;
 		}
-		public NativeQuery SetOrder (string a)
+
+		/// <summary>
+		/// Define a clausula ORDER BY.
+		/// </summary>
+		/// <param name="orderClause">Clausula ORDER BY.</param>
+		/// <returns>Referência da consulta.</returns>
+		public NativeQuery SetOrder(string orderClause)
 		{
-			this._orderClause = a;
+			this._orderClause = orderClause;
 			return this;
 		}
-		public NativeQuery SetCommandType (CommandType a)
+
+		/// <summary>
+		/// Define o tipo de comando qeu será executado.
+		/// </summary>
+		/// <param name="commandType"></param>
+		/// <returns></returns>
+		public NativeQuery SetCommandType(CommandType commandType)
 		{
-			_commandType = a;
+			_commandType = commandType;
 			return this;
 		}
-		public NativeQuery SetCommandTimeout (int a)
+
+		/// <summary>
+		/// Define o Timeout do comando.
+		/// </summary>
+		/// <param name="commandTimeout"></param>
+		/// <returns></returns>
+		public NativeQuery SetCommandTimeout(int commandTimeout)
 		{
-			_commandTimeout = a;
+			_commandTimeout = commandTimeout;
 			return this;
 		}
-		public long Count ()
+
+		/// <summary>
+		/// Recupera a quantidade de registros com base na Query.
+		/// </summary>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public long Count()
 		{
-			return Count (null);
+			return Count(null);
 		}
-		public long Count (GDASession a)
+
+		/// <summary>
+		/// Recupera a quantidade de registros com base na Query.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public long Count(GDASession session)
 		{
-			return GDAOperations.Count (a, this);
+			return GDAOperations.Count(session, this);
 		}
-		public NativeQuery Skip (int a)
+
+		/// <summary>
+		/// Salta um número especifico de registros antes de recuperar os resultado.
+		/// </summary>
+		/// <param name="count">Quantidade de registros que serão saltados.</param>
+		/// <returns></returns>
+		public NativeQuery Skip(int count)
 		{
-			_skipCount = a;
+			_skipCount = count;
 			return this;
 		}
-		public NativeQuery Take (int a)
+
+		/// <summary>
+		/// Define a quantidade de registro que serão recuperados.
+		/// </summary>
+		/// <param name="count"></param>
+		/// <returns></returns>
+		public NativeQuery Take(int count)
 		{
-			_takeCount = a;
+			_takeCount = count;
 			return this;
 		}
-		public int Execute ()
+
+		/// <summary>
+		/// Executa a consulta.
+		/// </summary>
+		/// <returns>Quantidade de linhas afetadas.</returns>
+		public int Execute()
 		{
-			return new DataAccess ().ExecuteCommand (null, this.CommandType, this.CommandTimeout, this.CommandText, this.Parameters.ToArray ());
+			return new DataAccess().ExecuteCommand(null, this.CommandType, this.CommandTimeout, this.CommandText, this.Parameters.ToArray());
 		}
-		public object ExecuteScalar (GDASession a)
+
+		/// <summary>
+		/// Executa a consulta.
+		/// </summary>
+		/// <returns></returns>
+		public object ExecuteScalar(GDASession session)
 		{
-			DataAccess b = null;
-			if (a != null)
-				b = new DataAccess (a.ProviderConfiguration);
+			DataAccess dataAccess = null;
+			if(session != null)
+				dataAccess = new DataAccess(session.ProviderConfiguration);
 			else
-				b = new DataAccess ();
-			return b.ExecuteScalar (a, this.CommandType, this.CommandTimeout, this.CommandText, this.Parameters.ToArray ());
+				dataAccess = new DataAccess();
+			return dataAccess.ExecuteScalar(session, this.CommandType, this.CommandTimeout, this.CommandText, this.Parameters.ToArray());
 		}
-		public object ExecuteScalar ()
+
+		/// <summary>
+		/// Executa a consulta.
+		/// </summary>
+		/// <returns></returns>
+		public object ExecuteScalar()
 		{
-			return new DataAccess ().ExecuteScalar (null, this.CommandType, this.CommandTimeout, this.CommandText, this.Parameters.ToArray ());
+			return new DataAccess().ExecuteScalar(null, this.CommandType, this.CommandTimeout, this.CommandText, this.Parameters.ToArray());
 		}
-		public int Execute (GDASession a)
+
+		/// <summary>
+		/// Executa a consulta.
+		/// </summary>
+		/// <returns>Quantidade de linhas afetadas.</returns>
+		public int Execute(GDASession session)
 		{
-			DataAccess b = null;
-			if (a != null)
-				b = new DataAccess (a.ProviderConfiguration);
+			DataAccess dataAccess = null;
+			if(session != null)
+				dataAccess = new DataAccess(session.ProviderConfiguration);
 			else
-				b = new DataAccess ();
-			return b.ExecuteCommand (a, this.CommandType, this.CommandTimeout, this.CommandText, this.Parameters.ToArray ());
+				dataAccess = new DataAccess();
+			return dataAccess.ExecuteCommand(session, this.CommandType, this.CommandTimeout, this.CommandText, this.Parameters.ToArray());
 		}
-		public ResultList<T> ToResultList<T> (int a) where T : new()
+
+		/// <summary>
+		/// Recupera o <see cref="ResultList<T>"/> do resultado da consulta.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="pageSize"></param>
+		/// <returns></returns>
+		public ResultList<T> ToResultList<T>(int pageSize) where T : new()
 		{
-			return new ResultList<T> (this, a);
+			return new ResultList<T>(this, pageSize);
 		}
-		public ResultList<T> ToResultList<T> (GDASession a, int b) where T : new()
+
+		/// <summary>
+		/// Recupera o <see cref="GDA.Sql.ResultList"/> do resultado da consulta.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="session"></param>
+		/// <param name="pageSize"></param>
+		/// <returns></returns>
+		public ResultList<T> ToResultList<T>(GDASession session, int pageSize) where T : new()
 		{
-			return new ResultList<T> (this, a, b);
+			return new ResultList<T>(this, session, pageSize);
 		}
-		public GDADataRecordCursor ToDataRecords ()
+
+		/// <summary>
+		/// Recupera o resultado da consulta em forma de cursor.
+		/// </summary>
+		/// <returns>Lista dos registros recuperados com base nos parametros informados.</returns>
+		public GDADataRecordCursor ToDataRecords()
 		{
-			return new DataAccess ().LoadResult (null, this.CommandType, this.CommandTimeout, this.CommandText, this.TakeCount > 0 || this.SkipCount > 0 ? new InfoPaging (this.SkipCount, this.TakeCount) : null, this.Parameters.ToArray ());
+			return new DataAccess().LoadResult(null, this.CommandType, this.CommandTimeout, this.CommandText, this.TakeCount > 0 || this.SkipCount > 0 ? new InfoPaging(this.SkipCount, this.TakeCount) : null, this.Parameters.ToArray());
 		}
-		public GDADataRecordCursor ToDataRecords (GDASession a)
+
+		/// <summary>
+		/// Recupera o resultado da consulta em forma de cursor.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <returns>Lista dos registros recuperados com base nos parametros informados.</returns>
+		public GDADataRecordCursor ToDataRecords(GDASession session)
 		{
-			DataAccess b = null;
-			if (a != null)
-				b = new DataAccess (a.ProviderConfiguration);
+			DataAccess dataAccess = null;
+			if(session != null)
+				dataAccess = new DataAccess(session.ProviderConfiguration);
 			else
-				b = new DataAccess ();
-			return b.LoadResult (a, this.CommandType, this.CommandTimeout, this.CommandText, this.TakeCount > 0 || this.SkipCount > 0 ? new InfoPaging (this.SkipCount, this.TakeCount) {
+				dataAccess = new DataAccess();
+			return dataAccess.LoadResult(session, this.CommandType, this.CommandTimeout, this.CommandText, this.TakeCount > 0 || this.SkipCount > 0 ? new InfoPaging(this.SkipCount, this.TakeCount) {
 				KeyFieldName = this.KeyFieldName
-			} : null, this.Parameters.ToArray ());
+			} : null, this.Parameters.ToArray());
 		}
-		public override QueryReturnInfo BuildResultInfo2 (GDA.Interfaces.IProvider a, string b)
+
+		/// <summary>
+		/// Constrói as informações para o resultado da consulta.
+		/// </summary>
+		/// <param name="aggregationFunction">Função de agregação usada para recuperar o resultado.</param>
+		/// <returns></returns>
+		public override QueryReturnInfo BuildResultInfo2(GDA.Interfaces.IProvider provider, string aggregationFunction)
 		{
-			return BuildResultInfo2 (a, b, new Dictionary<string, Type> ());
+			return BuildResultInfo2(provider, aggregationFunction, new Dictionary<string, Type>());
 		}
-		public override QueryReturnInfo BuildResultInfo2 (GDA.Interfaces.IProvider a, string b, Dictionary<string, Type> c)
+
+		//// <summary>
+		/// Constrói as informações para o resultado da consulta.
+		/// </summary>
+		/// <param name="provider">Provider que será utilizado no build.</param>
+		/// <param name="aggregationFunction">Função de agregação usada para recuperar o resultado.</param>
+		/// <param name="classesDictionary">Dicionário com as classe que já foram processadas.</param>
+		/// <returns></returns>
+		public override QueryReturnInfo BuildResultInfo2(GDA.Interfaces.IProvider provider, string aggregationFunction, Dictionary<string, Type> classesDictionary)
 		{
-			if (string.IsNullOrEmpty (_commandText))
-				throw new QueryException ("Command text not informed.");
-			var d = _commandText;
-			d = d.TrimStart (' ', '\r', '\n', '\t');
-			var e = Regex.Match (_commandText, "SELECT(?<selectpart>(\r|\n|\r\n|.*?)*?)FROM", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-			if (!e.Success)
-				throw new QueryException ("Invalid aggregation function.\r\nNot found SELECT ... FROM for substitution in command");
-			d = d.Replace (e.Groups ["selectpart"].Value, " " + b + " ");
-			var f = d.LastIndexOf ("ORDER BY");
-			if (f >= 0)
-				d = d.Substring (0, f);
-			return new QueryReturnInfo (d, this.Parameters, new List<Mapper> ());
+			if(string.IsNullOrEmpty(_commandText))
+				throw new QueryException("Command text not informed.");
+			var query = _commandText;
+			query = query.TrimStart(' ', '\r', '\n', '\t');
+			var match = Regex.Match(_commandText, "SELECT(?<selectpart>(\r|\n|\r\n|.*?)*?)FROM", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+			if(!match.Success)
+				throw new QueryException("Invalid aggregation function.\r\nNot found SELECT ... FROM for substitution in command");
+			query = query.Replace(match.Groups["selectpart"].Value, " " + aggregationFunction + " ");
+			var orderByIndex = query.LastIndexOf("ORDER BY");
+			if(orderByIndex >= 0)
+				query = query.Substring(0, orderByIndex);
+			return new QueryReturnInfo(query, this.Parameters, new List<Mapper>());
 		}
-		public void PrepareCommand (GDASession a, IDbCommand b)
+
+		/// <summary>
+		/// Prepara o comando para ser executado.
+		/// </summary>
+		/// <param name="session"></param>
+		/// <param name="command"></param>
+		public void PrepareCommand(GDASession session, IDbCommand command)
 		{
-			DataAccess c = null;
-			if (a != null)
-				c = new DataAccess (a.ProviderConfiguration);
+			DataAccess dataAccess = null;
+			if(session != null)
+				dataAccess = new DataAccess(session.ProviderConfiguration);
 			else
-				c = new DataAccess ();
-			c.PrepareCommand (a, b, this.CommandText, this.TakeCount > 0 || this.SkipCount > 0 ? new InfoPaging (this.SkipCount, this.TakeCount) {
+				dataAccess = new DataAccess();
+			dataAccess.PrepareCommand(session, command, this.CommandText, this.TakeCount > 0 || this.SkipCount > 0 ? new InfoPaging(this.SkipCount, this.TakeCount) {
 				KeyFieldName = this.KeyFieldName
-			} : null, this.Parameters.ToArray ());
+			} : null, this.Parameters.ToArray());
 		}
-		public override QueryReturnInfo BuildResultInfo (string a)
+
+		/// <summary>
+		/// Constrói as informações para o resultado da consulta.
+		/// </summary>
+		/// <param name="aggregationFunction">Função de agregação usada para recuperar o resultado.</param>
+		/// <returns></returns>
+		public override QueryReturnInfo BuildResultInfo(string aggregationFunction)
 		{
-			return BuildResultInfo2 (null, a);
+			return BuildResultInfo2(null, aggregationFunction);
 		}
-		public override QueryReturnInfo BuildResultInfo<T> (GDA.Interfaces.IProviderConfiguration a)
+
+		/// <summary>
+		/// Constrói o resultado com as informações que serão processadas.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public override QueryReturnInfo BuildResultInfo<T>(GDA.Interfaces.IProviderConfiguration configuration)
 		{
-			if (string.IsNullOrEmpty (_commandText))
-				throw new QueryException ("Command text not informed.");
-			var b = _commandText;
-			if (!string.IsNullOrEmpty (Order)) {
-				var c = b.LastIndexOf ("ORDER BY");
-				if (c >= 0)
-					b = b.Substring (0, c);
-				b += " ORDER BY " + Order;
+			if(string.IsNullOrEmpty(_commandText))
+				throw new QueryException("Command text not informed.");
+			var query = _commandText;
+			if(!string.IsNullOrEmpty(Order))
+			{
+				var orderByIndex = query.LastIndexOf("ORDER BY");
+				if(orderByIndex >= 0)
+					query = query.Substring(0, orderByIndex);
+				query += " ORDER BY " + Order;
 			}
-			var d = MappingManager.GetMappers<T> (null, null);
-			var e = new List<Mapper> (d);
-			if (!string.IsNullOrEmpty (_selectProperties) && _selectProperties != "*") {
-				List<string> f = new List<string> ();
-				Parser g = new Parser (new Lexer (_selectProperties));
-				SelectPart h = g.ExecuteSelectPart ();
-				e = new List<Mapper> (h.SelectionExpressions.Count);
-				foreach (SelectExpression se in h.SelectionExpressions) {
-					if (se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column) {
-						Column j = se.Column;
-						foreach (Mapper mp in d) {
-							if (string.Compare (se.ColumnName.Value.Text, mp.PropertyMapperName, true) == 0 && (mp.Direction == DirectionParameter.Input || mp.Direction == DirectionParameter.InputOutput || mp.Direction == DirectionParameter.OutputOnlyInsert)) {
-								if (!e.Exists (k => k.PropertyMapperName == mp.PropertyMapperName))
-									e.Add (mp);
+			var mapping = MappingManager.GetMappers<T>(null, null);
+			var selectProps = new List<Mapper>(mapping);
+			if(!string.IsNullOrEmpty(_selectProperties) && _selectProperties != "*")
+			{
+				List<string> functions = new List<string>();
+				Parser p = new Parser(new Lexer(_selectProperties));
+				SelectPart sp = p.ExecuteSelectPart();
+				selectProps = new List<Mapper>(sp.SelectionExpressions.Count);
+				foreach (SelectExpression se in sp.SelectionExpressions)
+				{
+					if(se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column)
+					{
+						Column col = se.Column;
+						foreach (Mapper mp in mapping)
+						{
+							if(string.Compare(se.ColumnName.Value.Text, mp.PropertyMapperName, true) == 0 && (mp.Direction == DirectionParameter.Input || mp.Direction == DirectionParameter.InputOutput || mp.Direction == DirectionParameter.OutputOnlyInsert))
+							{
+								if(!selectProps.Exists(f => f.PropertyMapperName == mp.PropertyMapperName))
+									selectProps.Add(mp);
 							}
 						}
-						if (j.Name == "*")
-							throw new GDAException ("Invalid expression {0}", se.ColumnName.Value.Text);
+						if(col.Name == "*")
+							throw new GDAException("Invalid expression {0}", se.ColumnName.Value.Text);
 					}
-					else if (se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Function)
-						throw new QueryException ("NativeQuery not support function in select part");
+					else if(se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Function)
+						throw new QueryException("NativeQuery not support function in select part");
 				}
 			}
-			return new QueryReturnInfo (b, this.Parameters, e);
+			return new QueryReturnInfo(query, this.Parameters, selectProps);
 		}
-		public static NativeQuery GetNamedQuery (string a)
+
+		/// <summary>
+		/// Recupera uma consulta nomeada.
+		/// </summary>
+		/// <param name="queryName"></param>
+		/// <returns></returns>
+		public static NativeQuery GetNamedQuery(string queryName)
 		{
-			GDA.GDASettings.LoadConfiguration ();
-			if (string.IsNullOrEmpty (a))
-				throw new ArgumentNullException ("queryName");
-			var b = Mapping.MappingData.GetSqlQuery (a);
-			if (b == null)
-				throw new QueryException ("Query \"{0}\" not found.", a);
-			if (!b.UseDatabaseSchema)
-				throw new NotSupportedException ("Query not use database schema.");
-			var c = new NativeQuery (b.Query);
-			var d = new List<string> ();
-			if (b.Return != null)
-				foreach (var i in b.Return.ReturnProperties)
-					d.Add (i.Name);
-			foreach (var i in b.Parameters) {
-				if (i.DefaultValue != null) {
-					var e = Type.GetType (i.TypeName, false);
-					if (e != null) {
+			GDA.GDASettings.LoadConfiguration();
+			if(string.IsNullOrEmpty(queryName))
+				throw new ArgumentNullException("queryName");
+			var mapping = Mapping.MappingData.GetSqlQuery(queryName);
+			if(mapping == null)
+				throw new QueryException("Query \"{0}\" not found.", queryName);
+			if(!mapping.UseDatabaseSchema)
+				throw new NotSupportedException("Query not use database schema.");
+			var query = new NativeQuery(mapping.Query);
+			var selectProperties = new List<string>();
+			if(mapping.Return != null)
+				foreach (var i in mapping.Return.ReturnProperties)
+					selectProperties.Add(i.Name);
+			foreach (var i in mapping.Parameters)
+			{
+				if(i.DefaultValue != null)
+				{
+					var pType = Type.GetType(i.TypeName, false);
+					if(pType != null)
+					{
 						#if PocketPC
-												#else
-						var f = System.ComponentModel.TypeDescriptor.GetConverter (e);
+						#else
+						var converter = System.ComponentModel.TypeDescriptor.GetConverter(pType);
 						#endif
-						try {
+						try
+						{
 							#if PocketPC
-														                             query.Add(i.Name, DataAccess.ConvertValue(i.DefaultValue, pType));
+							                             query.Add(i.Name, DataAccess.ConvertValue(i.DefaultValue, pType));
 #else
-							c.Add (i.Name, f.ConvertFrom (i.DefaultValue));
+							query.Add(i.Name, converter.ConvertFrom(i.DefaultValue));
 							#endif
 						}
-						catch (Exception ex) {
-							throw new QueryException (string.Format ("Fail on convert parameter \"{0}\" to \"{1}\" in named query \"{2}\".", i.Name, e.FullName, a), ex);
+						catch(Exception ex)
+						{
+							throw new QueryException(string.Format("Fail on convert parameter \"{0}\" to \"{1}\" in named query \"{2}\".", i.Name, pType.FullName, queryName), ex);
 						}
 						continue;
 					}
 				}
-				c.Add (i.Name, null);
+				query.Add(i.Name, null);
 			}
-			return c;
+			return query;
 		}
-		void IGDAParameterContainer.Add (GDAParameter parameter)
+
+		void IGDAParameterContainer.Add(GDAParameter parameter)
 		{
-			if (parameter == null)
-				throw new ArgumentNullException ("parameter");
-			this._parameters.Add (parameter);
+			if(parameter == null)
+				throw new ArgumentNullException("parameter");
+			this._parameters.Add(parameter);
 		}
-		bool IGDAParameterContainer.TryGet (string a, out GDAParameter b)
+
+		/// <summary>
+		/// Tenta recupera o parametro pelo nome informado.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="parameter"></param>
+		/// <returns></returns>
+		bool IGDAParameterContainer.TryGet(string name, out GDAParameter parameter)
 		{
-			return _parameters.TryGet (a, out b);
+			return _parameters.TryGet(name, out parameter);
 		}
-		bool IGDAParameterContainer.ContainsKey (string a)
+
+		/// <summary>
+		/// Verifica se existe algum parametro com o nome informado.
+		/// </summary>
+		/// <param name="name">Nome do parametro.</param>
+		/// <returns></returns>
+		bool IGDAParameterContainer.ContainsKey(string name)
 		{
-			return _parameters.ContainsKey (a);
+			return _parameters.ContainsKey(name);
 		}
-		bool IGDAParameterContainer.Remove (string a)
+
+		/// <summary>
+		/// Remove o parametro pelo nome informado.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <returns></returns>
+		bool IGDAParameterContainer.Remove(string name)
 		{
-			return _parameters.Remove (a);
+			return _parameters.Remove(name);
 		}
-		IEnumerator<GDAParameter> IEnumerable<GDAParameter>.GetEnumerator ()
+
+		IEnumerator<GDAParameter> IEnumerable<GDAParameter>.GetEnumerator()
 		{
-			return this._parameters.GetEnumerator ();
+			return this._parameters.GetEnumerator();
 		}
-		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator ()
+
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
 		{
-			return this._parameters.GetEnumerator ();
+			return this._parameters.GetEnumerator();
 		}
 	}
 }

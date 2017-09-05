@@ -1,131 +1,218 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Collections;
 using System.Collections.Specialized;
+
 namespace GDA.Analysis
 {
+	/// <summary>
+	/// Representa a alista para armazenar vários <see cref="FieldMap"/>.
+	/// Ela contém métodos para manipular e recupera as colunas contidas.
+	/// </summary>
 	public sealed class FieldList : IList, IEnumerable
 	{
+		/// <summary>
+		/// Lista onde serão armazenados os campos.
+		/// </summary>
 		private ArrayList fields;
+
+		/// <summary>
+		/// Dicionário para facilitar a recuperação dos dados das colunas.
+		/// </summary>
 		private HybridDictionary columns;
-		internal FieldList () : base ()
+
+		internal FieldList() : base()
 		{
-			fields = new ArrayList ();
+			fields = new ArrayList();
 		}
-		public FieldMap FindColumn (string a)
+
+		/// <summary>
+		/// Recupera as informações da coluna com base no nome informado.
+		/// </summary>
+		/// <param name="name">Nome da coluna.</param>
+		/// <returns>FieldMap correspondente.</returns>
+		public FieldMap FindColumn(string name)
 		{
-			if (a == null)
-				throw new NullReferenceException ("name");
-			if (columns == null) {
-				columns = new HybridDictionary (fields.Count, true);
-				foreach (FieldMap fm in fields) {
-					columns.Add (fm.ColumnName, fm);
+			if(name == null)
+				throw new NullReferenceException("name");
+			if(columns == null)
+			{
+				columns = new HybridDictionary(fields.Count, true);
+				foreach (FieldMap fm in fields)
+				{
+					columns.Add(fm.ColumnName, fm);
 				}
 			}
-			return columns [a] as FieldMap;
+			return columns[name] as FieldMap;
 		}
-		public FieldMap FindColumnById (int a)
+
+		/// <summary>
+		/// Recupera os dados da coluna com base no seu identificador.
+		/// </summary>
+		/// <param name="columnId"></param>
+		/// <returns></returns>
+		public FieldMap FindColumnById(int columnId)
 		{
-			foreach (FieldMap fm in this) {
-				if (a != -1 && a == fm.ColumnId)
+			foreach (FieldMap fm in this)
+			{
+				if(columnId != -1 && columnId == fm.ColumnId)
 					return fm;
 			}
 			return null;
 		}
-		public int PrimaryKeyCount {
-			get {
-				int a = 0;
-				foreach (FieldMap fm in this) {
-					if (fm.IsPrimaryKey)
-						a++;
+
+		/// <summary>
+		/// Recupera o número de campos chave primária da lista.
+		/// </summary>
+		public int PrimaryKeyCount
+		{
+			get
+			{
+				int count = 0;
+				foreach (FieldMap fm in this)
+				{
+					if(fm.IsPrimaryKey)
+						count++;
 				}
-				return a;
+				return count;
 			}
 		}
-		public FieldMap this [int a] {
-			get {
-				return fields [a] as FieldMap;
+
+		public FieldMap this[int index]
+		{
+			get
+			{
+				return fields[index] as FieldMap;
 			}
 		}
-		public bool IsReadOnly {
-			get {
+
+		public bool IsReadOnly
+		{
+			get
+			{
 				return false;
 			}
 		}
-		object IList.this [int index] {
-			get {
-				return fields [index];
+
+		object IList.this[int index]
+		{
+			get
+			{
+				return fields[index];
 			}
-			set {
-				fields [index] = value;
+			set
+			{
+				fields[index] = value;
 			}
 		}
-		public void RemoveAt (int a)
+
+		public void RemoveAt(int index)
 		{
-			FieldMap b = fields [a] as FieldMap;
-			Remove (b);
-			if (columns != null)
-				columns.Remove (b.ColumnName);
+			FieldMap fm = fields[index] as FieldMap;
+			Remove(fm);
+			if(columns != null)
+				columns.Remove(fm.ColumnName);
 		}
-		public void Insert (int a, object b)
+
+		public void Insert(int index, object value)
 		{
-			FieldMap c = b as FieldMap;
-			fields.Insert (a, c);
+			FieldMap fm = value as FieldMap;
+			fields.Insert(index, fm);
 			columns = null;
 		}
-		public void Remove (object a)
+
+		public void Remove(object value)
 		{
-			FieldMap b = a as FieldMap;
-			fields.Remove (b);
-			if (columns != null)
-				columns.Remove (b.ColumnName);
+			FieldMap fm = value as FieldMap;
+			fields.Remove(fm);
+			if(columns != null)
+				columns.Remove(fm.ColumnName);
 		}
-		public bool Contains (object a)
+
+		public bool Contains(object value)
 		{
-			return fields.Contains (a);
+			return fields.Contains(value);
 		}
-		public void Clear ()
+
+		public void Clear()
 		{
-			fields.Clear ();
+			fields.Clear();
 			columns = null;
 		}
-		public int IndexOf (object a)
+
+		public int IndexOf(object value)
 		{
-			return fields.IndexOf (a);
+			return fields.IndexOf(value);
 		}
-		public int Add (object a)
+
+		public int Add(object value)
 		{
-			Insert (fields.Count, a);
+			Insert(fields.Count, value);
 			return fields.Count;
 		}
-		public bool IsFixedSize {
-			get {
+
+		public bool IsFixedSize
+		{
+			get
+			{
 				return false;
 			}
 		}
-		public bool IsSynchronized {
-			get {
+
+		public bool IsSynchronized
+		{
+			get
+			{
 				return false;
 			}
 		}
-		public int Count {
-			get {
+
+		public int Count
+		{
+			get
+			{
 				return fields.Count;
 			}
 		}
-		public void CopyTo (Array a, int b)
+
+		public void CopyTo(Array array, int index)
 		{
-			fields.CopyTo (a, b);
+			fields.CopyTo(array, index);
 		}
-		public object SyncRoot {
-			get {
+
+		public object SyncRoot
+		{
+			get
+			{
 				return fields.SyncRoot;
 			}
 		}
-		public IEnumerator GetEnumerator ()
+
+		public IEnumerator GetEnumerator()
 		{
-			return fields.GetEnumerator ();
+			return fields.GetEnumerator();
 		}
 	}
 }

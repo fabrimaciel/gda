@@ -1,4 +1,25 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Interfaces;
@@ -6,581 +27,996 @@ using System.Data;
 using System.Data.Common;
 using GDA.Collections;
 using GDA.Sql;
+
 namespace GDA
 {
 	public class DataAccess : IPersistenceObjectBase
 	{
+		/// <summary>
+		/// Provider de configuração para acessar os dados.
+		/// </summary>
 		private IProviderConfiguration providerConfig;
-		public IProvider UserProvider {
-			get {
+
+		/// <summary>
+		/// Provider utilizado para conexão com BD.
+		/// </summary>
+		public IProvider UserProvider
+		{
+			get
+			{
 				return providerConfig.Provider;
 			}
 		}
-		public IProviderConfiguration Configuration {
-			get {
+
+		/// <summary>
+		/// Provider de configuração.
+		/// </summary>
+		public IProviderConfiguration Configuration
+		{
+			get
+			{
 				return providerConfig;
 			}
 		}
-		public DataAccess (IProviderConfiguration a)
+
+		/// <summary>
+		/// Construtor.
+		/// </summary>
+		/// <param name="providerConfiguration">Provider para acesso aos dados.</param>
+		/// <exception cref="ArgumentNullException">Excessão lançada se o argumento providerConfig for nulo.</exception>
+		public DataAccess(IProviderConfiguration providerConfiguration)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("providerConfig");
-			this.providerConfig = a;
+			if(providerConfiguration == null)
+				throw new ArgumentNullException("providerConfig");
+			this.providerConfig = providerConfiguration;
 		}
-		public DataAccess () : this (GDASettings.DefaultProviderConfiguration)
+
+		/// <summary>
+		/// Construtor padrão que utiliza o ProviderConfiguration padrão do sistema.
+		/// </summary>
+		public DataAccess() : this(GDASettings.DefaultProviderConfiguration)
 		{
 		}
-		protected void SendMessageDebugTrace (string a)
+
+		/// <summary>
+		/// Envia uma mensagem para o debug.
+		/// </summary>
+		/// <param name="message">Mensagem a ser enviada.</param>
+		protected void SendMessageDebugTrace(string message)
 		{
 			#if DEBUG
-						            //System.Diagnostics.Debug.WriteLine(message);
+			            //System.Diagnostics.Debug.WriteLine(message);
 #endif
-			if (GDASettings.EnabledDebugTrace) {
-				try {
-					GDAOperations.CallDebugTrace (this, a);
+			if(GDASettings.EnabledDebugTrace)
+			{
+				try
+				{
+					GDAOperations.CallDebugTrace(this, message);
 				}
-				catch (Exception ex) {
-					throw new Diagnostics.GDATraceException (ex);
+				catch(Exception ex)
+				{
+					throw new Diagnostics.GDATraceException(ex);
 				}
 			}
 		}
-		public static object ConvertType (object a, Type b, Type c)
+
+		/// <summary>
+		/// Convert o valor do tipo um para o tipo 2.
+		/// </summary>
+		/// <param name="value">Valor</param>
+		/// <param name="sourceType">Tipo de destino.</param>
+		/// <param name="destinationType">Tipo de origem.</param>
+		/// <returns>Valor convertido para o tipo 2.</returns>
+		public static object ConvertType(object value, Type sourceType, Type destinationType)
 		{
-			return ValueConverterManager.Instance.Convert (a, c, System.Globalization.CultureInfo.InvariantCulture);
+			return ValueConverterManager.Instance.Convert(value, destinationType, System.Globalization.CultureInfo.InvariantCulture);
 		}
-		internal protected static object ConvertValue (object a, Type b)
+
+		/// <summary>
+		/// Converte o valor para o tipo de destino.
+		/// </summary>
+		/// <param name="value"></param>
+		/// <param name="destinationType"></param>
+		/// <returns></returns>
+		internal protected static object ConvertValue(object value, Type destinationType)
 		{
-			if (a != null) {
-				var c = a.GetType ();
-				a = ConvertType (a, c, b);
+			if(value != null)
+			{
+				var type2 = value.GetType();
+				value = ConvertType(value, type2, destinationType);
 			}
-			return a;
+			return value;
 		}
-		internal static void SendMessageDebugTrace (object a, string b)
+
+		/// <summary>
+		/// Envia uma mensagem para o debug.
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="message"></param>
+		internal static void SendMessageDebugTrace(object sender, string message)
 		{
 			#if DEBUG
-						            //System.Diagnostics.Debug.WriteLine(message);
+			            //System.Diagnostics.Debug.WriteLine(message);
 #endif
-			if (GDASettings.EnabledDebugTrace)
-				GDAOperations.CallDebugTrace (a, b);
+			if(GDASettings.EnabledDebugTrace)
+				GDAOperations.CallDebugTrace(sender, message);
 		}
-		internal protected IDbConnection CreateConnection (GDASession a)
+
+		/// <summary>
+		/// Cria uma instância de conexão com o BD, 
+		/// e caso uma sessão seja informada a conexão é carrega
+		/// com base nela.
+		/// </summary>
+		/// <param name="session">Dados da sessão relacionada.</param>
+		/// <returns>Nova instância de conexão.</returns>
+		internal protected IDbConnection CreateConnection(GDASession session)
 		{
-			if (a != null) {
-				if (a.ProviderConfiguration == null)
-					a.DefineConfiguration (this.providerConfig);
-				return a.CurrentConnection;
+			if(session != null)
+			{
+				if(session.ProviderConfiguration == null)
+					session.DefineConfiguration(this.providerConfig);
+				return session.CurrentConnection;
 			}
-			else {
-				var b = Configuration.CreateConnection ();
-				GDAConnectionManager.NotifyConnectionCreated (b);
-				return b;
+			else
+			{
+				var connection = Configuration.CreateConnection();
+				GDAConnectionManager.NotifyConnectionCreated(connection);
+				return connection;
 			}
 		}
-		public IDbCommand CreateCommand (GDASession a, IDbConnection b)
+
+		/// <summary>
+		/// Cria uma instância de command. Caso uma sessão for informada o command
+		/// é carregado com base na sessão.
+		/// </summary>
+		/// <param name="session">Dados da sessão relacionada.</param>
+		/// <param name="connection">Conexão de onde o comando será executado</param>
+		/// <returns>Nova instância do command.</returns>
+		public IDbCommand CreateCommand(GDASession session, IDbConnection connection)
 		{
-			if (a != null)
-				return a.CreateCommand ();
-			else {
-				IDbCommand c = UserProvider.CreateCommand ();
-				c.Connection = b;
-				c.CommandTimeout = GDASession.DefaultCommandTimeout;
-				return c;
+			if(session != null)
+				return session.CreateCommand();
+			else
+			{
+				IDbCommand cmd = UserProvider.CreateCommand();
+				cmd.Connection = connection;
+				cmd.CommandTimeout = GDASession.DefaultCommandTimeout;
+				return cmd;
 			}
 		}
-		internal GDACursorParameters GetLoadResultCursorParameters (GDASession a, GDAStoredProcedure b)
+
+		/// <summary>
+		/// Recupera os parametros necessário para executar a consulta.
+		/// </summary>
+		/// <param name="session">Sessão onde será executada a consulta.</param>
+		/// <param name="procedure">Procedure que será executada.</param>
+		/// <returns></returns>
+		internal GDACursorParameters GetLoadResultCursorParameters(GDASession session, GDAStoredProcedure procedure)
 		{
-			IDbConnection c = CreateConnection (a);
-			IDbCommand d = CreateCommand (a, c);
-			PrepareCommand (a, b, d);
-			return new GDACursorParameters (this.UserProvider, a, c, d, null, false, 0, 0, null);
+			IDbConnection conn = CreateConnection(session);
+			IDbCommand cmd = CreateCommand(session, conn);
+			PrepareCommand(session, procedure, cmd);
+			return new GDACursorParameters(this.UserProvider, session, conn, cmd, null, false, 0, 0, null);
 		}
-		public void PrepareCommand (GDASession a, GDAStoredProcedure b, IDbCommand c)
+
+		/// <summary>
+		/// Prepara o comando da Storedprocedure para execução.
+		/// </summary>
+		/// <param name="session"></param>
+		/// <param name="procedure">Storedprocedure que será processada.</param>
+		/// <param name="cmd">Comando que será preparado.</param>
+		public void PrepareCommand(GDASession session, GDAStoredProcedure procedure, IDbCommand cmd)
 		{
-			c.CommandType = CommandType.StoredProcedure;
-			c.CommandTimeout = b.CommandTimeout;
-			c.CommandText = b.Name;
-			foreach (GDAParameter param in b)
-				c.Parameters.Add (GDA.Helper.GDAHelper.ConvertGDAParameter (c, param, UserProvider));
+			cmd.CommandType = CommandType.StoredProcedure;
+			cmd.CommandTimeout = procedure.CommandTimeout;
+			cmd.CommandText = procedure.Name;
+			foreach (GDAParameter param in procedure)
+				cmd.Parameters.Add(GDA.Helper.GDAHelper.ConvertGDAParameter(cmd, param, UserProvider));
 		}
-		internal GDACursorParameters GetLoadResultCursorParameters (GDASession a, CommandType b, int c, string d, InfoPaging e, params GDAParameter[] f)
+
+		/// <summary>
+		/// Recupera os parametros necessário para executar a consulta.
+		/// </summary>
+		/// <param name="session">Sessão onde será executada a consulta.</param>
+		/// <param name="commandType"></param>
+		/// <param name="commandTimeout"></param>
+		/// <param name="paging"></param>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters">Parametros para a consulta.</param>
+		/// <returns></returns>
+		internal GDACursorParameters GetLoadResultCursorParameters(GDASession session, CommandType commandType, int commandTimeout, string sqlQuery, InfoPaging paging, params GDAParameter[] parameters)
 		{
-			IDbConnection g = CreateConnection (a);
-			IDbCommand h = CreateCommand (a, g);
-			h.CommandType = b;
-			if (c >= 0)
-				h.CommandTimeout = c;
-			d = PrepareCommand (a, h, d, e, f);
-			return new GDACursorParameters (UserProvider, a, g, h, null, e != null, e == null ? 0 : e.StartRow, e == null ? 0 : e.PageSize, (i, j) =>  {
-				for (int k = 0; k < h.Parameters.Count; k++) {
-					var l = (IDbDataParameter)h.Parameters [k];
-					if (l.Direction == ParameterDirection.Output || l.Direction == ParameterDirection.ReturnValue)
-						f [k].Value = ((IDbDataParameter)h.Parameters [k]).Value;
+			IDbConnection conn = CreateConnection(session);
+			IDbCommand cmd = CreateCommand(session, conn);
+			cmd.CommandType = commandType;
+			if(commandTimeout >= 0)
+				cmd.CommandTimeout = commandTimeout;
+			sqlQuery = PrepareCommand(session, cmd, sqlQuery, paging, parameters);
+			return new GDACursorParameters(UserProvider, session, conn, cmd, null, paging != null, paging == null ? 0 : paging.StartRow, paging == null ? 0 : paging.PageSize, (sender, e) =>  {
+				for(int i = 0; i < cmd.Parameters.Count; i++)
+				{
+					var dataParamter = (IDbDataParameter)cmd.Parameters[i];
+					if(dataParamter.Direction == ParameterDirection.Output || dataParamter.Direction == ParameterDirection.ReturnValue)
+						parameters[i].Value = ((IDbDataParameter)cmd.Parameters[i]).Value;
 				}
 			});
 		}
-		public string PrepareCommand (GDASession a, IDbCommand b, string c, InfoPaging d, GDAParameter[] e)
+
+		/// <summary>
+		/// Prepara o comando que será executado.
+		/// </summary>
+		/// <param name="session"></param>
+		/// <param name="command">Instancia do comando que será preparada.</param>
+		/// <param name="commandText">Texto do comando.</param>
+		/// <param name="paging">Informações da paginação.</param>
+		/// <param name="parameters">Parametros que serão processados.</param>
+		/// <returns></returns>
+		public string PrepareCommand(GDASession session, IDbCommand command, string commandText, InfoPaging paging, GDAParameter[] parameters)
 		{
-			if (e != null)
-				foreach (GDAParameter param in e) {
-					try {
-						string f = (param.ParameterName [0] != '?' ? param.ParameterName : UserProvider.ParameterPrefix + param.ParameterName.Substring (1) + UserProvider.ParameterSuffix);
-						c = c.Replace (param.ParameterName, f);
+			if(parameters != null)
+				foreach (GDAParameter param in parameters)
+				{
+					try
+					{
+						string newName = (param.ParameterName[0] != '?' ? param.ParameterName : UserProvider.ParameterPrefix + param.ParameterName.Substring(1) + UserProvider.ParameterSuffix);
+						commandText = commandText.Replace(param.ParameterName, newName);
 					}
-					catch (Exception ex) {
-						throw new GDAException ("Error on make parameter name '" + param.ParameterName + "'.", ex);
+					catch(Exception ex)
+					{
+						throw new GDAException("Error on make parameter name '" + param.ParameterName + "'.", ex);
 					}
-					b.Parameters.Add (GDA.Helper.GDAHelper.ConvertGDAParameter (b, param, UserProvider));
+					command.Parameters.Add(GDA.Helper.GDAHelper.ConvertGDAParameter(command, param, UserProvider));
 				}
-			var g = a != null ? a.ProviderConfiguration.Provider : GDASettings.DefaultProviderConfiguration.Provider;
-			if (g.SupportSQLCommandLimit && d != null)
-				c = g.SQLCommandLimit (!string.IsNullOrEmpty (d.KeyFieldName) ? new List<Mapper> {
-					new Mapper (null, d.KeyFieldName, DirectionParameter.InputOutput, PersistenceParameterType.Key, 0, null, null)
-				} : null, c, d.StartRow, d.PageSize);
-			b.CommandText = c;
-			return c;
+			var provider = session != null ? session.ProviderConfiguration.Provider : GDASettings.DefaultProviderConfiguration.Provider;
+			if(provider.SupportSQLCommandLimit && paging != null)
+				commandText = provider.SQLCommandLimit(!string.IsNullOrEmpty(paging.KeyFieldName) ? new List<Mapper> {
+					new Mapper(null, paging.KeyFieldName, DirectionParameter.InputOutput, PersistenceParameterType.Key, 0, null, null)
+				} : null, commandText, paging.StartRow, paging.PageSize);
+			command.CommandText = commandText;
+			return commandText;
 		}
-		public static void RecoverValueOfResult (ref IDataRecord a, TranslatorDataInfoCollection b, ref object c, bool d)
+
+		/// <summary>
+		/// Recupera os valores do resultado e preenche o objeto submetido.
+		/// </summary>
+		/// <param name="dReader">DataReader contendo os dados.</param>
+		/// <param name="recoverDataInfos">Lista dos campos a serem carregados.</param>
+		/// <param name="objItem">Objeto que será preenchido.</param>
+		/// <param name="implementIObjectDataRecord">Identifica se o tipo implementa o <see cref="IObjectDataRecord"/>.</param>
+		/// <exception cref="GDAColumnNotFoundException"></exception>
+		/// <exception cref="GDAException"></exception>
+		public static void RecoverValueOfResult(ref IDataRecord dReader, TranslatorDataInfoCollection recoverDataInfos, ref object objItem, bool implementIObjectDataRecord)
 		{
-			if (c == null)
+			if(objItem == null)
 				return;
-			foreach (TranslatorDataInfo rdi in b) {
-				if (rdi.FieldPosition < 0)
+			foreach (TranslatorDataInfo rdi in recoverDataInfos)
+			{
+				if(rdi.FieldPosition < 0)
 					continue;
-				object e;
-				try {
-					e = a [rdi.FieldPosition];
+				object value;
+				try
+				{
+					value = dReader[rdi.FieldPosition];
 				}
-				catch (KeyNotFoundException) {
-					throw new GDAColumnNotFoundException (rdi.FieldName, "");
+				catch(KeyNotFoundException)
+				{
+					throw new GDAColumnNotFoundException(rdi.FieldName, "");
 				}
-				catch (Exception ex) {
-					throw new GDAException ("Error to recover value of field: " + rdi.FieldName + "; Exception: " + ex.Message, ex);
+				catch(Exception ex)
+				{
+					throw new GDAException("Error to recover value of field: " + rdi.FieldName + "; Exception: " + ex.Message, ex);
 				}
-				if (e == DBNull.Value)
-					e = null;
-				var f = e != null ? e.GetType ().Name : "null";
-				if (rdi.PathLength > 0)
-					try {
-						rdi.SetValue (c, ConvertValue (e, rdi.Property.PropertyType));
+				if(value == DBNull.Value)
+					value = null;
+				var sourceTypeName = value != null ? value.GetType().Name : "null";
+				if(rdi.PathLength > 0)
+					try
+					{
+						rdi.SetValue(objItem, ConvertValue(value, rdi.Property.PropertyType));
 					}
-					catch (Exception ex) {
-						if (e != null)
-							throw new GDAException (String.Format ("Error to convert type {0} to type {1} of field:{2}.", f, rdi.Property.PropertyType.Name, rdi.FieldName), ex);
+					catch(Exception ex)
+					{
+						if(value != null)
+							throw new GDAException(String.Format("Error to convert type {0} to type {1} of field:{2}.", sourceTypeName, rdi.Property.PropertyType.Name, rdi.FieldName), ex);
 						else
-							throw new GDAException (String.Format ("Error to convert type {0} to null", rdi.Property.PropertyType.Name), ex);
+							throw new GDAException(String.Format("Error to convert type {0} to null", rdi.Property.PropertyType.Name), ex);
 					}
 			}
-			if (d) {
-				var g = (IObjectDataRecord)c;
-				if (g.LoadMappedsRecordFields) {
-					for (int h = 0; h < a.FieldCount; h++) {
-						var e = a [h];
-						g.InsertRecordField (a.GetName (h), e == DBNull.Value ? null : e);
+			if(implementIObjectDataRecord)
+			{
+				var objetDataRecord = (IObjectDataRecord)objItem;
+				if(objetDataRecord.LoadMappedsRecordFields)
+				{
+					for(int i = 0; i < dReader.FieldCount; i++)
+					{
+						var value = dReader[i];
+						objetDataRecord.InsertRecordField(dReader.GetName(i), value == DBNull.Value ? null : value);
 					}
 				}
-				else {
-					for (int h = 0; h < a.FieldCount; h++) {
-						var i = a.GetName (h);
-						if (b.FindIndex (j => string.Compare (j.FieldName, i, true) == 0) < 0) {
-							var e = a [h];
-							g.InsertRecordField (i, e == DBNull.Value ? null : e);
+				else
+				{
+					for(int i = 0; i < dReader.FieldCount; i++)
+					{
+						var fieldName = dReader.GetName(i);
+						if(recoverDataInfos.FindIndex(f => string.Compare(f.FieldName, fieldName, true) == 0) < 0)
+						{
+							var value = dReader[i];
+							objetDataRecord.InsertRecordField(fieldName, value == DBNull.Value ? null : value);
 						}
 					}
 				}
 			}
 		}
-		public IDbConnection CreateConnection ()
+
+		/// <summary>
+		/// Cria uma instância de conexão com o BD.
+		/// </summary>
+		/// <returns>Nova instância de conexão.</returns>
+		public IDbConnection CreateConnection()
 		{
-			IDbConnection a = UserProvider.CreateConnection ();
-			a.ConnectionString = this.Configuration.ConnectionString;
-			return a;
+			IDbConnection conn = UserProvider.CreateConnection();
+			conn.ConnectionString = this.Configuration.ConnectionString;
+			return conn;
 		}
-		public int ExecuteCommand (GDAStoredProcedure a)
+
+		/// <summary>
+		/// Executa a stored procedure.
+		/// </summary>
+		/// <param name="procedure">Dados da stored procedure.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		public int ExecuteCommand(GDAStoredProcedure procedure)
 		{
-			return ExecuteCommand (null, a);
+			return ExecuteCommand(null, procedure);
 		}
-		public int ExecuteCommand (GDASession a, GDAStoredProcedure b)
+
+		/// <summary>
+		/// Executa a stored procedure usando a sessão.
+		/// </summary>
+		/// <param name="session"></param>
+		/// <param name="procedure"></param>
+		/// <returns>Número de linhas afetadas.</returns>
+		public int ExecuteCommand(GDASession session, GDAStoredProcedure procedure)
 		{
-			IDbConnection c = CreateConnection (a);
-			IDbCommand d = CreateCommand (a, c);
-			int e = 0;
-			try {
-				b.Prepare (d, UserProvider);
-				if (a == null && c.State != ConnectionState.Open) {
-					try {
-						c.Open ();
+			IDbConnection conn = CreateConnection(session);
+			IDbCommand cmd = CreateCommand(session, conn);
+			int valueReturn = 0;
+			try
+			{
+				procedure.Prepare(cmd, UserProvider);
+				if(session == null && conn.State != ConnectionState.Open)
+				{
+					try
+					{
+						conn.Open();
 					}
-					catch (Exception ex) {
-						throw new GDAException (ex);
+					catch(Exception ex)
+					{
+						throw new GDAException(ex);
 					}
-					GDAConnectionManager.NotifyConnectionOpened (c);
+					GDAConnectionManager.NotifyConnectionOpened(conn);
 				}
-				try {
-					SendMessageDebugTrace (d.CommandText);
-					e = d.ExecuteNonQuery ();
+				try
+				{
+					SendMessageDebugTrace(cmd.CommandText);
+					valueReturn = cmd.ExecuteNonQuery();
 				}
-				catch (Exception ex) {
-					throw new GDAException ("StoredProcedure: " + d.CommandText + ". --> " + ex.Message, ex);
+				catch(Exception ex)
+				{
+					throw new GDAException("StoredProcedure: " + cmd.CommandText + ". --> " + ex.Message, ex);
 				}
-				for (int f = 0; f < d.Parameters.Count; f++)
-					b [f] = ((IDbDataParameter)d.Parameters [f]).Value;
+				for(int i = 0; i < cmd.Parameters.Count; i++)
+					procedure[i] = ((IDbDataParameter)cmd.Parameters[i]).Value;
 			}
-			finally {
-				try {
-					d.Dispose ();
-					d = null;
+			finally
+			{
+				try
+				{
+					cmd.Dispose();
+					cmd = null;
 				}
-				finally {
-					if (a == null) {
-						c.Close ();
-						c.Dispose ();
+				finally
+				{
+					if(session == null)
+					{
+						conn.Close();
+						conn.Dispose();
 					}
 				}
 			}
-			return e;
+			return valueReturn;
 		}
-		public object ExecuteScalar (GDAStoredProcedure a)
+
+		public object ExecuteScalar(GDAStoredProcedure procedure)
 		{
-			return ExecuteScalar (null, a);
+			return ExecuteScalar(null, procedure);
 		}
-		public object ExecuteScalar (GDASession a, GDAStoredProcedure b)
+
+		public object ExecuteScalar(GDASession session, GDAStoredProcedure procedure)
 		{
-			IDbConnection c = CreateConnection (a);
-			IDbCommand d = CreateCommand (a, c);
-			object e = null;
-			try {
-				b.Prepare (d, UserProvider);
-				if (a == null && c.State != ConnectionState.Open) {
-					try {
-						c.Open ();
+			IDbConnection conn = CreateConnection(session);
+			IDbCommand cmd = CreateCommand(session, conn);
+			object valueReturn = null;
+			try
+			{
+				procedure.Prepare(cmd, UserProvider);
+				if(session == null && conn.State != ConnectionState.Open)
+				{
+					try
+					{
+						conn.Open();
 					}
-					catch (Exception ex) {
-						throw new GDAException (ex);
+					catch(Exception ex)
+					{
+						throw new GDAException(ex);
 					}
-					GDAConnectionManager.NotifyConnectionOpened (c);
+					GDAConnectionManager.NotifyConnectionOpened(conn);
 				}
-				SendMessageDebugTrace (d.CommandText);
-				try {
-					using (var f = Diagnostics.GDATrace.CreateExecutionHandler (d))
-						try {
-							e = d.ExecuteScalar ();
+				SendMessageDebugTrace(cmd.CommandText);
+				try
+				{
+					using (var executionHandler = Diagnostics.GDATrace.CreateExecutionHandler(cmd))
+						try
+						{
+							valueReturn = cmd.ExecuteScalar();
 						}
-						catch (Exception ex) {
-							f.Fail (ex);
+						catch(Exception ex)
+						{
+							executionHandler.Fail(ex);
 							throw ex;
 						}
 				}
-				catch (Exception ex) {
-					throw new GDAException ("StoredProcedure: " + d.CommandText + "; --> " + ex.Message, ex);
+				catch(Exception ex)
+				{
+					throw new GDAException("StoredProcedure: " + cmd.CommandText + "; --> " + ex.Message, ex);
 				}
-				for (int g = 0; g < d.Parameters.Count; g++)
-					b [g] = ((IDbDataParameter)d.Parameters [g]).Value;
+				for(int i = 0; i < cmd.Parameters.Count; i++)
+					procedure[i] = ((IDbDataParameter)cmd.Parameters[i]).Value;
 			}
-			finally {
-				try {
-					d.Dispose ();
-					d = null;
+			finally
+			{
+				try
+				{
+					cmd.Dispose();
+					cmd = null;
 				}
-				finally {
-					if (a == null) {
-						c.Close ();
-						c.Dispose ();
+				finally
+				{
+					if(session == null)
+					{
+						conn.Close();
+						conn.Dispose();
 					}
 				}
 			}
-			return e;
+			return valueReturn;
 		}
-		public int ExecuteCommand (GDASession a, CommandType b, int c, string d, params GDAParameter[] e)
+
+		/// <summary>
+		/// Executa comandos sql.
+		/// </summary>
+		/// <param name="session">Sessão para execução do comando.</param>
+		/// <param name="commandType">Tipo do comando a ser executado.</param>
+		/// <param name="commandTimeout">commandTimeout</param>
+		/// <param name="sqlQuery">Causa sql a ser executada.</param>
+		/// <param name="parameters">Parametros a serem passados para o comando.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException">sqlQuery</exception>
+		/// <exception cref="ArgumentException">sqlQuery cannot empty.</exception>
+		public int ExecuteCommand(GDASession session, CommandType commandType, int commandTimeout, string sqlQuery, params GDAParameter[] parameters)
 		{
-			if (d == null)
-				throw new ArgumentNullException ("sqlQuery");
-			else if (d == "")
-				throw new ArgumentException ("sqlQuery cannot empty.");
-			int f = 0;
-			IDbConnection g = CreateConnection (a);
-			IDbCommand h = CreateCommand (a, g);
-			try {
-				SendMessageDebugTrace (d);
-				string i = null;
-				if (e != null)
-					for (int j = 0; j < e.Length; j++) {
-						i = e [j].ParameterName.Replace ("?", UserProvider.ParameterPrefix) + UserProvider.ParameterSuffix;
-						d = d.Replace (e [j].ParameterName, i);
-						e [j].ParameterName = i;
-						IDbDataParameter k = GDA.Helper.GDAHelper.ConvertGDAParameter (h, e [j], UserProvider);
-						h.Parameters.Add (k);
+			if(sqlQuery == null)
+				throw new ArgumentNullException("sqlQuery");
+			else if(sqlQuery == "")
+				throw new ArgumentException("sqlQuery cannot empty.");
+			int valueReturn = 0;
+			IDbConnection conn = CreateConnection(session);
+			IDbCommand command = CreateCommand(session, conn);
+			try
+			{
+				SendMessageDebugTrace(sqlQuery);
+				string newParameterName = null;
+				if(parameters != null)
+					for(int i = 0; i < parameters.Length; i++)
+					{
+						newParameterName = parameters[i].ParameterName.Replace("?", UserProvider.ParameterPrefix) + UserProvider.ParameterSuffix;
+						sqlQuery = sqlQuery.Replace(parameters[i].ParameterName, newParameterName);
+						parameters[i].ParameterName = newParameterName;
+						IDbDataParameter p = GDA.Helper.GDAHelper.ConvertGDAParameter(command, parameters[i], UserProvider);
+						command.Parameters.Add(p);
 					}
-				h.CommandText = d;
-				h.CommandType = b;
-				h.CommandTimeout = c;
-				if (a == null && g.State != ConnectionState.Open) {
-					try {
-						g.Open ();
+				command.CommandText = sqlQuery;
+				command.CommandType = commandType;
+				command.CommandTimeout = commandTimeout;
+				if(session == null && conn.State != ConnectionState.Open)
+				{
+					try
+					{
+						conn.Open();
 					}
-					catch (Exception ex) {
-						throw new GDAException (ex);
+					catch(Exception ex)
+					{
+						throw new GDAException(ex);
 					}
-					GDAConnectionManager.NotifyConnectionOpened (g);
+					GDAConnectionManager.NotifyConnectionOpened(conn);
 				}
-				try {
-					SendMessageDebugTrace (h.CommandText);
-					using (var l = Diagnostics.GDATrace.CreateExecutionHandler (h))
-						try {
-							l.RowsAffects = f = h.ExecuteNonQuery ();
+				try
+				{
+					SendMessageDebugTrace(command.CommandText);
+					using (var executionHandler = Diagnostics.GDATrace.CreateExecutionHandler(command))
+						try
+						{
+							executionHandler.RowsAffects = valueReturn = command.ExecuteNonQuery();
 						}
-						catch (Exception ex) {
-							l.Fail (ex);
+						catch(Exception ex)
+						{
+							executionHandler.Fail(ex);
 							throw ex;
 						}
-					SendMessageDebugTrace ("Return: " + f.ToString ());
+					SendMessageDebugTrace("Return: " + valueReturn.ToString());
 				}
-				catch (Exception ex) {
-					throw new GDAException ("SqlQuery: " + d + "; --> " + ex.Message, ex);
+				catch(Exception ex)
+				{
+					throw new GDAException("SqlQuery: " + sqlQuery + "; --> " + ex.Message, ex);
 				}
-				for (int j = 0; j < h.Parameters.Count; j++)
-					e [j].Value = ((IDbDataParameter)h.Parameters [j]).Value;
+				for(int i = 0; i < command.Parameters.Count; i++)
+					parameters[i].Value = ((IDbDataParameter)command.Parameters[i]).Value;
 			}
-			finally {
-				try {
-					h.Dispose ();
-					h = null;
+			finally
+			{
+				try
+				{
+					command.Dispose();
+					command = null;
 				}
-				finally {
-					if (a == null) {
-						g.Close ();
-						g.Dispose ();
+				finally
+				{
+					if(session == null)
+					{
+						conn.Close();
+						conn.Dispose();
 					}
 				}
 			}
-			return f;
+			return valueReturn;
 		}
-		public int ExecuteCommand (GDASession a, string b, params GDAParameter[] c)
+
+		/// <summary>
+		/// Executa comandos sql.
+		/// </summary>
+		/// <param name="session">Sessão para execução do comando.</param>
+		/// <param name="sqlQuery">Causa sql a ser executada.</param>
+		/// <param name="parameters">Parametros a serem passados para o comando.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException">sqlQuery</exception>
+		/// <exception cref="ArgumentException">sqlQuery cannot empty.</exception>
+		public int ExecuteCommand(GDASession session, string sqlQuery, params GDAParameter[] parameters)
 		{
-			return ExecuteCommand (a, CommandType.Text, GDASession.DefaultCommandTimeout, b, c);
+			return ExecuteCommand(session, CommandType.Text, GDASession.DefaultCommandTimeout, sqlQuery, parameters);
 		}
-		public int ExecuteCommand (string a, params GDAParameter[] b)
+
+		/// <summary>
+		/// Executa comandos sql.
+		/// </summary>
+		/// <param name="sqlQuery">Causa sql a ser executada.</param>
+		/// <param name="parameters">Parametros a serem passados para o comando.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		/// <exception cref="ArgumentNullException">sqlQuery</exception>
+		/// <exception cref="ArgumentException">sqlQuery cannot empty.</exception>
+		public int ExecuteCommand(string sqlQuery, params GDAParameter[] parameters)
 		{
-			return ExecuteCommand (null, CommandType.Text, GDASession.DefaultCommandTimeout, a, b);
+			return ExecuteCommand(null, CommandType.Text, GDASession.DefaultCommandTimeout, sqlQuery, parameters);
 		}
-		public int ExecuteCommand (string a)
+
+		/// <summary>
+		/// Executa comandos sql.
+		/// </summary>
+		/// <param name="sqlQuery">Causa sql a ser executada.</param>
+		public int ExecuteCommand(string sqlQuery)
 		{
-			return ExecuteCommand (a, null);
+			return ExecuteCommand(sqlQuery, null);
 		}
-		public int ExecuteSqlQueryCount (GDASession a, string b, params GDAParameter[] c)
+
+		/// <summary>
+		/// Executa uma consulta que retorna somente um campo.
+		/// </summary>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters"></param>
+		/// <returns></returns>
+		public int ExecuteSqlQueryCount(GDASession session, string sqlQuery, params GDAParameter[] parameters)
 		{
-			object d = ExecuteScalar (a, b, c);
-			if (d != null)
-				return int.Parse (d.ToString ());
+			object value = ExecuteScalar(session, sqlQuery, parameters);
+			if(value != null)
+				return int.Parse(value.ToString());
 			else
 				return 0;
 		}
-		public int ExecuteSqlQueryCount (string a, params GDAParameter[] b)
+
+		/// <summary>
+		/// Executa uma consulta que retorna somente um campo.
+		/// </summary>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters"></param>
+		/// <returns></returns>
+		public int ExecuteSqlQueryCount(string sqlQuery, params GDAParameter[] parameters)
 		{
-			return ExecuteSqlQueryCount (null, a, b);
+			return ExecuteSqlQueryCount(null, sqlQuery, parameters);
 		}
-		public object ExecuteScalar (string a, params GDAParameter[] b)
+
+		/// <summary>
+		/// Executa uma consulta que retorna somente um campo.
+		/// </summary>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters"></param>
+		/// <returns></returns>
+		public object ExecuteScalar(string sqlQuery, params GDAParameter[] parameters)
 		{
-			return ExecuteScalar (null, a, b);
+			return ExecuteScalar(null, sqlQuery, parameters);
 		}
-		public object ExecuteScalar (GDASession a, CommandType b, int c, string d, params GDAParameter[] e)
+
+		/// <summary>
+		/// Executa uma consulta que retorna somente um campo.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters"></param>
+		/// <returns></returns>
+		public object ExecuteScalar(GDASession session, CommandType commandType, int commandTimeout, string sqlQuery, params GDAParameter[] parameters)
 		{
-			object f;
-			IDbConnection g = CreateConnection (a);
-			IDbCommand h = CreateCommand (a, g);
-			try {
-				if (e != null)
-					for (int i = 0; i < e.Length; i++) {
-						string j = (e [i].ParameterName [0] != '?' ? e [i].ParameterName : UserProvider.ParameterPrefix + e [i].ParameterName.Substring (1) + UserProvider.ParameterSuffix);
-						d = d.Replace (e [i].ParameterName, j);
-						h.Parameters.Add (GDA.Helper.GDAHelper.ConvertGDAParameter (h, e [i], UserProvider));
+			object returnValue;
+			IDbConnection conn = CreateConnection(session);
+			IDbCommand cmd = CreateCommand(session, conn);
+			try
+			{
+				if(parameters != null)
+					for(int i = 0; i < parameters.Length; i++)
+					{
+						string newName = (parameters[i].ParameterName[0] != '?' ? parameters[i].ParameterName : UserProvider.ParameterPrefix + parameters[i].ParameterName.Substring(1) + UserProvider.ParameterSuffix);
+						sqlQuery = sqlQuery.Replace(parameters[i].ParameterName, newName);
+						cmd.Parameters.Add(GDA.Helper.GDAHelper.ConvertGDAParameter(cmd, parameters[i], UserProvider));
 					}
-				h.CommandText = d;
-				h.CommandType = b;
-				h.CommandTimeout = c;
-				if (a == null && g.State != ConnectionState.Open) {
-					try {
-						g.Open ();
+				cmd.CommandText = sqlQuery;
+				cmd.CommandType = commandType;
+				cmd.CommandTimeout = commandTimeout;
+				if(session == null && conn.State != ConnectionState.Open)
+				{
+					try
+					{
+						conn.Open();
 					}
-					catch (Exception ex) {
-						throw new GDAException (ex);
+					catch(Exception ex)
+					{
+						throw new GDAException(ex);
 					}
-					GDAConnectionManager.NotifyConnectionOpened (g);
+					GDAConnectionManager.NotifyConnectionOpened(conn);
 				}
-				try {
-					SendMessageDebugTrace (h.CommandText);
-					using (var k = Diagnostics.GDATrace.CreateExecutionHandler (h))
-						try {
-							f = h.ExecuteScalar ();
+				try
+				{
+					SendMessageDebugTrace(cmd.CommandText);
+					using (var executionHandler = Diagnostics.GDATrace.CreateExecutionHandler(cmd))
+						try
+						{
+							returnValue = cmd.ExecuteScalar();
 						}
-						catch (Exception ex) {
-							k.Fail (ex);
+						catch(Exception ex)
+						{
+							executionHandler.Fail(ex);
 							throw ex;
 						}
-					if (f != DBNull.Value && f != null)
-						SendMessageDebugTrace ("Return: " + f.ToString ());
-					else {
-						f = null;
-						SendMessageDebugTrace ("Return: null");
+					if(returnValue != DBNull.Value && returnValue != null)
+						SendMessageDebugTrace("Return: " + returnValue.ToString());
+					else
+					{
+						returnValue = null;
+						SendMessageDebugTrace("Return: null");
 					}
 				}
-				catch (Exception ex) {
-					throw new GDAException (ex);
+				catch(Exception ex)
+				{
+					throw new GDAException(ex);
 				}
 			}
-			finally {
-				try {
-					h.Dispose ();
-					h = null;
+			finally
+			{
+				try
+				{
+					cmd.Dispose();
+					cmd = null;
 				}
-				finally {
-					if (a == null) {
-						g.Close ();
-						g.Dispose ();
+				finally
+				{
+					if(session == null)
+					{
+						conn.Close();
+						conn.Dispose();
 					}
 				}
 			}
-			return f;
+			return returnValue;
 		}
-		public object ExecuteScalar (GDASession a, string b, params GDAParameter[] c)
+
+		/// <summary>
+		/// Executa uma consulta que retorna somente um campo.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters"></param>
+		/// <returns></returns>
+		public object ExecuteScalar(GDASession session, string sqlQuery, params GDAParameter[] parameters)
 		{
-			return ExecuteScalar (a, CommandType.Text, GDASession.DefaultCommandTimeout, b, c);
+			return ExecuteScalar(session, CommandType.Text, GDASession.DefaultCommandTimeout, sqlQuery, parameters);
 		}
-		public object ExecuteScalar (GDASession a, string b)
+
+		/// <summary>
+		/// Executa uma consulta que retorna somente um campo.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <returns></returns>
+		public object ExecuteScalar(GDASession session, string sqlQuery)
 		{
-			return ExecuteScalar (a, b, null);
+			return ExecuteScalar(session, sqlQuery, null);
 		}
-		public object ExecuteScalar (string a)
+
+		/// <summary>
+		/// Executa uma consulta que retorna somente um campo.
+		/// </summary>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <returns></returns>
+		public object ExecuteScalar(string sqlQuery)
 		{
-			return ExecuteScalar (a, null);
+			return ExecuteScalar(sqlQuery, null);
 		}
+
+		/// <summary>
+		/// Carrega uma lista com os valores da primeira coluna da consulta SQL.
+		/// </summary>
+		/// <typeparam name="T">Tipo do campo da coluna.</typeparam>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters">Parametros para a consulta.</param>
+		/// <returns></returns>
 		[Obsolete]
-		public GDACursor<T> LoadValues<T> (string a, params GDAParameter[] b) where T : new()
+		public GDACursor<T> LoadValues<T>(string sqlQuery, params GDAParameter[] parameters) where T : new()
 		{
-			return LoadValues<T> (null, a, b);
+			return LoadValues<T>(null, sqlQuery, parameters);
 		}
+
+		/// <summary>
+		/// Carrega uma lista com os valores da primeira coluna da consulta SQL.
+		/// </summary>
+		/// <typeparam name="T">Tipo do campo da coluna.</typeparam>
+		/// <param name="procedure">Procedure usado na consulta.</param>
+		/// <returns></returns>
 		[Obsolete]
-		public GDACursor<T> LoadValues<T> (GDAStoredProcedure a) where T : new()
+		public GDACursor<T> LoadValues<T>(GDAStoredProcedure procedure) where T : new()
 		{
-			IDbConnection b = CreateConnection (null);
-			IDbCommand c = CreateCommand (null, b);
-			c.Connection = b;
-			a.Prepare (c, UserProvider);
-			return new GDACursor<T> (UserProvider, null, b, c, (d, e) =>  {
-				for (int f = 0; f < c.Parameters.Count; f++) {
-					var g = (IDbDataParameter)c.Parameters [f];
-					if (g.Direction == ParameterDirection.Output || g.Direction == ParameterDirection.ReturnValue)
-						a [f] = ((IDbDataParameter)c.Parameters [f]).Value;
+			IDbConnection conn = CreateConnection(null);
+			IDbCommand cmd = CreateCommand(null, conn);
+			cmd.Connection = conn;
+			procedure.Prepare(cmd, UserProvider);
+			return new GDACursor<T>(UserProvider, null, conn, cmd, (sender, e) =>  {
+				for(int i = 0; i < cmd.Parameters.Count; i++)
+				{
+					var dataParamter = (IDbDataParameter)cmd.Parameters[i];
+					if(dataParamter.Direction == ParameterDirection.Output || dataParamter.Direction == ParameterDirection.ReturnValue)
+						procedure[i] = ((IDbDataParameter)cmd.Parameters[i]).Value;
 				}
 			});
 		}
+
+		/// <summary>
+		/// Carrega uma lista com os valores da primeira coluna da consulta SQL.
+		/// </summary>
+		/// <typeparam name="T">Tipo do campo da coluna.</typeparam>
+		/// <param name="session">Sessão onde será executado o comando.</param>
+		/// <param name="procedure">Procedure usado na consulta.</param>
+		/// <returns></returns>
 		[Obsolete]
-		public GDACursor<T> LoadValues<T> (GDASession a, GDAStoredProcedure b) where T : new()
+		public GDACursor<T> LoadValues<T>(GDASession session, GDAStoredProcedure procedure) where T : new()
 		{
-			IDbConnection c = CreateConnection (a);
-			IDbCommand d = CreateCommand (a, c);
-			d.Connection = c;
-			b.Prepare (d, UserProvider);
-			return new GDACursor<T> (UserProvider, a, c, d, (e, f) =>  {
-				for (int g = 0; g < d.Parameters.Count; g++) {
-					var h = (IDbDataParameter)d.Parameters [g];
-					if (h.Direction == ParameterDirection.Output || h.Direction == ParameterDirection.ReturnValue)
-						b [g] = ((IDbDataParameter)d.Parameters [g]).Value;
+			IDbConnection conn = CreateConnection(session);
+			IDbCommand cmd = CreateCommand(session, conn);
+			cmd.Connection = conn;
+			procedure.Prepare(cmd, UserProvider);
+			return new GDACursor<T>(UserProvider, session, conn, cmd, (sender, e) =>  {
+				for(int i = 0; i < cmd.Parameters.Count; i++)
+				{
+					var dataParamter = (IDbDataParameter)cmd.Parameters[i];
+					if(dataParamter.Direction == ParameterDirection.Output || dataParamter.Direction == ParameterDirection.ReturnValue)
+						procedure[i] = ((IDbDataParameter)cmd.Parameters[i]).Value;
 				}
 			});
 		}
+
+		/// <summary>
+		/// Carrega uma lista com os valores da primeira coluna da consulta SQL.
+		/// </summary>
+		/// <typeparam name="T">Tipo do campo da coluna.</typeparam>
+		/// <param name="session">Sessão onde será executado o comando.</param>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters">Parametros para a consulta.</param>
+		/// <returns></returns>
 		[Obsolete]
-		public GDACursor<T> LoadValues<T> (GDASession a, string b, params GDAParameter[] c) where T : new()
+		public GDACursor<T> LoadValues<T>(GDASession session, string sqlQuery, params GDAParameter[] parameters) where T : new()
 		{
-			IDbConnection d = CreateConnection (a);
-			IDbCommand e = CreateCommand (a, d);
-			if (c != null)
-				foreach (GDAParameter param in c) {
-					e.Parameters.Add (GDA.Helper.GDAHelper.ConvertGDAParameter (e, param, UserProvider));
+			IDbConnection conn = CreateConnection(session);
+			IDbCommand cmd = CreateCommand(session, conn);
+			if(parameters != null)
+				foreach (GDAParameter param in parameters)
+				{
+					cmd.Parameters.Add(GDA.Helper.GDAHelper.ConvertGDAParameter(cmd, param, UserProvider));
 				}
-			e.CommandText = b;
-			e.Connection = d;
-			return new GDACursor<T> (UserProvider, a, d, e, (f, g) =>  {
-				for (int h = 0; h < e.Parameters.Count; h++) {
-					var i = (IDbDataParameter)e.Parameters [h];
-					if (i.Direction == ParameterDirection.Output || i.Direction == ParameterDirection.ReturnValue)
-						c [h].Value = ((IDbDataParameter)e.Parameters [h]).Value;
+			cmd.CommandText = sqlQuery;
+			cmd.Connection = conn;
+			return new GDACursor<T>(UserProvider, session, conn, cmd, (sender, e) =>  {
+				for(int i = 0; i < cmd.Parameters.Count; i++)
+				{
+					var dataParamter = (IDbDataParameter)cmd.Parameters[i];
+					if(dataParamter.Direction == ParameterDirection.Output || dataParamter.Direction == ParameterDirection.ReturnValue)
+						parameters[i].Value = ((IDbDataParameter)cmd.Parameters[i]).Value;
 				}
 			});
 		}
-		public GDADataRecordCursor LoadResult (string a, params GDAParameter[] b)
+
+		/// <summary>
+		/// Executa a consulta e recupera o dados do resultado.
+		/// </summary>        
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters">Parametros para a consulta.</param>
+		/// <returns></returns>
+		public GDADataRecordCursor LoadResult(string sqlQuery, params GDAParameter[] parameters)
 		{
-			return LoadResult (null, a, b);
+			return LoadResult(null, sqlQuery, parameters);
 		}
-		public GDADataRecordCursor LoadResult (GDASession a, string b, params GDAParameter[] c)
+
+		/// <summary>
+		/// Executa a consulta e recupera o dados do resultado.
+		/// </summary>
+		/// <param name="session">Sessão onde será executada a consulta.</param>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters">Parametros para a consulta.</param>
+		/// <returns></returns>
+		public GDADataRecordCursor LoadResult(GDASession session, string sqlQuery, params GDAParameter[] parameters)
 		{
-			return new GDADataRecordCursor (GetLoadResultCursorParameters (a, CommandType.Text, -1, b, null, c));
+			return new GDADataRecordCursor(GetLoadResultCursorParameters(session, CommandType.Text, -1, sqlQuery, null, parameters));
 		}
-		public GDADataRecordCursor LoadResult (GDASession a, CommandType b, int c, string d, params GDAParameter[] e)
+
+		/// <summary>
+		/// Executa a consulta e recupera o dados do resultado.
+		/// </summary>
+		/// <param name="session">Sessão onde será executada a consulta.</param>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters">Parametros para a consulta.</param>
+		/// <returns></returns>
+		public GDADataRecordCursor LoadResult(GDASession session, CommandType commandType, int commandTimeout, string sqlQuery, params GDAParameter[] parameters)
 		{
-			return new GDADataRecordCursor (GetLoadResultCursorParameters (a, b, c, d, null, e));
+			return new GDADataRecordCursor(GetLoadResultCursorParameters(session, commandType, commandTimeout, sqlQuery, null, parameters));
 		}
-		public GDADataRecordCursor LoadResult (GDASession a, CommandType b, int c, string d, InfoPaging e, params GDAParameter[] f)
+
+		/// <summary>
+		/// Executa a consulta e recupera o dados do resultado.
+		/// </summary>
+		/// <param name="session">Sessão onde será executada a consulta.</param>
+		/// <param name="commandType">Tipo de comando.</param>
+		/// <param name="commandTimeout"></param>
+		/// <param name="paging"></param>
+		/// <param name="sqlQuery">Consulta.</param>
+		/// <param name="parameters">Parametros para a consulta.</param>
+		/// <returns></returns>
+		public GDADataRecordCursor LoadResult(GDASession session, CommandType commandType, int commandTimeout, string sqlQuery, InfoPaging paging, params GDAParameter[] parameters)
 		{
-			return new GDADataRecordCursor (GetLoadResultCursorParameters (a, b, c, d, e, f));
+			return new GDADataRecordCursor(GetLoadResultCursorParameters(session, commandType, commandTimeout, sqlQuery, paging, parameters));
 		}
-		public GDADataRecordCursor LoadResult (GDAStoredProcedure a)
+
+		/// <summary>
+		/// Executa a Stored Procedure e recupera os dados do resultado.
+		/// </summary>
+		/// <param name="procedure">Procedure que será executada.</param>
+		/// <returns></returns>
+		public GDADataRecordCursor LoadResult(GDAStoredProcedure procedure)
 		{
-			return LoadResult (null, a);
+			return LoadResult(null, procedure);
 		}
-		public GDADataRecordCursor LoadResult (GDASession a, GDAStoredProcedure b)
+
+		/// <summary>
+		/// Executa a Stored Procedure e recupera os dados do resultado.
+		/// </summary>
+		/// <param name="session">Sessão onde será executada a consulta.</param>
+		/// <param name="procedure">Procedure que será executada.</param>
+		/// <returns></returns>
+		public GDADataRecordCursor LoadResult(GDASession session, GDAStoredProcedure procedure)
 		{
-			return new GDADataRecordCursor (GetLoadResultCursorParameters (a, b));
+			return new GDADataRecordCursor(GetLoadResultCursorParameters(session, procedure));
 		}
-		public long Count (IQuery a)
+
+		/// <summary>
+		/// Recupera a quantidade de registros com base na Query.
+		/// </summary>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public long Count(IQuery query)
 		{
-			return Count (null, a);
+			return Count(null, query);
 		}
-		public long Count (GDASession a, IQuery b)
+
+		/// <summary>
+		/// Recupera a quantidade de registros com base na Query.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public long Count(GDASession session, IQuery query)
 		{
-			IProvider c = a != null && a.ProviderConfiguration != null ? a.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
-			QueryReturnInfo d = b.BuildResultInfo2 (c, "COUNT(*)");
-			return Convert.ToInt64 (ExecuteScalar (a, d.CommandText, d.Parameters.ToArray ()));
+			IProvider provider = session != null && session.ProviderConfiguration != null ? session.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
+			QueryReturnInfo qri = query.BuildResultInfo2(provider, "COUNT(*)");
+			return Convert.ToInt64(ExecuteScalar(session, qri.CommandText, qri.Parameters.ToArray()));
 		}
-		public double Sum (GDASession a, IQuery b)
+
+		/// <summary>
+		/// Efetua a soma de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Soma dos valores.</returns>
+		public double Sum(GDASession session, IQuery query)
 		{
-			IProvider c = a != null && a.ProviderConfiguration != null ? a.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
-			QueryReturnInfo d = b.BuildResultInfo2 (c, "SUM(" + b.AggregationFunctionProperty + ")");
-			object e = ExecuteScalar (a, d.CommandText, d.Parameters.ToArray ());
-			if (e == null)
+			IProvider provider = session != null && session.ProviderConfiguration != null ? session.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
+			QueryReturnInfo qri = query.BuildResultInfo2(provider, "SUM(" + query.AggregationFunctionProperty + ")");
+			object result = ExecuteScalar(session, qri.CommandText, qri.Parameters.ToArray());
+			if(result == null)
 				return 0.0d;
 			else
-				return Convert.ToDouble (e);
+				return Convert.ToDouble(result);
 		}
-		public double Max (GDASession a, IQuery b)
+
+		/// <summary>
+		/// Recupera o item com o maior valor.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Maior valor encontrado ou zero.</returns>
+		public double Max(GDASession session, IQuery query)
 		{
-			IProvider c = a != null && a.ProviderConfiguration != null ? a.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
-			QueryReturnInfo d = b.BuildResultInfo2 (c, "MAX(" + b.AggregationFunctionProperty + ")");
-			object e = ExecuteScalar (a, d.CommandText, d.Parameters.ToArray ());
-			if (e == null)
+			IProvider provider = session != null && session.ProviderConfiguration != null ? session.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
+			QueryReturnInfo qri = query.BuildResultInfo2(provider, "MAX(" + query.AggregationFunctionProperty + ")");
+			object result = ExecuteScalar(session, qri.CommandText, qri.Parameters.ToArray());
+			if(result == null)
 				return 0.0d;
 			else
-				return Convert.ToDouble (e);
+				return Convert.ToDouble(result);
 		}
-		public double Min (GDASession a, IQuery b)
+
+		/// <summary>
+		/// Recupera o item com o menor valor.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Menor valor encontrado ou zero.</returns>
+		public double Min(GDASession session, IQuery query)
 		{
-			IProvider c = a != null && a.ProviderConfiguration != null ? a.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
-			QueryReturnInfo d = b.BuildResultInfo2 (c, "MIN(" + b.AggregationFunctionProperty + ")");
-			object e = ExecuteScalar (a, d.CommandText, d.Parameters.ToArray ());
-			if (e == null)
+			IProvider provider = session != null && session.ProviderConfiguration != null ? session.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
+			QueryReturnInfo qri = query.BuildResultInfo2(provider, "MIN(" + query.AggregationFunctionProperty + ")");
+			object result = ExecuteScalar(session, qri.CommandText, qri.Parameters.ToArray());
+			if(result == null)
 				return 0.0d;
 			else
-				return Convert.ToDouble (e);
+				return Convert.ToDouble(result);
 		}
-		public double Avg (GDASession a, IQuery b)
+
+		/// <summary>
+		/// Recupera a média dos valores da propriedade especificada na consulta.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Valor medio encontrado ou zero.</returns>
+		public double Avg(GDASession session, IQuery query)
 		{
-			IProvider c = a != null && a.ProviderConfiguration != null ? a.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
-			QueryReturnInfo d = b.BuildResultInfo2 (c, "AVG(" + b.AggregationFunctionProperty + ")");
-			object e = ExecuteScalar (a, d.CommandText, d.Parameters.ToArray ());
-			if (e == null)
+			IProvider provider = session != null && session.ProviderConfiguration != null ? session.ProviderConfiguration.Provider : GDA.GDASettings.DefaultProviderConfiguration.Provider;
+			QueryReturnInfo qri = query.BuildResultInfo2(provider, "AVG(" + query.AggregationFunctionProperty + ")");
+			object result = ExecuteScalar(session, qri.CommandText, qri.Parameters.ToArray());
+			if(result == null)
 				return 0.0d;
 			else
-				return Convert.ToDouble (e);
+				return Convert.ToDouble(result);
 		}
 	}
 }

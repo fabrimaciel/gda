@@ -1,184 +1,345 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data;
 using GDA.Interfaces;
+
 namespace GDA
 {
+	/// <summary>
+	/// Gerencia uma seção de conexão onde varios procedimento podem
+	/// ser executados em apenas uma conexão.
+	/// </summary>
 	public class GDASession : IDisposable
 	{
 		#if PocketPC
-				        /// <summary>
+		        /// <summary>
         /// Timeout padrão dos comandos
         /// </summary>
         public const int DEFAULT_COMMAND_TIMEOUT = 0;
 #else
+		/// <summary>
+		/// Timeout padrão dos comandos
+		/// </summary>
 		public const int DEFAULT_COMMAND_TIMEOUT = 30;
+
 		#endif
 		private static int _defaultCommandTimeout = DEFAULT_COMMAND_TIMEOUT;
+
 		private bool _isDisposed;
+
+		/// <summary>
+		/// Conexão usada na sessão.
+		/// </summary>
 		private IDbConnection _currentConnection;
+
 		private GDASessionState _state = GDASessionState.Open;
+
+		/// <summary>
+		/// Provedor de configuração da sessão.
+		/// </summary>
 		private IProviderConfiguration _providerConfiguration;
+
+		/// <summary>
+		/// Timeout dos comandos criados apartir da seção.
+		/// </summary>
 		private int _commandTimeout = DefaultCommandTimeout;
+
+		/// <summary>
+		/// Evento acionado quando a conexão é criada.
+		/// </summary>
 		public event Provider.CreateConnectionEvent ConnectionCreated;
-		protected bool IsDisposed {
-			get {
+
+		/// <summary>
+		/// Identifica se a instancia já foi liberada.
+		/// </summary>
+		protected bool IsDisposed
+		{
+			get
+			{
 				return _isDisposed;
 			}
 		}
-		public GDASessionState State {
-			get {
+
+		/// <summary>
+		/// Estado da sessão.
+		/// </summary>
+		public GDASessionState State
+		{
+			get
+			{
 				return _state;
 			}
 		}
-		public int CommandTimeout {
-			get {
+
+		/// <summary>
+		/// Timeout em segundos dos comandos criados apartir da seção. Por padrão é 30 segundos
+		/// </summary>
+		public int CommandTimeout
+		{
+			get
+			{
 				return _commandTimeout;
 			}
-			set {
-				if (value < 0)
-					throw new System.ArgumentException ("The property value assigned is less than 0.", "CommandTimeout");
+			set
+			{
+				if(value < 0)
+					throw new System.ArgumentException("The property value assigned is less than 0.", "CommandTimeout");
 				_commandTimeout = value;
 			}
 		}
-		public static int DefaultCommandTimeout {
-			get {
+
+		/// <summary>
+		/// Timeout padrão em segundos dos comandos. Por padrão é 30 segundos.
+		/// </summary>
+		public static int DefaultCommandTimeout
+		{
+			get
+			{
 				return _defaultCommandTimeout;
 			}
-			set {
-				if (value < 0)
-					throw new System.ArgumentException ("The property value assigned is less than 0.", "CommandTimeout");
+			set
+			{
+				if(value < 0)
+					throw new System.ArgumentException("The property value assigned is less than 0.", "CommandTimeout");
 				_defaultCommandTimeout = value;
 			}
 		}
-		public GDASession ()
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		public GDASession()
 		{
 			_providerConfiguration = GDASettings.DefaultProviderConfiguration;
 		}
-		public GDASession (IProviderConfiguration a)
+
+		/// <summary>
+		/// Construtor.
+		/// </summary>
+		/// <param name="providerConfiguration">Provider de configuração usado na sessão.</param>
+		public GDASession(IProviderConfiguration providerConfiguration)
 		{
-			_providerConfiguration = a;
+			_providerConfiguration = providerConfiguration;
 		}
-		~GDASession ()
+
+		/// <summary>
+		/// Destrutor.
+		/// </summary>
+		~GDASession()
 		{
-			Dispose (false);
+			Dispose(false);
 		}
+
+		/// <summary>
+		/// Connexão da sessão.
+		/// </summary>
 		[System.Diagnostics.DebuggerHidden]
-		[System.Diagnostics.DebuggerDisplay ("Connection")]
-		[System.Diagnostics.DebuggerBrowsable (System.Diagnostics.DebuggerBrowsableState.Never)]
-		public virtual IDbConnection CurrentConnection {
-			get {
-				CreateConnection ();
+		[System.Diagnostics.DebuggerDisplay("Connection")]
+		[System.Diagnostics.DebuggerBrowsable(System.Diagnostics.DebuggerBrowsableState.Never)]
+		public virtual IDbConnection CurrentConnection
+		{
+			get
+			{
+				CreateConnection();
 				return _currentConnection;
 			}
 		}
-		internal IDbConnection CreateConnection ()
+
+		/// <summary>
+		/// Cria a conexão.
+		/// </summary>
+		internal IDbConnection CreateConnection()
 		{
-			if (_currentConnection == null) {
-				_currentConnection = _providerConfiguration.CreateConnection ();
-				GDAConnectionManager.NotifyConnectionCreated (_currentConnection);
-				if (ConnectionCreated != null)
-					ConnectionCreated (this, new GDA.Provider.CreateConnectionEventArgs (_currentConnection));
-				if (_currentConnection.State != ConnectionState.Open) {
-					_currentConnection.Open ();
-					GDAConnectionManager.NotifyConnectionOpened (_currentConnection);
+			if(_currentConnection == null)
+			{
+				_currentConnection = _providerConfiguration.CreateConnection();
+				GDAConnectionManager.NotifyConnectionCreated(_currentConnection);
+				if(ConnectionCreated != null)
+					ConnectionCreated(this, new GDA.Provider.CreateConnectionEventArgs(_currentConnection));
+				if(_currentConnection.State != ConnectionState.Open)
+				{
+					_currentConnection.Open();
+					GDAConnectionManager.NotifyConnectionOpened(_currentConnection);
 				}
 			}
 			return _currentConnection;
 		}
-		internal virtual IDbTransaction CurrentTransaction {
-			get {
+
+		/// <summary>
+		/// Transaction da sessão.
+		/// </summary>
+		internal virtual IDbTransaction CurrentTransaction
+		{
+			get
+			{
 				return null;
 			}
-			set {
+			set
+			{
 			}
 		}
-		public ConnectionState ConnectionState {
-			get {
+
+		/// <summary>
+		/// Estado da conexão.
+		/// </summary>
+		public ConnectionState ConnectionState
+		{
+			get
+			{
 				return _currentConnection != null ? _currentConnection.State : ConnectionState.Closed;
 			}
 		}
-		protected void CheckDisposed ()
+
+		/// <summary>
+		/// Verifica se a instancia foi liberada.
+		/// </summary>
+		protected void CheckDisposed()
 		{
-			if (_isDisposed)
-				throw new ObjectDisposedException ("GDASession");
+			if(_isDisposed)
+				throw new ObjectDisposedException("GDASession");
 		}
-		internal void DefineConfiguration (IProviderConfiguration a)
+
+		/// <summary>
+		/// Define o provedor de configuração.
+		/// </summary>
+		/// <param name="configuration">Provedor de configuração.</param>
+		internal void DefineConfiguration(IProviderConfiguration configuration)
 		{
-			if (_providerConfiguration != null && _providerConfiguration.ProviderIdentifier != a.ProviderIdentifier) {
-				throw new GDAException ("Invalid provider configuration, there is a different.");
+			if(_providerConfiguration != null && _providerConfiguration.ProviderIdentifier != configuration.ProviderIdentifier)
+			{
+				throw new GDAException("Invalid provider configuration, there is a different.");
 			}
-			else if (_providerConfiguration == null)
-				_providerConfiguration = a;
+			else if(_providerConfiguration == null)
+				_providerConfiguration = configuration;
 		}
-		public virtual IDbCommand CreateCommand ()
+
+		/// <summary>
+		/// Cria uma nova instância de commando.
+		/// </summary>
+		/// <returns></returns>
+		public virtual IDbCommand CreateCommand()
 		{
-			IDbCommand a = CurrentConnection.CreateCommand ();
-			a.Connection = CurrentConnection;
-			a.Transaction = this.CurrentTransaction;
-			a.CommandTimeout = _commandTimeout;
-			return a;
+			IDbCommand cmd = CurrentConnection.CreateCommand();
+			cmd.Connection = CurrentConnection;
+			cmd.Transaction = this.CurrentTransaction;
+			cmd.CommandTimeout = _commandTimeout;
+			return cmd;
 		}
-		public IProviderConfiguration ProviderConfiguration {
-			get {
+
+		/// <summary>
+		/// Provedor de configuração da sessão.
+		/// </summary>
+		public IProviderConfiguration ProviderConfiguration
+		{
+			get
+			{
 				return _providerConfiguration;
 			}
 		}
-		public virtual void Ping ()
+
+		/// <summary>
+		/// Efetua um ping no servidor com os dados da sessão.
+		/// </summary>
+		public virtual void Ping()
 		{
-			if (_providerConfiguration == null)
-				throw new InvalidOperationException ("ProviderConfiguration not defined.");
-			using (IDbConnection a = _providerConfiguration.Provider.CreateConnection ()) {
-				GDAConnectionManager.NotifyConnectionCreated (a);
-				a.ConnectionString = _providerConfiguration.ConnectionString;
-				if (a.State != ConnectionState.Open) {
-					a.Open ();
-					GDAConnectionManager.NotifyConnectionOpened (a);
+			if(_providerConfiguration == null)
+				throw new InvalidOperationException("ProviderConfiguration not defined.");
+			using (IDbConnection conn = _providerConfiguration.Provider.CreateConnection())
+			{
+				GDAConnectionManager.NotifyConnectionCreated(conn);
+				conn.ConnectionString = _providerConfiguration.ConnectionString;
+				if(conn.State != ConnectionState.Open)
+				{
+					conn.Open();
+					GDAConnectionManager.NotifyConnectionOpened(conn);
 				}
-				a.Close ();
+				conn.Close();
 			}
 		}
-		public void Close ()
+
+		/// <summary>
+		/// Fecha a sessão.
+		/// </summary>
+		public void Close()
 		{
-			if (_state == GDASessionState.Open) {
-				if (CurrentTransaction != null)
-					CurrentTransaction.Dispose ();
-				_currentConnection.Close ();
-				_currentConnection.Dispose ();
+			if(_state == GDASessionState.Open)
+			{
+				if(CurrentTransaction != null)
+					CurrentTransaction.Dispose();
+				_currentConnection.Close();
+				_currentConnection.Dispose();
 				CurrentTransaction = null;
 				_currentConnection = null;
 				_state = GDASessionState.Closed;
 			}
 		}
-		protected virtual void DisposeCurrentTransaction (bool a)
+
+		/// <summary>
+		/// Libera a atual transação.
+		/// </summary>
+		protected virtual void DisposeCurrentTransaction(bool disposing)
 		{
-			var b = CurrentTransaction;
-			if (b != null)
-				try {
-					b.Dispose ();
+			var transaction = CurrentTransaction;
+			if(transaction != null)
+				try
+				{
+					transaction.Dispose();
 				}
-				catch {
-					if (a)
+				catch
+				{
+					if(disposing)
 						throw;
 				}
 		}
-		public virtual void Dispose (bool a)
+
+		/// <summary>
+		/// Libera a instancia.
+		/// </summary>
+		/// <param name="disposing"></param>
+		public virtual void Dispose(bool disposing)
 		{
-			if (_state == GDASessionState.Open) {
-				DisposeCurrentTransaction (a);
-				if (_currentConnection != null) {
-					try {
-						if (_currentConnection != null)
-							_currentConnection.Close ();
+			if(_state == GDASessionState.Open)
+			{
+				DisposeCurrentTransaction(disposing);
+				if(_currentConnection != null)
+				{
+					try
+					{
+						if(_currentConnection != null)
+							_currentConnection.Close();
 					}
-					catch {
+					catch
+					{
 					}
-					try {
-						if (_currentConnection != null)
-							_currentConnection.Dispose ();
+					try
+					{
+						if(_currentConnection != null)
+							_currentConnection.Dispose();
 					}
-					catch {
+					catch
+					{
 					}
 				}
 				CurrentTransaction = null;
@@ -187,10 +348,14 @@ namespace GDA
 			}
 			_isDisposed = true;
 		}
-		public void Dispose ()
+
+		/// <summary>
+		/// Libera os dados da sessão.
+		/// </summary>
+		public void Dispose()
 		{
-			Dispose (true);
-			GC.SuppressFinalize (this);
+			Dispose(true);
+			GC.SuppressFinalize(this);
 		}
 	}
 }

@@ -1,4 +1,25 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Reflection;
@@ -7,117 +28,276 @@ using GDA.Collections;
 using GDA.Interfaces;
 using GDA.Sql;
 using GDA.Caching;
+
 namespace GDA
 {
+	/// <summary>
+	/// Classe que disponibiliza as opera��es gerais feitas com as models.
+	/// </summary>
 	public static class GDAOperations
 	{
+		/// <summary>
+		/// Instancia do m�todo usado para gerar as chaves identidade no sistema.
+		/// </summary>
 		internal static GenerateKeyHandler GlobalGenerateKey;
+
+		/// <summary>
+		/// Instancia do m�todo que � acionado toda vez que um provedor de configura��o
+		/// for carregado no sistema.
+		/// </summary>
 		internal static ProviderConfigurationLoadHandler GlobalProviderConfigurationLoad;
+
+		/// <summary>
+		/// Evento acionado quando algum evento de debug de acesso a dados for lan�ado.
+		/// </summary>
 		public static event DebugTraceDelegate DebugTrace;
-		internal static void AddMemberDAO (Type a, ISimpleBaseDAO b)
+
+		/// <summary>
+		/// Adiciona a DAO em mem�ria.
+		/// </summary>
+		/// <param name="typeModel">Tipo da model da DAO.</param>
+		/// <param name="memberDAO"></param>
+		internal static void AddMemberDAO(Type typeModel, ISimpleBaseDAO memberDAO)
 		{
-			try {
-				MappingManager.MembersDAO [a] = b;
+			try
+			{
+				MappingManager.MembersDAO[typeModel] = memberDAO;
 			}
-			catch (NullReferenceException) {
+			catch(NullReferenceException)
+			{
 			}
 		}
-		internal static void CallDebugTrace (object a, string b)
+
+		internal static void CallDebugTrace(object sender, string message)
 		{
-			if (!GDASettings.EnabledDebugTrace)
+			if(!GDASettings.EnabledDebugTrace)
 				return;
 			#if PocketPC
-						            if (DebugTrace != null)
+			            if (DebugTrace != null)
                 DebugTrace(sender, message);
 #else
-			Helper.ThreadSafeEvents.FireEvent<string> (DebugTrace, a, b);
+			Helper.ThreadSafeEvents.FireEvent<string>(DebugTrace, sender, message);
 			#endif
 		}
-		public static void SetGlobalGenerateKeyHandler (GenerateKeyHandler a)
+
+		/// <summary>
+		/// Define o manipulador que ser� respons�vel por gerenciar a cria��o das
+		/// chaves identificada no sistema.
+		/// </summary>
+		/// <param name="handler"></param>
+		public static void SetGlobalGenerateKeyHandler(GenerateKeyHandler handler)
 		{
-			GlobalGenerateKey = a;
+			GlobalGenerateKey = handler;
 		}
-		public static void SetGlobalProviderConfigurationLoadHandler (ProviderConfigurationLoadHandler a)
+
+		/// <summary>
+		/// Define o manipulador que ser� respons�vel por gerenciar a carga
+		/// dos provedores de configura��o no sistema.
+		/// </summary>
+		/// <param name="handler"></param>
+		public static void SetGlobalProviderConfigurationLoadHandler(ProviderConfigurationLoadHandler handler)
 		{
-			GlobalProviderConfigurationLoad = a;
+			GlobalProviderConfigurationLoad = handler;
 		}
-		public static List<PropertyInfo> GetPropertiesKey<Model> ()
+
+		/// <summary>
+		/// Recupera as propriedades chave da model.
+		/// </summary>
+		/// <typeparam name="Model">Tipo a ser usada para recupera as propriedades.</typeparam>
+		/// <returns></returns>
+		public static List<PropertyInfo> GetPropertiesKey<Model>()
 		{
-			var a = new List<PropertyInfo> ();
-			foreach (var i in MappingManager.GetMappers<Model> (new PersistenceParameterType[] {
+			var result = new List<PropertyInfo>();
+			foreach (var i in MappingManager.GetMappers<Model>(new PersistenceParameterType[] {
 				PersistenceParameterType.Key,
 				PersistenceParameterType.IdentityKey
 			}, null))
-				a.Add (i.PropertyMapper);
-			return a;
+				result.Add(i.PropertyMapper);
+			return result;
 		}
-		public static List<PropertyInfo> GetPropertiesKey (Type a)
+
+		/// <summary>
+		/// Recupera as propriedades chave da model.
+		/// </summary>
+		/// <param name="type">Tipo a ser usada para recupera as propriedades.</param>
+		/// <returns></returns>
+		public static List<PropertyInfo> GetPropertiesKey(Type type)
 		{
-			var b = new List<PropertyInfo> ();
-			foreach (var i in MappingManager.GetMappers (a, new PersistenceParameterType[] {
+			var result = new List<PropertyInfo>();
+			foreach (var i in MappingManager.GetMappers(type, new PersistenceParameterType[] {
 				PersistenceParameterType.Key,
 				PersistenceParameterType.IdentityKey
 			}, null))
-				b.Add (i.PropertyMapper);
-			return b;
+				result.Add(i.PropertyMapper);
+			return result;
 		}
-		public static GDA.Sql.TableName GetTableNameInfo<Model> ()
+
+		/// <summary>
+		/// Recupera do tipo o nome da tabela que ele representa.
+		/// </summary>
+		/// <typeparam name="Model">Tipo a ser usado para localizar o nome</typeparam>
+		/// <returns>Nome da tabela relacionada</returns>
+		/// <exception cref="GDATableNameRepresentNotExistsException"></exception>
+		public static GDA.Sql.TableName GetTableNameInfo<Model>()
 		{
-			return MappingManager.GetTableName (typeof(Model));
+			return MappingManager.GetTableName(typeof(Model));
 		}
-		[Obsolete ("Use GetTableNameInfo<Model>")]
-		public static string GetTableName<Model> ()
+
+		/// <summary>
+		/// Recupera do tipo o nome da tabela que ele representa.
+		/// </summary>
+		/// <typeparam name="Model">Tipo a ser usado para localizar o nome</typeparam>
+		/// <returns>Nome da tabela relacionada</returns>
+		/// <exception cref="GDATableNameRepresentNotExistsException"></exception>
+		[Obsolete("Use GetTableNameInfo<Model>")]
+		public static string GetTableName<Model>()
 		{
-			var a = MappingManager.GetTableName (typeof(Model));
-			return a == null ? null : a.Name;
+			var tableName = MappingManager.GetTableName(typeof(Model));
+			return tableName == null ? null : tableName.Name;
 		}
-		public static GDA.Sql.TableName GetTableNameInfo (Type a)
+
+		/// <summary>
+		/// Recupera do tipo o nome da tabela que ele representa.
+		/// </summary>
+		/// <param name="type">Tipo a ser usado para localizar o nome</param>
+		/// <returns>Nome da tabela relacionada</returns>
+		/// <exception cref="GDATableNameRepresentNotExistsException"></exception>
+		public static GDA.Sql.TableName GetTableNameInfo(Type type)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("type");
-			return MappingManager.GetTableName (a);
+			if(type == null)
+				throw new ArgumentNullException("type");
+			return MappingManager.GetTableName(type);
 		}
-		[Obsolete ("Use GetTableNameInfo<Model>")]
-		public static string GetTableName (Type a)
+
+		/// <summary>
+		/// Recupera do tipo o nome da tabela que ele representa.
+		/// </summary>
+		/// <param name="type">Tipo a ser usado para localizar o nome</param>
+		/// <returns>Nome da tabela relacionada</returns>
+		/// <exception cref="GDATableNameRepresentNotExistsException"></exception>
+		[Obsolete("Use GetTableNameInfo<Model>")]
+		public static string GetTableName(Type type)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("type");
-			var b = MappingManager.GetTableName (a);
-			return b == null ? null : b.Name;
+			if(type == null)
+				throw new ArgumentNullException("type");
+			var tableName = MappingManager.GetTableName(type);
+			return tableName == null ? null : tableName.Name;
 		}
-		public static uint Insert (object a, string b, DirectionPropertiesName c)
+
+		/// <summary>
+		/// Inseri o registro no BD.
+		/// </summary>
+		/// <param name="model">Model contendo os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que ser�o inseridos no comando.</param>
+		/// <param name="direction">Dire��o que os nomes das propriedades ter�o no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <returns>Chave gerada no processo.</returns>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		public static uint Insert(object model, string propertiesNamesInsert, DirectionPropertiesName direction)
 		{
-			return Insert (null, a, b, c);
+			return Insert(null, model, propertiesNamesInsert, direction);
 		}
-		public static uint Insert (GDASession a, object b, string c, DirectionPropertiesName d)
+
+		/// <summary>
+		/// Inseri o registro no BD.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="model">Model contendo os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que ser�o inseridos no comando.</param>
+		/// <param name="direction">Dire��o que os nomes das propriedades ter�o no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <returns>Chave gerada no processo.</returns>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		public static uint Insert(GDASession session, object model, string propertiesNamesInsert, DirectionPropertiesName direction)
 		{
-			return GetDAO (b).Insert (a, b, c, d);
+			return GetDAO(model).Insert(session, model, propertiesNamesInsert, direction);
 		}
-		public static uint Insert (GDASession a, object b, string c)
+
+		/// <summary>
+		/// Inseri o registro no BD.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="model">Model contendo os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que ser�o inseridos no comando.</param>
+		/// <returns>Chave gerada no processo.</returns>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		public static uint Insert(GDASession session, object model, string propertiesNamesInsert)
 		{
-			return GetDAO (b).Insert (a, b, c);
+			return GetDAO(model).Insert(session, model, propertiesNamesInsert);
 		}
-		public static uint Insert (object a, string b)
+
+		/// <summary>
+		/// Inseri o registro no BD.
+		/// </summary>
+		/// <param name="model">Model contendo os dados a serem inseridos.</param>
+		/// <param name="propertiesNamesInsert">Nome das propriedades separados por virgula, que ser�o inseridos no comando.</param>
+		/// <returns>Chave gerada no processo.</returns>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		public static uint Insert(object model, string propertiesNamesInsert)
 		{
-			return GetDAO (a).Insert (a, b);
+			return GetDAO(model).Insert(model, propertiesNamesInsert);
 		}
-		public static uint Insert (GDASession a, object b)
+
+		/// <summary>
+		/// Inseri o registro no BD.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="model">Model contendo os dados a serem inseridos.</param>
+		/// <returns>Chave gerada no processo.</returns>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		public static uint Insert(GDASession session, object model)
 		{
-			return GetDAO (b).Insert (a, b);
+			return GetDAO(model).Insert(session, model);
 		}
-		public static uint Insert (object a)
+
+		/// <summary>
+		/// Inseri o registro no BD.
+		/// </summary>
+		/// <param name="model">Model contendo os dados a serem inseridos.</param>
+		/// <returns>Chave gerada no processo.</returns>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		public static uint Insert(object model)
 		{
-			return GetDAO (a).Insert (a);
+			return GetDAO(model).Insert(model);
 		}
-		public static int Update (GDASession a, object b, string c, DirectionPropertiesName d)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="model">Model contendo os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separadas por virgula, que ser�o atualizadas no comando.</param>
+		/// <param name="direction">Dire��o que os nomes das propriedades ter�o no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>N�mero de linhas afetadas.</returns>
+		public static int Update(GDASession session, object model, string propertiesNamesUpdate, DirectionPropertiesName direction)
 		{
-			return GetDAO (b).Update (a, b, c, d);
+			return GetDAO(model).Update(session, model, propertiesNamesUpdate, direction);
 		}
-		public static int Update (object a, string b, DirectionPropertiesName c)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="model">Model contendo os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separadas por virgula, que ser�o atualizadas no comando.</param>
+		/// <param name="direction">Dire��o que os nomes das propriedades ter�o no comando. (Default: DirectionPropertiesName.Inclusion)</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>N�mero de linhas afetadas.</returns>
+		public static int Update(object model, string propertiesNamesUpdate, DirectionPropertiesName direction)
 		{
-			return GetDAO (a).Update (a, b, c);
+			return GetDAO(model).Update(model, propertiesNamesUpdate, direction);
 		}
+
 		#if CLS_3_5
+		
         /// <summary>
         /// Recupera o seletor de propriedades que pode ser usado para realizar opera��es de inser��o ou atualiza��o.
         /// </summary>
@@ -128,8 +308,10 @@ namespace GDA
         {
             if (model == null)
                 throw new ArgumentNullException("model");
+
             return new GDAPropertySelector<T>(model);
         }
+
         /// <summary>
         /// Recupera o seletor de propriedades que pode ser usado para realizar opera��es de inser��o ou atualiza��o.
         /// </summary>
@@ -141,68 +323,169 @@ namespace GDA
         {
             if (model == null)
                 throw new ArgumentNullException("model");
+
             return new GDAPropertySelector<T>(model).Add(propertiesSelector);
         }
 #endif
-		public static int Update (GDASession a, object b, string c)
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="model">Model contendo os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separadas por virgula, que ser�o atualizadas no comando.</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>N�mero de linhas afetadas.</returns>
+		public static int Update(GDASession session, object model, string propertiesNamesUpdate)
 		{
-			return GetDAO (b).Update (a, b, c);
+			return GetDAO(model).Update(session, model, propertiesNamesUpdate);
 		}
-		public static int Update (object a, string b)
+
+		/// <summary>
+		/// Atualiza os dados contidos no objUpdate no BD.
+		/// </summary>
+		/// <param name="model">Model contendo os dados a serem atualizados.</param>
+		/// <param name="propertiesNamesUpdate">Nome das propriedades separadas por virgula, que ser�o atualizadas no comando.</param>
+		/// <exception cref="System.ArgumentNullException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		/// <returns>N�mero de linhas afetadas.</returns>
+		public static int Update(object model, string propertiesNamesUpdate)
 		{
-			return GetDAO (a).Update (a, b);
+			return GetDAO(model).Update(model, propertiesNamesUpdate);
 		}
-		public static int Update (GDASession a, object b)
+
+		/// <summary>
+		/// Atualiza o registro na BD.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="model">Model contendo os dados a serem atualizados.</param>
+		/// <returns>N�mero de linhas afetadas.</returns>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		public static int Update(GDASession session, object model)
 		{
-			return GetDAO (b).Update (a, b);
+			return GetDAO(model).Update(session, model);
 		}
-		public static int Update (object a)
+
+		/// <summary>
+		/// Atualiza o registro na BD.
+		/// </summary>
+		/// <param name="model">Model contendo os dados a serem atualizados.</param>
+		/// <returns>N�mero de linhas afetadas.</returns>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		public static int Update(object model)
 		{
-			return GetDAO (a).Update (a);
+			return GetDAO(model).Update(model);
 		}
-		public static int Delete (GDASession a, object b)
+
+		/// <summary>
+		/// Remove o registro da base de dados.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="model">Model contendo os dados a serem removidos.</param>
+		/// <returns>N�mero de linhas afetadas.</returns>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to contruir the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		public static int Delete(GDASession session, object model)
 		{
-			return GetDAO (b).Delete (a, b);
+			return GetDAO(model).Delete(session, model);
 		}
-		public static int Delete (object a)
+
+		/// <summary>
+		/// Remove o registro da base de dados.
+		/// </summary>
+		/// <param name="model">Model contendo os dados a serem removidos.</param>
+		/// <returns>N�mero de linhas afetadas.</returns>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to contruir the conditional clause.</exception>
+		/// <exception cref="GDAException"></exception>
+		public static int Delete(object model)
 		{
-			return GetDAO (a).Delete (a);
+			return GetDAO(model).Delete(model);
 		}
-		public static uint Save (GDASession a, object b)
+
+		/// <summary>
+		/// Salva os dados na base. Primeiro verifica se o registro existe, se existir ele ser� atualizado
+		/// sen�o ele ser� inserido.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="model">Model contendo os dados a serem salvos.</param>
+		/// <returns>A chave do registro inserido ou 0 se ele for atualizado.</returns>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		/// <exception cref="GDAException">Se o tipo de dados utilizado n�o possuir chaves.</exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		public static uint Save(GDASession session, object model)
 		{
-			return GetDAO (b).InsertOrUpdate (a, b);
+			return GetDAO(model).InsertOrUpdate(session, model);
 		}
-		public static uint Save (object a)
+
+		/// <summary>
+		/// Salva os dados na base. Primeiro verifica se o registro existe, se existir ele ser� atualizado
+		/// sen�o ele ser� inserido.
+		/// </summary>
+		/// <param name="model">Model contendo os dados a serem salvos.</param>
+		/// <returns>A chave do registro inserido ou 0 se ele for atualizado.</returns>
+		/// <exception cref="GDAReferenceDAONotFoundException"></exception>
+		/// <exception cref="GDAException">Se o tipo de dados utilizado n�o possuir chaves.</exception>
+		/// <exception cref="GDAConditionalClauseException">Parameters do not exist to build the conditional clause.</exception>
+		public static uint Save(object model)
 		{
-			return GetDAO (a).InsertOrUpdate (a);
+			return GetDAO(model).InsertOrUpdate(model);
 		}
-		public static void RecoverData (GDASession a, object b)
+
+		/// <summary>
+		/// Recupera os valores da Model com base nos valores da chaves preenchidas.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="model">Model contendo os dados que seram usados com base para recuperar os restante dos dados.</param>
+		/// <exception cref="GDAColumnNotFoundException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="ItemNotFoundException"></exception>
+		public static void RecoverData(GDASession session, object model)
 		{
-			object c = GetDAO (b);
-			MethodInfo d = c.GetType ().GetMethod ("RecoverData", new Type[] {
+			object dao = GetDAO(model);
+			MethodInfo mi = dao.GetType().GetMethod("RecoverData", new Type[] {
 				typeof(GDASession),
-				b.GetType ()
+				model.GetType()
 			});
-			if (d == null)
-				throw new GDAException ("Method RecoverData not found in DAO.");
-			try {
-				d.Invoke (c, new object[] {
-					a,
-					b
+			if(mi == null)
+				throw new GDAException("Method RecoverData not found in DAO.");
+			try
+			{
+				mi.Invoke(dao, new object[] {
+					session,
+					model
 				});
 			}
-			catch (TargetInvocationException ex) {
-				if (ex.InnerException != null)
+			catch(TargetInvocationException ex)
+			{
+				if(ex.InnerException != null)
 					throw ex.InnerException;
 				else
 					throw ex;
 			}
 		}
-		public static void RecoverData (object a)
+
+		/// <summary>
+		/// Recupera os valores da Model com base nos valores da chaves preenchidas.
+		/// </summary>
+		/// <param name="model">Model contendo os dados que seram usados com base para recuperar os restante dos dados.</param>
+		/// <exception cref="GDAColumnNotFoundException"></exception>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="ItemNotFoundException"></exception>
+		public static void RecoverData(object model)
 		{
-			RecoverData (null, a);
+			RecoverData(null, model);
 		}
+
 		#if CLS_3_5
+		
         /// <summary>
         /// Recupera no nome da campo da BD que a propriedade representa.
         /// </summary>
@@ -214,281 +497,536 @@ namespace GDA
              var property = propertySelector.GetMember() as System.Reflection.PropertyInfo;            
              return GetPropertyDBFieldName<Model>(property.Name);
         }
+
 #endif
-		public static string GetPropertyDBFieldName<Model> (string a)
+		/// <summary>
+		/// Recupera no nome da campo da BD que a propriedade representa.
+		/// </summary>
+		/// <typeparam name="Model">Tipo da class que contem a propriedade.</typeparam>
+		/// <param name="propertyName">Nome da propriedade.</param>
+		/// <returns>Nome do campo da BD.</returns>
+		public static string GetPropertyDBFieldName<Model>(string propertyName)
 		{
-			Type b = typeof(Model);
-			PropertyInfo c = b.GetProperty (a);
-			if (c == null)
-				throw new GDAException ("Property {0} not found in {1}", a, b.FullName);
-			PersistencePropertyAttribute d = MappingManager.GetPersistenceProperty (c);
-			if (d == null)
-				throw new GDAException ("DBFieldName not found in Property {0}.", a);
-			return d.Name;
+			Type persistenceType = typeof(Model);
+			PropertyInfo pi = persistenceType.GetProperty(propertyName);
+			if(pi == null)
+				throw new GDAException("Property {0} not found in {1}", propertyName, persistenceType.FullName);
+			PersistencePropertyAttribute ppa = MappingManager.GetPersistenceProperty(pi);
+			if(ppa == null)
+				throw new GDAException("DBFieldName not found in Property {0}.", propertyName);
+			return ppa.Name;
 		}
-		public static DAO GetDAO<Model, DAO> () where Model : new() where DAO : IBaseDAO<Model>
+
+		/// <summary>
+		/// Captura a DAO relacionada com a Model do tipo submetido.
+		/// </summary>
+		/// <typeparam name="Model">Tipo da Model relacioanda.</typeparam>
+		/// <typeparam name="DAO">DAO que representa a model.</typeparam>
+		/// <returns></returns>
+		/// <exception cref="GDAException"></exception>
+		public static DAO GetDAO<Model, DAO>() where Model : new() where DAO : IBaseDAO<Model>
 		{
-			return (DAO)GetDAO<Model> ();
+			return (DAO)GetDAO<Model>();
 		}
-		public static IBaseDAO<T> GetDAO<T> () where T : new()
+
+		/// <summary>
+		/// Captura a DAO relacionado com a Model do tipo submetido.
+		/// </summary>
+		/// <typeparam name="T">Model na qual a DAO est� relacionada.</typeparam>
+		/// <returns>DAO.</returns>
+		/// <exception cref="GDAException"></exception>
+		public static IBaseDAO<T> GetDAO<T>() where T : new()
 		{
 			Type persistenceType = typeof(T);
-			if (MappingManager.MembersDAO.ContainsKey (persistenceType)) {
-				return (IBaseDAO<T>)MappingManager.MembersDAO [persistenceType];
+			if(MappingManager.MembersDAO.ContainsKey(persistenceType))
+			{
+				return (IBaseDAO<T>)MappingManager.MembersDAO[persistenceType];
 			}
-			else {
-				PersistenceBaseDAOAttribute info = MappingManager.GetPersistenceBaseDAOAttribute (persistenceType);
-				if (info != null) {
+			else
+			{
+				PersistenceBaseDAOAttribute info = MappingManager.GetPersistenceBaseDAOAttribute(persistenceType);
+				if(info != null)
+				{
 					IBaseDAO<T> dao;
-					try {
-						if (info.BaseDAOType.IsGenericType) {
-							Type t = info.BaseDAOType.MakeGenericType (info.BaseDAOGenericTypes);
-							dao = (IBaseDAO<T>)Activator.CreateInstance (t);
+					try
+					{
+						if(info.BaseDAOType.IsGenericType)
+						{
+							Type t = info.BaseDAOType.MakeGenericType(info.BaseDAOGenericTypes);
+							dao = (IBaseDAO<T>)Activator.CreateInstance(t);
 						}
 						else
-							dao = (IBaseDAO<T>)Activator.CreateInstance (info.BaseDAOType);
+							dao = (IBaseDAO<T>)Activator.CreateInstance(info.BaseDAOType);
 					}
-					catch (InvalidCastException) {
-						throw new GDAException (String.Format ("Invalid cast, type {0} not inherit interface ISimpleBaseDAO.", info.BaseDAOType.FullName));
+					catch(InvalidCastException)
+					{
+						throw new GDAException(String.Format("Invalid cast, type {0} not inherit interface ISimpleBaseDAO.", info.BaseDAOType.FullName));
 						;
 					}
-					catch (Exception ex) {
-						if (ex is TargetInvocationException)
-							throw new GDAException (ex.InnerException);
+					catch(Exception ex)
+					{
+						if(ex is TargetInvocationException)
+							throw new GDAException(ex.InnerException);
 						else
-							throw new GDAException (ex);
+							throw new GDAException(ex);
 					}
 					return dao;
 				}
-				else {
-					try {
-						return new BaseDAO<T> ();
+				else
+				{
+					try
+					{
+						return new BaseDAO<T>();
 					}
-					catch (Exception ex) {
-						throw new GDAException ("Error to create instance BaseDAO<> for type " + persistenceType.FullName + ".\r\n" + ex.Message, ex);
+					catch(Exception ex)
+					{
+						throw new GDAException("Error to create instance BaseDAO<> for type " + persistenceType.FullName + ".\r\n" + ex.Message, ex);
 					}
 				}
 			}
 		}
-		public static ISimpleBaseDAO<T> GetSimpleDAO<T> ()
+
+		/// <summary>
+		/// Captura a DAO simples relacionada com a Model do tipo submetido.
+		/// </summary>
+		/// <typeparam name="T">Model na qual a DAO est� relacionada.</typeparam>
+		/// <returns>DAO.</returns>
+		/// <exception cref="GDAException"></exception>
+		public static ISimpleBaseDAO<T> GetSimpleDAO<T>()
 		{
-			Type a = typeof(T);
-			if (MappingManager.MembersDAO.ContainsKey (a)) {
-				return (ISimpleBaseDAO<T>)MappingManager.MembersDAO [a];
+			Type persistenceType = typeof(T);
+			if(MappingManager.MembersDAO.ContainsKey(persistenceType))
+			{
+				return (ISimpleBaseDAO<T>)MappingManager.MembersDAO[persistenceType];
 			}
-			else {
-				PersistenceBaseDAOAttribute b = MappingManager.GetPersistenceBaseDAOAttribute (a);
-				if (b != null) {
-					ISimpleBaseDAO<T> c;
-					try {
-						if (b.BaseDAOType.IsGenericType) {
-							Type d = b.BaseDAOType.MakeGenericType (b.BaseDAOGenericTypes);
-							c = (ISimpleBaseDAO<T>)Activator.CreateInstance (d);
+			else
+			{
+				PersistenceBaseDAOAttribute info = MappingManager.GetPersistenceBaseDAOAttribute(persistenceType);
+				if(info != null)
+				{
+					ISimpleBaseDAO<T> dao;
+					try
+					{
+						if(info.BaseDAOType.IsGenericType)
+						{
+							Type t = info.BaseDAOType.MakeGenericType(info.BaseDAOGenericTypes);
+							dao = (ISimpleBaseDAO<T>)Activator.CreateInstance(t);
 						}
 						else
-							c = (ISimpleBaseDAO<T>)Activator.CreateInstance (b.BaseDAOType);
+							dao = (ISimpleBaseDAO<T>)Activator.CreateInstance(info.BaseDAOType);
 					}
-					catch (InvalidCastException) {
-						throw new GDAException (String.Format ("Invalid cast, type {0} not inherit interface ISimpleBaseDAO.", b.BaseDAOType.FullName));
+					catch(InvalidCastException)
+					{
+						throw new GDAException(String.Format("Invalid cast, type {0} not inherit interface ISimpleBaseDAO.", info.BaseDAOType.FullName));
 						;
 					}
-					catch (Exception ex) {
-						if (ex is TargetInvocationException)
-							throw new GDAException (ex.InnerException);
+					catch(Exception ex)
+					{
+						if(ex is TargetInvocationException)
+							throw new GDAException(ex.InnerException);
 						else
-							throw new GDAException (ex);
+							throw new GDAException(ex);
 					}
-					return c;
+					return dao;
 				}
-				else {
-					try {
-						return new SimpleBaseDAO<T> ();
+				else
+				{
+					try
+					{
+						return new SimpleBaseDAO<T>();
 					}
-					catch (Exception ex) {
-						throw new GDAException ("Error to create instance SimpleBaseDAO<> for type " + a.FullName + ".\r\n" + ex.Message, ex);
+					catch(Exception ex)
+					{
+						throw new GDAException("Error to create instance SimpleBaseDAO<> for type " + persistenceType.FullName + ".\r\n" + ex.Message, ex);
 					}
 				}
 			}
 		}
-		public static ISimpleBaseDAO GetDAO (object a)
+
+		/// <summary>
+		/// Captura a DAO relacionado com a Model do tipo submetido.
+		/// </summary>
+		/// <param name="model">Model na qual a DAO est� relacionada.</param>
+		/// <returns>DAO.</returns>
+		/// <exception cref="GDAException"></exception>
+		/// <exception cref="ArgumentNullException"></exception>
+		public static ISimpleBaseDAO GetDAO(object model)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("model");
-			return GetDAO (a.GetType ());
+			if(model == null)
+				throw new ArgumentNullException("model");
+			return GetDAO(model.GetType());
 		}
-		public static ISimpleBaseDAO GetDAO (Type a)
+
+		/// <summary>
+		/// Captura a DAO relacionado com a Model do tipo submetido.
+		/// </summary>
+		/// <param name="typeModel">Tipo do model na qual a DAO est� relacionada.</param>
+		/// <returns>DAO.</returns>
+		/// <exception cref="GDAException"></exception>
+		public static ISimpleBaseDAO GetDAO(Type typeModel)
 		{
-			if (MappingManager.MembersDAO.ContainsKey (a)) {
-				return MappingManager.MembersDAO [a];
+			if(MappingManager.MembersDAO.ContainsKey(typeModel))
+			{
+				return MappingManager.MembersDAO[typeModel];
 			}
-			else {
-				PersistenceBaseDAOAttribute b = MappingManager.GetPersistenceBaseDAOAttribute (a);
-				if (b != null) {
-					ISimpleBaseDAO c;
-					try {
-						if (b.BaseDAOType.IsGenericType) {
-							Type d = b.BaseDAOType.MakeGenericType (b.BaseDAOGenericTypes);
-							c = (ISimpleBaseDAO)Activator.CreateInstance (d);
+			else
+			{
+				PersistenceBaseDAOAttribute info = MappingManager.GetPersistenceBaseDAOAttribute(typeModel);
+				if(info != null)
+				{
+					ISimpleBaseDAO dao;
+					try
+					{
+						if(info.BaseDAOType.IsGenericType)
+						{
+							Type t = info.BaseDAOType.MakeGenericType(info.BaseDAOGenericTypes);
+							dao = (ISimpleBaseDAO)Activator.CreateInstance(t);
 						}
 						else
-							c = (ISimpleBaseDAO)Activator.CreateInstance (b.BaseDAOType);
+							dao = (ISimpleBaseDAO)Activator.CreateInstance(info.BaseDAOType);
 					}
-					catch (InvalidCastException) {
-						throw new GDAException (String.Format ("Invalid cast, type {0} not inherit interface ISimpleBaseDAO.", b.BaseDAOType.FullName));
+					catch(InvalidCastException)
+					{
+						throw new GDAException(String.Format("Invalid cast, type {0} not inherit interface ISimpleBaseDAO.", info.BaseDAOType.FullName));
 						;
 					}
-					catch (Exception ex) {
-						if (ex is TargetInvocationException)
-							throw new GDAException (ex.InnerException);
+					catch(Exception ex)
+					{
+						if(ex is TargetInvocationException)
+							throw new GDAException(ex.InnerException);
 						else
-							throw new GDAException (ex);
+							throw new GDAException(ex);
 					}
-					return c;
+					return dao;
 				}
-				else {
-					try {
-						return (ISimpleBaseDAO)Activator.CreateInstance (typeof(BaseDAO<object>).GetGenericTypeDefinition ().MakeGenericType (a));
+				else
+				{
+					try
+					{
+						return (ISimpleBaseDAO)Activator.CreateInstance(typeof(BaseDAO<object>).GetGenericTypeDefinition().MakeGenericType(typeModel));
 					}
-					catch (Exception ex) {
-						throw new GDAException ("Error to create instance BaseDAO<> for type " + a.FullName + ".\r\n" + ex.Message, ex);
+					catch(Exception ex)
+					{
+						throw new GDAException("Error to create instance BaseDAO<> for type " + typeModel.FullName + ".\r\n" + ex.Message, ex);
 					}
 				}
 			}
 		}
-		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated> (object a, string b, InfoSortExpression c, InfoPaging d) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Ser� informado tamb�m o grupo
+		/// no qual o relacionamento ser� carregado. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <param name="group">Nome do grupo de relacionamento.</param>
+		/// <param name="sortProperty">Informa��o sobre o propriedade a ser ordenada.</param>
+		/// <param name="paging">Informa��es sobre a pagina��o do resultado.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated>(object model, string group, InfoSortExpression sortProperty, InfoPaging paging) where ClassRelated : new()
 		{
-			object e = GetDAO (a);
-			MethodInfo f = e.GetType ().GetMethod ("LoadDataForeignKeyParentToChild", new Type[] {
-				a.GetType (),
+			object dao = GetDAO(model);
+			MethodInfo mi = dao.GetType().GetMethod("LoadDataForeignKeyParentToChild", new Type[] {
+				model.GetType(),
 				typeof(string),
 				typeof(InfoSortExpression),
 				typeof(InfoPaging)
 			});
-			if (f == null)
-				throw new GDAException ("DAO of model not suport LoadDataForeignKeyParentToChild.");
+			if(mi == null)
+				throw new GDAException("DAO of model not suport LoadDataForeignKeyParentToChild.");
 			else
-				f = f.MakeGenericMethod (new Type[] {
+				mi = mi.MakeGenericMethod(new Type[] {
 					typeof(ClassRelated)
 				});
-			try {
-				return (GDAList<ClassRelated>)f.Invoke (e, new object[] {
-					a,
-					b,
-					c,
-					d
+			try
+			{
+				return (GDAList<ClassRelated>)mi.Invoke(dao, new object[] {
+					model,
+					group,
+					sortProperty,
+					paging
 				});
 			}
-			catch (Exception ex) {
+			catch(Exception ex)
+			{
 				throw ex.InnerException;
 			}
 		}
-		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated> (object a, InfoSortExpression b, InfoPaging c) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Ser� informado tamb�m o grupo
+		/// no qual o relacionamento ser� carregado. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <param name="sortProperty">Informa��o sobre o propriedade a ser ordenada.</param>
+		/// <param name="paging">Informa��es sobre a pagina��o do resultado.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated>(object model, InfoSortExpression sortProperty, InfoPaging paging) where ClassRelated : new()
 		{
-			return LoadRelationship1toN<ClassRelated> (a, null, b, c);
+			return LoadRelationship1toN<ClassRelated>(model, null, sortProperty, paging);
 		}
-		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated> (object a, string b, InfoSortExpression c) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Ser� informado tamb�m o grupo
+		/// no qual o relacionamento ser� carregado. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <param name="group">Nome do grupo de relacionamento.</param>
+		/// <param name="sortProperty">Informa��o sobre o propriedade a ser ordenada.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated>(object model, string group, InfoSortExpression sortProperty) where ClassRelated : new()
 		{
-			return LoadRelationship1toN<ClassRelated> (a, b, c, null);
+			return LoadRelationship1toN<ClassRelated>(model, group, sortProperty, null);
 		}
-		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated> (object a, InfoSortExpression b) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Ser� informado tamb�m o grupo
+		/// no qual o relacionamento ser� carregado. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <param name="sortProperty">Informa��o sobre o propriedade a ser ordenada.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated>(object model, InfoSortExpression sortProperty) where ClassRelated : new()
 		{
-			return LoadRelationship1toN<ClassRelated> (a, null, b, null);
+			return LoadRelationship1toN<ClassRelated>(model, null, sortProperty, null);
 		}
-		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated> (object a, string b, InfoPaging c) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Ser� informado tamb�m o grupo
+		/// no qual o relacionamento ser� carregado. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <param name="group">Nome do grupo de relacionamento.</param>
+		/// <param name="paging">Informa��es sobre a pagina��o do resultado.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated>(object model, string group, InfoPaging paging) where ClassRelated : new()
 		{
-			return LoadRelationship1toN<ClassRelated> (a, b, null, c);
+			return LoadRelationship1toN<ClassRelated>(model, group, null, paging);
 		}
-		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated> (object a, InfoPaging b) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Ser� informado tamb�m o grupo
+		/// no qual o relacionamento ser� carregado. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <param name="paging">Informa��es sobre a pagina��o do resultado.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated>(object model, InfoPaging paging) where ClassRelated : new()
 		{
-			return LoadRelationship1toN<ClassRelated> (a, null, null, b);
+			return LoadRelationship1toN<ClassRelated>(model, null, null, paging);
 		}
-		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated> (object a, string b) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Ser� informado tamb�m o grupo
+		/// no qual o relacionamento ser� carregado. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <param name="group">Nome do grupo de relacionamento.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated>(object model, string group) where ClassRelated : new()
 		{
-			return LoadRelationship1toN<ClassRelated> (a, b, null, null);
+			return LoadRelationship1toN<ClassRelated>(model, group, null, null);
 		}
-		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated> (object a) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static GDAList<ClassRelated> LoadRelationship1toN<ClassRelated>(object model) where ClassRelated : new()
 		{
-			return LoadRelationship1toN<ClassRelated> (a, (string)null);
+			return LoadRelationship1toN<ClassRelated>(model, (string)null);
 		}
-		public static ClassRelated LoadRelationship1to1<ClassRelated> (object a, string b) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Ser� informado tamb�m o grupo
+		/// no qual o relacionamento ser� carregado. Utiliza a estrura 1 para 1
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <param name="group">Nome do grupo de relacionamento.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static ClassRelated LoadRelationship1to1<ClassRelated>(object model, string group) where ClassRelated : new()
 		{
-			GDAList<ClassRelated> c = LoadRelationship1toN<ClassRelated> (a, b);
-			if (c.Count > 1)
-				throw new GDAException ("There is more one row found for this relationship.");
-			else if (c.Count == 1)
-				return c [0];
+			GDAList<ClassRelated> list = LoadRelationship1toN<ClassRelated>(model, group);
+			if(list.Count > 1)
+				throw new GDAException("There is more one row found for this relationship.");
+			else if(list.Count == 1)
+				return list[0];
 			else
 				return default(ClassRelated);
 		}
-		public static ClassRelated LoadRelationship1to1<ClassRelated> (object a) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega as lista itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Utiliza a estrura 1 para 1
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <returns>Lista tipada do tipo da classe que representa a tabela do relacionamento.</returns>
+		public static ClassRelated LoadRelationship1to1<ClassRelated>(object model) where ClassRelated : new()
 		{
-			return LoadRelationship1to1<ClassRelated> (a, null);
+			return LoadRelationship1to1<ClassRelated>(model, null);
 		}
-		public static int CountRowRelationship1toN<ClassRelated> (object a, string b) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega a quantidade de itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <param name="group">Nome do grupo de relacionamento.</param>
+		/// <returns>Quantidade de itens tipo da classe que representa a tabela do relacionamento.</returns>
+		public static int CountRowRelationship1toN<ClassRelated>(object model, string group) where ClassRelated : new()
 		{
-			object c = GetDAO (a);
-			MethodInfo d = c.GetType ().GetMethod ("CountRowForeignKeyParentToChild", new Type[] {
-				a.GetType (),
+			object dao = GetDAO(model);
+			MethodInfo mi = dao.GetType().GetMethod("CountRowForeignKeyParentToChild", new Type[] {
+				model.GetType(),
 				typeof(string)
 			});
-			if (d == null)
-				throw new GDAException ("DAO of model not suport CountRowForeignKeyParentToChild.");
+			if(mi == null)
+				throw new GDAException("DAO of model not suport CountRowForeignKeyParentToChild.");
 			else
-				d = d.MakeGenericMethod (new Type[] {
+				mi = mi.MakeGenericMethod(new Type[] {
 					typeof(ClassRelated)
 				});
-			try {
-				return (int)d.Invoke (c, new object[] {
-					a,
-					b
+			try
+			{
+				return (int)mi.Invoke(dao, new object[] {
+					model,
+					group
 				});
 			}
-			catch (Exception ex) {
+			catch(Exception ex)
+			{
 				throw ex.InnerException;
 			}
 		}
-		public static int CountRowRelationship1toN<ClassRelated> (object a) where ClassRelated : new()
+
+		/// <summary>
+		/// Carrega a quantidade de itens da tabela representada pelo tipo da classe
+		/// submetida relacionados com a atual model. Utiliza a estrura 1 para N.
+		/// </summary>
+		/// <typeparam name="ClassRelated">Tipo da classe que representa a tabela do relacionamento.</typeparam>
+		/// <param name="model">Model na qual o itens est�o relacionados.</param>
+		/// <returns>Quantidade de itens tipo da classe que representa a tabela do relacionamento.</returns>
+		public static int CountRowRelationship1toN<ClassRelated>(object model) where ClassRelated : new()
 		{
-			return CountRowRelationship1toN<ClassRelated> (a, null);
+			return CountRowRelationship1toN<ClassRelated>(model, null);
 		}
-		public static GDACursor<Model> SelectToCursor<Model> (GDASession a) where Model : new()
+
+		/// <summary>
+		/// Carrega os dados com base na consulta informada.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <returns></returns>
+		public static GDACursor<Model> SelectToCursor<Model>(GDASession session) where Model : new()
 		{
-			return GetDAO<Model> ().Select (a);
+			return GetDAO<Model>().Select(session);
 		}
-		public static GDACursor<Model> SelectToCursor<Model> () where Model : new()
+
+		/// <summary>
+		/// Carrega os dados com base na consulta informada.
+		/// </summary>
+		/// <returns></returns>
+		public static GDACursor<Model> SelectToCursor<Model>() where Model : new()
 		{
-			return GetDAO<Model> ().Select ();
+			return GetDAO<Model>().Select();
 		}
-		public static GDAList<Model> Select<Model> (GDASession a) where Model : new()
+
+		/// <summary>
+		/// Carrega os dados com base na consulta informada.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <returns></returns>
+		public static GDAList<Model> Select<Model>(GDASession session) where Model : new()
 		{
-			return GetDAO<Model> ().Select (a);
+			return GetDAO<Model>().Select(session);
 		}
-		public static GDAList<Model> Select<Model> () where Model : new()
+
+		/// <summary>
+		/// Carrega os dados com base na consulta informada.
+		/// </summary>
+		/// <returns></returns>
+		public static GDAList<Model> Select<Model>() where Model : new()
 		{
-			return GetDAO<Model> ().Select ();
+			return GetDAO<Model>().Select();
 		}
-		public static long Count<Model> (GDASession a) where Model : new()
+
+		/// <summary>
+		/// Recupera a quantidade de registros da tabela no banco.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public static long Count<Model>(GDASession session) where Model : new()
 		{
-			return GetDAO<Model> ().Count (a);
+			return GetDAO<Model>().Count(session);
 		}
-		public static long Count<Model> () where Model : new()
+
+		/// <summary>
+		/// Recupera a quantidade de registros da tabela no banco.
+		/// </summary>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public static long Count<Model>() where Model : new()
 		{
-			return GetDAO<Model> ().Count ();
+			return GetDAO<Model>().Count();
 		}
-		public static long Count (GDASession a, IQuery b)
+
+		/// <summary>
+		/// Recupera a quantidade de registros com base na Query.
+		/// </summary>
+		/// <param name="session">Sess�o utilizada para a execu��o do comando.</param>
+		/// <param name="query">Consulta usada.</param>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public static long Count(GDASession session, IQuery query)
 		{
-			if (a != null)
-				return new DataAccess (a.ProviderConfiguration).Count (a, b);
+			if(session != null)
+				return new DataAccess(session.ProviderConfiguration).Count(session, query);
 			else
-				return new DataAccess ().Count (b);
+				return new DataAccess().Count(query);
 		}
-		public static bool CheckExist (GDASession a, ValidationMode b, string c, object d, object e)
+
+		/// <summary>
+		/// Verifica se o valor da propriedade informada existe no banco de dados.
+		/// </summary>
+		/// <param name="session">Sess�o de conex�o que ser� usada na verifica��o.</param>
+		/// <param name="mode">Modo de valida��o.</param>
+		/// <param name="propertyName">Nome da propriedade que ser� verificada.</param>
+		/// <param name="propertyValue">Valor da propriedade que ser� verificada.</param>
+		/// <param name="parent">Elemento que cont�m a propriedade</param>
+		/// <returns>True caso existir.</returns>
+		public static bool CheckExist(GDASession session, ValidationMode mode, string propertyName, object propertyValue, object parent)
 		{
-			return GetDAO (e).CheckExist (a, b, c, d, e);
+			return GetDAO(parent).CheckExist(session, mode, propertyName, propertyValue, parent);
 		}
-		public static bool CheckExist (ValidationMode a, string b, object c, object d)
+
+		/// <summary>
+		/// Verifica se o valor da propriedade informada existe no banco de dados.
+		/// </summary>
+		/// <param name="mode">Modo de valida��o.</param>
+		/// <param name="propertyName">Nome da propriedade que ser� verificada.</param>
+		/// <param name="propertyValue">Valor da propriedade que ser� verificada.</param>
+		/// <param name="parent">Elemento que cont�m a propriedade</param>
+		/// <returns>True caso existir.</returns>
+		public static bool CheckExist(ValidationMode mode, string propertyName, object propertyValue, object parent)
 		{
-			return GetDAO (d).CheckExist (null, a, b, c, d);
+			return GetDAO(parent).CheckExist(null, mode, propertyName, propertyValue, parent);
 		}
 	}
 }

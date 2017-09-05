@@ -1,338 +1,548 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Interfaces;
 using System.Reflection;
+
 namespace GDA.Caching
 {
 	public class MappingManager
 	{
+		/// <summary>
+		/// Armazena o resutlado das propriedades de persistencia.
+		/// </summary>
 		internal class LoadPersistencePropertyAttributesResult
 		{
+			/// <summary>
+			/// Mapeamento das propriedades.
+			/// </summary>
 			public List<Mapper> Mappers;
+
+			/// <summary>
+			/// Mapeamento das chaves estrangeiras
+			/// </summary>
 			public List<GroupOfRelationshipInfo> ForeignKeyMappers;
+
+			/// <summary>
+			/// Mapeamento das membros estrangeiros.
+			/// </summary>
 			public List<ForeignMemberMapper> ForeignMembers;
 		}
-		internal static Dictionary<Type, ISimpleBaseDAO> MembersDAO = new Dictionary<Type, ISimpleBaseDAO> ();
-		internal static Dictionary<string, Dictionary<string, string>> ModelsNamespaceLoaded = new Dictionary<string, Dictionary<string, string>> ();
+
+		/// <summary>
+		/// Dicionário que armazena as DAO relacionadas as models
+		/// </summary>
+		internal static Dictionary<Type, ISimpleBaseDAO> MembersDAO = new Dictionary<Type, ISimpleBaseDAO>();
+
+		/// <summary>
+		/// Dicionário que armazena os namespaces já carregados, juntamento com as tipos das models já carregadas.
+		/// </summary>
+		internal static Dictionary<string, Dictionary<string, string>> ModelsNamespaceLoaded = new Dictionary<string, Dictionary<string, string>>();
+
+		/// <summary>
+		/// Matriz que identifica a quantidade de acessos ao mapeamento. 
+		/// </summary>
 		private static int[] _accessModelsMapper;
+
+		/// <summary>
+		/// Armazena o nomes da models mapeados na ordem correspondente a matriz accessModelsMapper.
+		/// </summary>
 		private static string[] _typeNamesModelsMapper;
+
+		/// <summary>
+		/// Armazena as lista de mapeamentos das models
+		/// </summary>
 		private static List<Mapper>[] _listsModelsMapper;
+
+		/// <summary>
+		/// Armazena as listas de foreignkeys mapeadas.
+		/// </summary>
 		private static List<GroupOfRelationshipInfo>[] _listForeignKeyMapper;
+
+		/// <summary>
+		/// Armazena as lista de foreign members mapeados.
+		/// </summary>
 		private static List<ForeignMemberMapper>[] _listForeignMemberMapper;
-		private static object _loadPersistencePropertyAttributesLock = new object ();
-		static MappingManager ()
+
+		private static object _loadPersistencePropertyAttributesLock = new object();
+
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		static MappingManager()
 		{
-			try {
-				GDASettings.LoadConfiguration ();
+			try
+			{
+				GDASettings.LoadConfiguration();
 			}
-			catch {
+			catch
+			{
 			}
 		}
-		internal static PersistenceBaseDAOAttribute GetPersistenceBaseDAOAttribute (Type a)
+
+		internal static PersistenceBaseDAOAttribute GetPersistenceBaseDAOAttribute(Type type)
 		{
-			object[] b = a.GetCustomAttributes (typeof(PersistenceBaseDAOAttribute), false);
-			if (b.Length == 0) {
-				var c = Mapping.MappingData.GetMapping (a);
-				return c != null && c.BaseDAO != null ? c.BaseDAO.GetPersistenceBaseDAO () : null;
+			object[] obj = type.GetCustomAttributes(typeof(PersistenceBaseDAOAttribute), false);
+			if(obj.Length == 0)
+			{
+				var mapping = Mapping.MappingData.GetMapping(type);
+				return mapping != null && mapping.BaseDAO != null ? mapping.BaseDAO.GetPersistenceBaseDAO() : null;
 			}
 			else
-				return (PersistenceBaseDAOAttribute)b [0];
+				return (PersistenceBaseDAOAttribute)obj[0];
 		}
-		internal static PersistenceProviderAttribute GetPersistenceProviderAttribute (Type a)
+
+		/// <summary>
+		/// Captura os dados do provedor do tipo.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		internal static PersistenceProviderAttribute GetPersistenceProviderAttribute(Type type)
 		{
-			object[] b = a.GetCustomAttributes (typeof(PersistenceProviderAttribute), true);
-			if (b.Length == 0) {
-				var c = Mapping.MappingData.GetMapping (a);
-				return c != null && c.Provider != null ? c.Provider.GetPersistenceProvider () : null;
+			object[] obj = type.GetCustomAttributes(typeof(PersistenceProviderAttribute), true);
+			if(obj.Length == 0)
+			{
+				var mapping = Mapping.MappingData.GetMapping(type);
+				return mapping != null && mapping.Provider != null ? mapping.Provider.GetPersistenceProvider() : null;
 			}
 			else
-				return (PersistenceProviderAttribute)b [0];
+				return (PersistenceProviderAttribute)obj[0];
 		}
-		internal static PersistenceClassAttribute GetPersistenceClassAttribute (Type a)
+
+		/// <summary>
+		/// Captura o <see cref="PersistenceClassAttribute"/> contido o type.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns>null se não for encontrado o attributo.</returns>
+		internal static PersistenceClassAttribute GetPersistenceClassAttribute(Type type)
 		{
-			object[] b = a.GetCustomAttributes (typeof(PersistenceClassAttribute), true);
-			if (b.Length == 0) {
-				var c = Mapping.MappingData.GetMapping (a);
-				if (c == null && a.BaseType != typeof(object))
-					c = Mapping.MappingData.GetMapping (a.BaseType);
-				if (c == null)
-					foreach (var i in a.GetInterfaces ()) {
-						c = Mapping.MappingData.GetMapping (i);
-						if (c != null)
+			object[] obj = type.GetCustomAttributes(typeof(PersistenceClassAttribute), true);
+			if(obj.Length == 0)
+			{
+				var mapping = Mapping.MappingData.GetMapping(type);
+				if(mapping == null && type.BaseType != typeof(object))
+					mapping = Mapping.MappingData.GetMapping(type.BaseType);
+				if(mapping == null)
+					foreach (var i in type.GetInterfaces())
+					{
+						mapping = Mapping.MappingData.GetMapping(i);
+						if(mapping != null)
 							break;
 					}
-				return c != null ? c.GetPersistenceClass () : null;
+				return mapping != null ? mapping.GetPersistenceClass() : null;
 			}
 			else
-				return (PersistenceClassAttribute)b [0];
+				return (PersistenceClassAttribute)obj[0];
 		}
-		internal static PersistencePropertyAttribute GetPersistenceProperty (PropertyInfo a)
+
+		/// <summary>
+		/// Captura a PersistencePropertyAttribute relacionado com a propriedade.
+		/// </summary>
+		/// <param name="pInfo">Propriedade.</param>
+		/// <returns>O atributo ou null se não for localizado.</returns>
+		internal static PersistencePropertyAttribute GetPersistenceProperty(PropertyInfo pInfo)
 		{
-			object[] b = a.GetCustomAttributes (typeof(PersistencePropertyAttribute), true);
-			if (b != null && b.Length > 0) {
-				if (string.IsNullOrEmpty (((PersistencePropertyAttribute)b [0]).Name))
-					((PersistencePropertyAttribute)b [0]).Name = a.Name;
-				return (PersistencePropertyAttribute)b [0];
+			object[] obj = pInfo.GetCustomAttributes(typeof(PersistencePropertyAttribute), true);
+			if(obj != null && obj.Length > 0)
+			{
+				if(string.IsNullOrEmpty(((PersistencePropertyAttribute)obj[0]).Name))
+					((PersistencePropertyAttribute)obj[0]).Name = pInfo.Name;
+				return (PersistencePropertyAttribute)obj[0];
 			}
-			else {
-				Type c = a.DeclaringType;
-				var d = Mapping.MappingData.GetMapping (a.DeclaringType);
-				if (d == null && a.DeclaringType != a.ReflectedType) {
-					d = Mapping.MappingData.GetMapping (a.ReflectedType);
-					c = a.ReflectedType;
+			else
+			{
+				Type modelType = pInfo.DeclaringType;
+				var mapping = Mapping.MappingData.GetMapping(pInfo.DeclaringType);
+				if(mapping == null && pInfo.DeclaringType != pInfo.ReflectedType)
+				{
+					mapping = Mapping.MappingData.GetMapping(pInfo.ReflectedType);
+					modelType = pInfo.ReflectedType;
 				}
-				if (d != null) {
-					do {
-						GDA.Mapping.PropertyMapping e = null;
-						if (d != null)
-							e = d.Properties.Find (f => f.Name == a.Name);
-						if (e != null)
-							return e.GetPersistenceProperty ();
-						else {
-							c = c.BaseType;
-							d = Mapping.MappingData.GetMapping (c);
+				if(mapping != null)
+				{
+					do
+					{
+						GDA.Mapping.PropertyMapping p = null;
+						if(mapping != null)
+							p = mapping.Properties.Find(f => f.Name == pInfo.Name);
+						if(p != null)
+							return p.GetPersistenceProperty();
+						else
+						{
+							modelType = modelType.BaseType;
+							mapping = Mapping.MappingData.GetMapping(modelType);
 						}
 					}
-					while (c != typeof(object));
+					while (modelType != typeof(object));
 				}
 			}
 			return null;
 		}
-		internal static Mapper GetPropertyMapper (Type a, string b)
+
+		/// <summary>
+		/// Recupera as informações do mapeamento da propriedade da tipo especificado.
+		/// </summary>
+		/// <param name="typeModel"></param>
+		/// <param name="propertyName">Nome da propriedade onde o mapeamento está contido.</param>
+		/// <returns></returns>
+		internal static Mapper GetPropertyMapper(Type typeModel, string propertyName)
 		{
-			var c = MappingManager.LoadPersistencePropertyAttributes (a);
-			return c.Mappers.Find (delegate (Mapper d) {
-				return d.PropertyMapperName == b;
+			var propertyAttributes = MappingManager.LoadPersistencePropertyAttributes(typeModel);
+			return propertyAttributes.Mappers.Find(delegate(Mapper m) {
+				return m.PropertyMapperName == propertyName;
 			});
 		}
-		internal static LoadPersistencePropertyAttributesResult LoadPersistencePropertyAttributes (Type a)
+
+		/// <summary>
+		/// Carrega a lisa de propriedades mapeadas para o tipo passado.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns>Posição do mapeamento no vetor</returns>
+		internal static LoadPersistencePropertyAttributesResult LoadPersistencePropertyAttributes(Type type)
 		{
-			if (a == null)
-				throw new ArgumentNullException ("type");
-			int b = -1;
-			List<Mapper> c = null;
-			List<GroupOfRelationshipInfo> d = null;
-			List<ForeignMemberMapper> e = null;
-			lock (_loadPersistencePropertyAttributesLock) {
-				if (_accessModelsMapper == null) {
+			if(type == null)
+				throw new ArgumentNullException("type");
+			int pos = -1;
+			List<Mapper> mapping = null;
+			List<GroupOfRelationshipInfo> fkMapping = null;
+			List<ForeignMemberMapper> fmMapping = null;
+			lock (_loadPersistencePropertyAttributesLock)
+			{
+				if(_accessModelsMapper == null)
+				{
 					_accessModelsMapper = new int[GDASettings.MaximumMapperCache];
 					_typeNamesModelsMapper = new string[GDASettings.MaximumMapperCache];
 					_listsModelsMapper = new List<Mapper>[GDASettings.MaximumMapperCache];
 					_listForeignKeyMapper = new List<GroupOfRelationshipInfo>[GDASettings.MaximumMapperCache];
 					_listForeignMemberMapper = new List<ForeignMemberMapper>[GDASettings.MaximumMapperCache];
-					for (int f = 0; f < _accessModelsMapper.Length; f++)
-						_accessModelsMapper [f] = -1;
+					for(int i = 0; i < _accessModelsMapper.Length; i++)
+						_accessModelsMapper[i] = -1;
 				}
-				for (int f = 0; f < _typeNamesModelsMapper.Length; f++)
-					if (_typeNamesModelsMapper [f] != null && _typeNamesModelsMapper [f] == a.FullName) {
-						_accessModelsMapper [f]++;
-						b = f;
-					}
-					else {
-						if (_accessModelsMapper [f] > int.MinValue)
-							_accessModelsMapper [f]--;
-					}
-				if (b >= 0) {
-					return new LoadPersistencePropertyAttributesResult {
-						Mappers = _listsModelsMapper [b],
-						ForeignKeyMappers = _listForeignKeyMapper [b],
-						ForeignMembers = _listForeignMemberMapper [b]
-					};
-				}
-				c = new List<Mapper> ();
-				d = new List<GroupOfRelationshipInfo> ();
-				e = new List<ForeignMemberMapper> ();
-				b = 0;
-				for (int f = 1; f < _accessModelsMapper.Length; f++)
-					if (_accessModelsMapper [f] < _accessModelsMapper [b])
-						b = f;
-				if (b != -1 && _listsModelsMapper [b] != null) {
-				}
-			}
-			LoadPersistencePropertyAttributes (a, c, d, e);
-			lock (_loadPersistencePropertyAttributesLock) {
-				_accessModelsMapper [b] = 10;
-				_typeNamesModelsMapper [b] = a.FullName;
-				_listsModelsMapper [b] = c;
-				_listForeignKeyMapper [b] = d;
-				_listForeignMemberMapper [b] = e;
-			}
-			return new LoadPersistencePropertyAttributesResult {
-				Mappers = c,
-				ForeignKeyMappers = d,
-				ForeignMembers = e
-			};
-		}
-		private static void LoadPersistencePropertyAttributes (Type a, List<Mapper> b, List<GroupOfRelationshipInfo> c, List<ForeignMemberMapper> d)
-		{
-			PropertyInfo[] e = a.GetProperties (BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
-			var f = Mapping.MappingData.GetMapping (a);
-			foreach (PropertyInfo property in e) {
-				Mapping.PropertyMapping g = null;
-				if (f != null)
-					g = f.Properties.Find (h => h.Name == property.Name);
-				PersistencePropertyAttribute j = GetPersistenceProperty (property);
-				Mapper l = null;
-				if (j != null) {
-					l = new Mapper (a, j, property);
-					b.Add (l);
-				}
-				object[] m = property.GetCustomAttributes (typeof(PersistenceForeignKeyAttribute), true);
-				if ((m == null || m.Length == 0) && g != null && g.ForeignKey != null)
-					m = new object[] {
-						g.ForeignKey.GetPersistenceForeignKey ()
-					};
-				foreach (object obj in m) {
-					PersistenceForeignKeyAttribute n = (PersistenceForeignKeyAttribute)obj;
-					GroupOfRelationshipInfo o = new GroupOfRelationshipInfo (a, n.TypeOfClassRelated, n.GroupOfRelationship);
-					int p = c.FindIndex (delegate (GroupOfRelationshipInfo q) {
-						return q == o;
-					});
-					if (p < 0) {
-						c.Add (o);
+				for(int i = 0; i < _typeNamesModelsMapper.Length; i++)
+					if(_typeNamesModelsMapper[i] != null && _typeNamesModelsMapper[i] == type.FullName)
+					{
+						_accessModelsMapper[i]++;
+						pos = i;
 					}
 					else
-						o = c [p];
-					ForeignKeyMapper r = new ForeignKeyMapper (n, property);
-					o.AddForeignKey (r);
-					if (l != null)
-						l.AddForeignKey (r);
-				}
-				m = property.GetCustomAttributes (typeof(ValidatorAttribute), true);
-				if ((m == null || m.Length == 0) && g != null && g.Validators.Count > 0) {
-					m = new object[g.Validators.Count];
-					for (int s = 0; s < m.Length; s++)
-						m [s] = g.Validators [s].GetValidator ();
-				}
-				if (m.Length > 0) {
-					ValidatorAttribute[] t = new ValidatorAttribute[m.Length];
-					for (int s = 0; s < m.Length; s++)
-						t [s] = (ValidatorAttribute)m [s];
-					l.Validation = new ValidationMapper (l, t);
-				}
-				m = property.GetCustomAttributes (typeof(PersistenceForeignMemberAttribute), true);
-				if ((m == null || m.Length == 0) && g != null && g.ForeignMember != null)
-					m = new object[] {
-						g.ForeignMember.GetPersistenceForeignMember ()
+					{
+						if(_accessModelsMapper[i] > int.MinValue)
+							_accessModelsMapper[i]--;
+					}
+				if(pos >= 0)
+				{
+					return new LoadPersistencePropertyAttributesResult {
+						Mappers = _listsModelsMapper[pos],
+						ForeignKeyMappers = _listForeignKeyMapper[pos],
+						ForeignMembers = _listForeignMemberMapper[pos]
 					};
-				if (m.Length > 0) {
-					d.Add (new ForeignMemberMapper ((PersistenceForeignMemberAttribute)m [0], property));
+				}
+				mapping = new List<Mapper>();
+				fkMapping = new List<GroupOfRelationshipInfo>();
+				fmMapping = new List<ForeignMemberMapper>();
+				pos = 0;
+				for(int i = 1; i < _accessModelsMapper.Length; i++)
+					if(_accessModelsMapper[i] < _accessModelsMapper[pos])
+						pos = i;
+				if(pos != -1 && _listsModelsMapper[pos] != null)
+				{
 				}
 			}
-			if (!a.IsInterface) {
-				Type[] u = a.GetInterfaces ();
-				PersistenceClassAttribute v;
-				for (int s = 0; s < u.Length; s++) {
-					v = GetPersistenceClassAttribute (u [s]);
-					if (v != null) {
-						LoadPersistencePropertyAttributes (u [s], b, c, d);
+			LoadPersistencePropertyAttributes(type, mapping, fkMapping, fmMapping);
+			lock (_loadPersistencePropertyAttributesLock)
+			{
+				_accessModelsMapper[pos] = 10;
+				_typeNamesModelsMapper[pos] = type.FullName;
+				_listsModelsMapper[pos] = mapping;
+				_listForeignKeyMapper[pos] = fkMapping;
+				_listForeignMemberMapper[pos] = fmMapping;
+			}
+			return new LoadPersistencePropertyAttributesResult {
+				Mappers = mapping,
+				ForeignKeyMappers = fkMapping,
+				ForeignMembers = fmMapping
+			};
+		}
+
+		/// <summary>
+		/// Carrega a lista das propriedades mapeadas.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <param name="mapping">Lista para armazenar a propriedades mapeadas.</param>
+		/// <param name="fkMapping"></param>
+		/// <param name="fmMapping">Mapeamento dos membros estrangeiros.</param>
+		private static void LoadPersistencePropertyAttributes(Type type, List<Mapper> mapping, List<GroupOfRelationshipInfo> fkMapping, List<ForeignMemberMapper> fmMapping)
+		{
+			PropertyInfo[] properties = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+			var classMapping = Mapping.MappingData.GetMapping(type);
+			foreach (PropertyInfo property in properties)
+			{
+				Mapping.PropertyMapping pMapping = null;
+				if(classMapping != null)
+					pMapping = classMapping.Properties.Find(f => f.Name == property.Name);
+				PersistencePropertyAttribute ppa = GetPersistenceProperty(property);
+				Mapper currentMapper = null;
+				if(ppa != null)
+				{
+					currentMapper = new Mapper(type, ppa, property);
+					mapping.Add(currentMapper);
+				}
+				object[] attrs = property.GetCustomAttributes(typeof(PersistenceForeignKeyAttribute), true);
+				if((attrs == null || attrs.Length == 0) && pMapping != null && pMapping.ForeignKey != null)
+					attrs = new object[] {
+						pMapping.ForeignKey.GetPersistenceForeignKey()
+					};
+				foreach (object obj in attrs)
+				{
+					PersistenceForeignKeyAttribute fk = (PersistenceForeignKeyAttribute)obj;
+					GroupOfRelationshipInfo group = new GroupOfRelationshipInfo(type, fk.TypeOfClassRelated, fk.GroupOfRelationship);
+					int index = fkMapping.FindIndex(delegate(GroupOfRelationshipInfo gri) {
+						return gri == group;
+					});
+					if(index < 0)
+					{
+						fkMapping.Add(group);
+					}
+					else
+						group = fkMapping[index];
+					ForeignKeyMapper fkm = new ForeignKeyMapper(fk, property);
+					group.AddForeignKey(fkm);
+					if(currentMapper != null)
+						currentMapper.AddForeignKey(fkm);
+				}
+				attrs = property.GetCustomAttributes(typeof(ValidatorAttribute), true);
+				if((attrs == null || attrs.Length == 0) && pMapping != null && pMapping.Validators.Count > 0)
+				{
+					attrs = new object[pMapping.Validators.Count];
+					for(int i = 0; i < attrs.Length; i++)
+						attrs[i] = pMapping.Validators[i].GetValidator();
+				}
+				if(attrs.Length > 0)
+				{
+					ValidatorAttribute[] vAttrs = new ValidatorAttribute[attrs.Length];
+					for(int i = 0; i < attrs.Length; i++)
+						vAttrs[i] = (ValidatorAttribute)attrs[i];
+					currentMapper.Validation = new ValidationMapper(currentMapper, vAttrs);
+				}
+				attrs = property.GetCustomAttributes(typeof(PersistenceForeignMemberAttribute), true);
+				if((attrs == null || attrs.Length == 0) && pMapping != null && pMapping.ForeignMember != null)
+					attrs = new object[] {
+						pMapping.ForeignMember.GetPersistenceForeignMember()
+					};
+				if(attrs.Length > 0)
+				{
+					fmMapping.Add(new ForeignMemberMapper((PersistenceForeignMemberAttribute)attrs[0], property));
+				}
+			}
+			if(!type.IsInterface)
+			{
+				Type[] interfaces = type.GetInterfaces();
+				PersistenceClassAttribute pca;
+				for(int i = 0; i < interfaces.Length; i++)
+				{
+					pca = GetPersistenceClassAttribute(interfaces[i]);
+					if(pca != null)
+					{
+						LoadPersistencePropertyAttributes(interfaces[i], mapping, fkMapping, fmMapping);
 					}
 				}
 			}
 		}
-		internal static Type LoadModel (string a)
+
+		/// <summary>
+		/// Carrega o tipo relacionado ao nome do tipo da model passado.
+		/// </summary>
+		/// <param name="modelTypeName">Nome do tipo da model</param>
+		internal static Type LoadModel(string modelTypeName)
 		{
-			GDASettings.LoadConfiguration ();
-			string b = null;
-			foreach (KeyValuePair<string, Dictionary<string, string>> k in ModelsNamespaceLoaded) {
-				if (k.Value.TryGetValue (a, out b))
-					return Type.GetType (b);
+			GDASettings.LoadConfiguration();
+			string tReturn = null;
+			foreach (KeyValuePair<string, Dictionary<string, string>> k in ModelsNamespaceLoaded)
+			{
+				if(k.Value.TryGetValue(modelTypeName, out tReturn))
+					return Type.GetType(tReturn);
 			}
-			foreach (ModelsNamespaceInfo ns in GDASettings.ModelsNamespaces) {
-				string c = a;
-				if (c.IndexOf (ns.Namespace) < 0)
-					c = ns.Namespace + "." + a;
-				var d = ns.CurrentAssembly;
-				if (d == null)
-					throw new GDAException ("Fail on load assembly \"{0}\" for model namespace.", ns.AssemblyName);
-				Type e = ns.CurrentAssembly.GetType (c);
-				if (e == null)
-					e = ns.CurrentAssembly.GetType (a);
-				if (e != null) {
-					if (!ModelsNamespaceLoaded.ContainsKey (ns.Namespace))
-						ModelsNamespaceLoaded.Add (ns.Namespace, new Dictionary<string, string> ());
-					ModelsNamespaceLoaded [ns.Namespace].Add (a, e.FullName + ", " + e.Assembly.FullName);
-					return e;
+			foreach (ModelsNamespaceInfo ns in GDASettings.ModelsNamespaces)
+			{
+				string nn = modelTypeName;
+				if(nn.IndexOf(ns.Namespace) < 0)
+					nn = ns.Namespace + "." + modelTypeName;
+				var currentAssembly = ns.CurrentAssembly;
+				if(currentAssembly == null)
+					throw new GDAException("Fail on load assembly \"{0}\" for model namespace.", ns.AssemblyName);
+				Type t = ns.CurrentAssembly.GetType(nn);
+				if(t == null)
+					t = ns.CurrentAssembly.GetType(modelTypeName);
+				if(t != null)
+				{
+					if(!ModelsNamespaceLoaded.ContainsKey(ns.Namespace))
+						ModelsNamespaceLoaded.Add(ns.Namespace, new Dictionary<string, string>());
+					ModelsNamespaceLoaded[ns.Namespace].Add(modelTypeName, t.FullName + ", " + t.Assembly.FullName);
+					return t;
 				}
 			}
-			Type f = null;
+			Type rt = null;
 			#if PocketPC
-						            if (Assembly.GetExecutingAssembly() != null)
+			            if (Assembly.GetExecutingAssembly() != null)
                 rt = Assembly.GetExecutingAssembly().GetType(modelTypeName);
 #else
-			var g = Assembly.GetEntryAssembly ();
-			if (g != null)
-				f = g.GetType (a);
-			else {
-				g = Assembly.GetCallingAssembly ();
-				if (g != null)
-					f = g.GetType (a);
-				else {
-					g = Assembly.GetExecutingAssembly ();
-					if (g != null)
-						f = g.GetType (a);
+			var entry = Assembly.GetEntryAssembly();
+			if(entry != null)
+				rt = entry.GetType(modelTypeName);
+			else
+			{
+				entry = Assembly.GetCallingAssembly();
+				if(entry != null)
+					rt = entry.GetType(modelTypeName);
+				else
+				{
+					entry = Assembly.GetExecutingAssembly();
+					if(entry != null)
+						rt = entry.GetType(modelTypeName);
 				}
 			}
 			#endif
-			if (f != null) {
-				GDASettings.AddModelsNamespace (f.Assembly, f.Namespace);
-				if (!ModelsNamespaceLoaded.ContainsKey (f.Namespace))
-					ModelsNamespaceLoaded.Add (f.Namespace, new Dictionary<string, string> ());
-				ModelsNamespaceLoaded [f.Namespace].Add (a, f.FullName);
-				return f;
+			if(rt != null)
+			{
+				GDASettings.AddModelsNamespace(rt.Assembly, rt.Namespace);
+				if(!ModelsNamespaceLoaded.ContainsKey(rt.Namespace))
+					ModelsNamespaceLoaded.Add(rt.Namespace, new Dictionary<string, string>());
+				ModelsNamespaceLoaded[rt.Namespace].Add(modelTypeName, rt.FullName);
+				return rt;
 			}
-			return Type.GetType (a, false);
+			return Type.GetType(modelTypeName, false);
 		}
-		internal static GDA.Sql.TableName GetTableName (Type a)
+
+		/// <summary>
+		/// Recupera do tipo o nome da tabela que ele representa.
+		/// </summary>
+		/// <param name="type">Tipo a ser usado para localizar o nome</param>
+		/// <returns>Nome da tabela relacionada</returns>
+		/// <exception cref="GDATableNameRepresentNotExistsException"></exception>
+		internal static GDA.Sql.TableName GetTableName(Type type)
 		{
-			var b = GetPersistenceClassAttribute (a);
-			if (b == null || string.IsNullOrEmpty (b.Name)) {
-				Type[] c = a.GetInterfaces ();
-				PersistenceClassAttribute d;
-				for (int e = 0; e < c.Length; e++) {
-					d = MappingManager.GetPersistenceClassAttribute (c [e]);
-					if (d != null && d.Name != null)
-						return d.GetTableName ();
+			var param = GetPersistenceClassAttribute(type);
+			if(param == null || string.IsNullOrEmpty(param.Name))
+			{
+				Type[] interfaces = type.GetInterfaces();
+				PersistenceClassAttribute pca;
+				for(int i = 0; i < interfaces.Length; i++)
+				{
+					pca = MappingManager.GetPersistenceClassAttribute(interfaces[i]);
+					if(pca != null && pca.Name != null)
+						return pca.GetTableName();
 				}
-				throw new GDATableNameRepresentNotExistsException ("The class: " + a.FullName + ", not found PersistenceClassAttribute");
+				throw new GDATableNameRepresentNotExistsException("The class: " + type.FullName + ", not found PersistenceClassAttribute");
 			}
-			return b.GetTableName ();
+			return param.GetTableName();
 		}
-		internal static IList<Mapper> GetMappers<Model> ()
+
+		/// <summary>
+		/// Recupera os mapeamentos da model.
+		/// </summary>
+		/// <typeparam name="Model">Tipo da model onde o mepeamento está contido.</typeparam>
+		/// <returns></returns>
+		internal static IList<Mapper> GetMappers<Model>()
 		{
-			var a = MappingManager.LoadPersistencePropertyAttributes (typeof(Model));
-			return a.Mappers;
+			var persistencePropertyAttributes = MappingManager.LoadPersistencePropertyAttributes(typeof(Model));
+			return persistencePropertyAttributes.Mappers;
 		}
-		internal static IList<ForeignMemberMapper> GetForeignMemberMapper (Type a)
+
+		/// <summary>
+		/// Recupera os mapeamentos de membros estrangeiros da model.
+		/// </summary>
+		/// <param name="modelType">Tipo da model onde o mepeamento está contido.</param>
+		/// <returns></returns>
+		internal static IList<ForeignMemberMapper> GetForeignMemberMapper(Type modelType)
 		{
-			var b = MappingManager.LoadPersistencePropertyAttributes (a);
-			return b.ForeignMembers;
+			var persistencePropertyAttributes = MappingManager.LoadPersistencePropertyAttributes(modelType);
+			return persistencePropertyAttributes.ForeignMembers;
 		}
-		internal static List<Mapper> GetMappers (Type a)
+
+		/// <summary>
+		/// Recupera os mapeamentos da model.
+		/// </summary>
+		/// <param name="modelType">Tipo da model onde o mepeamento está contido.</param>
+		/// <returns></returns>
+		internal static List<Mapper> GetMappers(Type modelType)
 		{
-			var b = MappingManager.LoadPersistencePropertyAttributes (a);
-			return b.Mappers;
+			var persistencePropertyAttributes = MappingManager.LoadPersistencePropertyAttributes(modelType);
+			return persistencePropertyAttributes.Mappers;
 		}
-		internal static List<Mapper> GetMappers<Model> (PersistenceParameterType[] a, DirectionParameter[] b)
+
+		/// <summary>
+		/// Captura os attributes PersistenceProperty das propriedades da classe refenciada.
+		/// </summary>
+		/// <typeparam name="Model">Tipo do modelo de onde será recuperado o mapeamento.</typeparam>
+		/// <param name="typesParam">Tipos de parametros a serem filtrados. null para não se aplicar nenhum filtro.</param>
+		/// <param name="directions">Sentido dos atributos a serem filtrados. Default Input, InputOutput</param>
+		/// <returns>Lista com todas os atributos, obedecendo o filtro.</returns>
+		internal static List<Mapper> GetMappers<Model>(PersistenceParameterType[] typesParam, DirectionParameter[] directions)
 		{
-			return GetMappers<Model> (a, b, false);
+			return GetMappers<Model>(typesParam, directions, false);
 		}
-		internal static List<Mapper> GetMappers<Model> (PersistenceParameterType[] a, DirectionParameter[] b, bool c)
+
+		/// <summary>
+		/// Captura os attributes PersistenceProperty das propriedades da classe refenciada.
+		/// </summary>
+		/// <typeparam name="Model">Tipo do modelo de onde será recuperado o mapeamento.</typeparam>
+		/// <param name="typesParam">Tipos de parametros a serem filtrados. null para não se aplicar nenhum filtro.</param>
+		/// <param name="directions">Sentido dos atributos a serem filtrados. Default Input, InputOutput</param>
+		/// <param name="returnFirstFound">True para retorna o primeiro valor encontrado.</param>
+		/// <returns>Lista com todas os atributos, obedecendo o filtro.</returns>
+		internal static List<Mapper> GetMappers<Model>(PersistenceParameterType[] typesParam, DirectionParameter[] directions, bool returnFirstFound)
 		{
-			return GetMappers (typeof(Model), a, b, c);
+			return GetMappers(typeof(Model), typesParam, directions, returnFirstFound);
 		}
-		internal static List<Mapper> GetMappers (Type a, PersistenceParameterType[] b, DirectionParameter[] c)
+
+		/// <summary>
+		/// Captura os attributes PersistenceProperty das propriedades da classe refenciada.
+		/// </summary>
+		/// <param name="typeModel">Tipo do modelo de onde será recuperado o mapeamento.</param>
+		/// <param name="typesParam">Tipos de parametros a serem filtrados. null para não se aplicar nenhum filtro.</param>
+		/// <param name="directions">Sentido dos atributos a serem filtrados. Default Input, InputOutput</param>
+		/// <returns>Lista com todas os atributos, obedecendo o filtro.</returns>
+		internal static List<Mapper> GetMappers(Type typeModel, PersistenceParameterType[] typesParam, DirectionParameter[] directions)
 		{
-			return GetMappers (a, b, c, false);
+			return GetMappers(typeModel, typesParam, directions, false);
 		}
-		public static List<Mapper> GetMappers (Type a, PersistenceParameterType[] b, DirectionParameter[] c, bool d)
+
+		/// <summary>
+		/// Captura os attributes PersistenceProperty das propriedades da classe refenciada.
+		/// </summary>
+		/// <param name="typeModel">Tipo do modelo de onde será recuperado o mapeamento.</param>
+		/// <param name="typesParam">Tipos de parametros a serem filtrados. null para não se aplicar nenhum filtro.</param>
+		/// <param name="directions">Sentido dos atributos a serem filtrados. Default Input, InputOutput</param>
+		/// <param name="returnFirstFound">True para retorna o primeiro valor encontrado.</param>
+		/// <returns>Lista com todas os atributos, obedecendo o filtro.</returns>
+		public static List<Mapper> GetMappers(Type typeModel, PersistenceParameterType[] typesParam, DirectionParameter[] directions, bool returnFirstFound)
 		{
-			var e = MappingManager.LoadPersistencePropertyAttributes (a);
-			List<Mapper> f = new List<Mapper> ();
-			var g = e.Mappers;
-			if (c == null)
-				c = new DirectionParameter[] {
+			var persistencePropertyAttributes = MappingManager.LoadPersistencePropertyAttributes(typeModel);
+			List<Mapper> result = new List<Mapper>();
+			var propertiesMapped = persistencePropertyAttributes.Mappers;
+			if(directions == null)
+				directions = new DirectionParameter[] {
 					DirectionParameter.Input,
 					DirectionParameter.InputOptionalOutput,
 					DirectionParameter.InputOutput,
@@ -340,73 +550,107 @@ namespace GDA.Caching
 					DirectionParameter.InputOptional,
 					DirectionParameter.InputOptionalOutput
 				};
-			bool h;
-			if (g != null)
-				foreach (Mapper mapper in g) {
-					if (mapper == null)
+			bool itemFound;
+			if(propertiesMapped != null)
+				foreach (Mapper mapper in propertiesMapped)
+				{
+					if(mapper == null)
 						continue;
-					if (b != null) {
-						h = false;
-						foreach (PersistenceParameterType ppt in b)
-							if (ppt == mapper.ParameterType) {
-								h = true;
+					if(typesParam != null)
+					{
+						itemFound = false;
+						foreach (PersistenceParameterType ppt in typesParam)
+							if(ppt == mapper.ParameterType)
+							{
+								itemFound = true;
 								break;
 							}
-						if (!h)
+						if(!itemFound)
 							continue;
 					}
-					if (c != null) {
-						h = false;
-						foreach (DirectionParameter dp in c)
-							if (dp == mapper.Direction) {
-								h = true;
+					if(directions != null)
+					{
+						itemFound = false;
+						foreach (DirectionParameter dp in directions)
+							if(dp == mapper.Direction)
+							{
+								itemFound = true;
 								break;
 							}
-						if (!h)
+						if(!itemFound)
 							continue;
 					}
-					f.Add (mapper);
-					if (d)
+					result.Add(mapper);
+					if(returnFirstFound)
 						break;
 				}
-			return f;
+			return result;
 		}
-		internal static void LoadClassMapper (Type a)
+
+		/// <summary>
+		/// Carrega o mapeamento da classe.
+		/// </summary>
+		/// <param name="typeModel">Tipo da model.</param>
+		internal static void LoadClassMapper(Type typeModel)
 		{
-			LoadPersistencePropertyAttributes (a);
+			LoadPersistencePropertyAttributes(typeModel);
 		}
-		internal static List<GroupOfRelationshipInfo> GetForeignKeyAttributes (Type a)
+
+		/// <summary>
+		/// Recupera a lista das chaves estrangeiras da model.
+		/// </summary>
+		/// <param name="typeModel">Tipo da model onde estão registradas as chaves estrangeiras.</param>
+		/// <returns>Dicionario contendo as informações das chaves estrangeiras.</returns>
+		internal static List<GroupOfRelationshipInfo> GetForeignKeyAttributes(Type typeModel)
 		{
-			var b = MappingManager.LoadPersistencePropertyAttributes (a);
-			return (b.ForeignKeyMappers == null ? new List<GroupOfRelationshipInfo> () : b.ForeignKeyMappers);
+			var persistencePropertyAttributes = MappingManager.LoadPersistencePropertyAttributes(typeModel);
+			return (persistencePropertyAttributes.ForeignKeyMappers == null ? new List<GroupOfRelationshipInfo>() : persistencePropertyAttributes.ForeignKeyMappers);
 		}
-		internal static List<ForeignKeyMapper> LoadRelationships (Type a, GroupOfRelationshipInfo b)
+
+		/// <summary>
+		/// Carrega os relacionamentos do grupo de chaves estrangeiras informado.
+		/// </summary>
+		/// <param name="info">Informações do grupo das chaves estrangeiras.</param>
+		/// <returns>Lista da com os relacionamentos da foreignKey.</returns>
+		internal static List<ForeignKeyMapper> LoadRelationships(Type typeModel, GroupOfRelationshipInfo info)
 		{
-			List<GroupOfRelationshipInfo> c = MappingManager.GetForeignKeyAttributes (a);
-			int d = c.FindIndex (delegate (GroupOfRelationshipInfo e) {
-				return e == b;
+			List<GroupOfRelationshipInfo> groups = MappingManager.GetForeignKeyAttributes(typeModel);
+			int index = groups.FindIndex(delegate(GroupOfRelationshipInfo gri) {
+				return gri == info;
 			});
-			if (d >= 0)
-				return c [d].ForeignKeys;
+			if(index >= 0)
+				return groups[index].ForeignKeys;
 			else
-				return new List<ForeignKeyMapper> ();
+				return new List<ForeignKeyMapper>();
 		}
-		internal static bool CheckExistsIdentityKey (Type a)
+
+		/// <summary>
+		/// Verifica se no mapeamento do model existe algum campo identidade.
+		/// </summary>
+		/// <param name="typeModel">Tipo da model onde será feita a consulta.</param>
+		/// <returns></returns>
+		internal static bool CheckExistsIdentityKey(Type typeModel)
 		{
-			var b = MappingManager.LoadPersistencePropertyAttributes (a);
-			List<Mapper> c = b.Mappers;
-			if (c.FindIndex (delegate (Mapper d) {
-				return d.ParameterType == PersistenceParameterType.IdentityKey;
+			var persistencePropertyAttributes = MappingManager.LoadPersistencePropertyAttributes(typeModel);
+			List<Mapper> propertiesMapped = persistencePropertyAttributes.Mappers;
+			if(propertiesMapped.FindIndex(delegate(Mapper m) {
+				return m.ParameterType == PersistenceParameterType.IdentityKey;
 			}) >= 0)
 				return true;
 			return false;
 		}
-		internal static Mapper GetIdentityKey (Type a)
+
+		/// <summary>
+		/// Recupera a propriedade identidade do mapeamento.
+		/// </summary>
+		/// <param name="typeModel">Tipo do modelo mapeado.</param>
+		/// <returns></returns>
+		internal static Mapper GetIdentityKey(Type typeModel)
 		{
-			var b = MappingManager.LoadPersistencePropertyAttributes (a);
-			List<Mapper> c = b.Mappers;
-			return c.Find (delegate (Mapper d) {
-				return d.ParameterType == PersistenceParameterType.IdentityKey;
+			var persistencePropertyAttributes = MappingManager.LoadPersistencePropertyAttributes(typeModel);
+			List<Mapper> propertiesMapped = persistencePropertyAttributes.Mappers;
+			return propertiesMapped.Find(delegate(Mapper m) {
+				return m.ParameterType == PersistenceParameterType.IdentityKey;
 			});
 		}
 	}

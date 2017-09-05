@@ -1,6 +1,28 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
+
 namespace GDA
 {
 #if CLS_3_5_1
@@ -19,6 +41,7 @@ namespace GDA
         {
             return GDAOperations.Insert(null, model, propertiesNamesInsert, direction);
         }
+
         /// <summary>
         /// Inseri o registro no BD.
         /// </summary>
@@ -33,6 +56,7 @@ namespace GDA
         {
             return GDAOperations.Insert(session, model, propertiesNamesInsert, direction);
         }
+
         /// <summary>
         /// Inseri o registro no BD.
         /// </summary>
@@ -46,6 +70,7 @@ namespace GDA
         {
             return GDAOperations.Insert(session, model, propertiesNamesInsert);
         }
+
         /// <summary>
         /// Inseri o registro no BD.
         /// </summary>
@@ -58,6 +83,7 @@ namespace GDA
         {
             return GDAOperations.Insert(model, propertiesNamesInsert);
         }
+
         /// <summary>
         /// Inseri o registro no BD.
         /// </summary>
@@ -70,6 +96,7 @@ namespace GDA
         {
             return GDAOperations.Insert(session, model);
         }
+
         /// <summary>
         /// Inseri o registro no BD.
         /// </summary>
@@ -81,6 +108,7 @@ namespace GDA
         {
             return GDAOperations.Insert(model);
         }
+
         /// <summary>
         /// Atualiza os dados contidos no objUpdate no BD.
         /// </summary>
@@ -96,6 +124,7 @@ namespace GDA
         {
             return GDAOperations.Update(session, model, propertiesNamesUpdate, direction);
         }
+
         /// <summary>
         /// Atualiza os dados contidos no objUpdate no BD.
         /// </summary>
@@ -110,6 +139,7 @@ namespace GDA
         {
             return GDAOperations.Update(model, propertiesNamesUpdate, direction);
         }
+
         /// <summary>
         /// Atualiza os dados contidos no objUpdate no BD.
         /// </summary>
@@ -124,6 +154,7 @@ namespace GDA
         {
             return GDAOperations.Update(session, model, propertiesNamesUpdate);
         }
+
         /// <summary>
         /// Atualiza os dados contidos no objUpdate no BD.
         /// </summary>
@@ -137,6 +168,7 @@ namespace GDA
         {
             return GDAOperations.Update(model, propertiesNamesUpdate);
         }
+
         /// <summary>
         /// Atualiza o registro na BD.
         /// </summary>
@@ -150,6 +182,7 @@ namespace GDA
         {
             return GDAOperations.Update(session, model);
         }
+
         /// <summary>
         /// Atualiza o registro na BD.
         /// </summary>
@@ -162,6 +195,7 @@ namespace GDA
         {
             return GDAOperations.Update(model);
         }
+
         /// <summary>
         /// Remove o registro da base de dados.
         /// </summary>
@@ -176,6 +210,7 @@ namespace GDA
             // Captura a dao relacionada
             return GDAOperations.Delete(session, model);
         }
+
         /// <summary>
         /// Remove o registro da base de dados.
         /// </summary>
@@ -189,6 +224,7 @@ namespace GDA
             // Captura a dao relacionada
             return GDAOperations.Delete(model);
         }
+
         /// <summary>
         /// Salva os dados na base. Primeiro verifica se o registro existe, se existir ele será atualizado
         /// senão ele será inserido.
@@ -204,6 +240,7 @@ namespace GDA
             // Captura a dao relacionada
             return GDAOperations.Save(session, model);
         }
+
         /// <summary>
         /// Salva os dados na base. Primeiro verifica se o registro existe, se existir ele será atualizado
         /// senão ele será inserido.
@@ -218,6 +255,7 @@ namespace GDA
             // Captura a dao relacionada
             return GDAOperations.Save(model);
         }
+
         /// <summary>
         /// Recupera os valores da Model com base nos valores da chaves preenchidas.
         /// </summary>
@@ -230,6 +268,7 @@ namespace GDA
         {
            GDAOperations.RecoverData(session, model);
         }
+
         /// <summary>
         /// Recupera os valores da Model com base nos valores da chaves preenchidas.
         /// </summary>
@@ -242,5 +281,6 @@ namespace GDA
             GDAOperations.RecoverData(null, model);
         }
     }
+
 #endif
 }

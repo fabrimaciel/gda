@@ -1,4 +1,25 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data;
@@ -8,155 +29,394 @@ using GDA.Interfaces;
 using GDA.Sql.InterpreterExpression.Nodes;
 using GDA.Caching;
 using GDA.Collections;
+
 namespace GDA.Sql
 {
+	/// <summary>
+	/// Representa uma query que limita os registros afetados
+	/// por um comando de execlusão ou alguma consulta SELECT.
+	/// </summary>
 	public class Query : BaseQuery, IEquatable<Query>, IGDAParameterContainer
 	{
-		private GDAParameterCollection _parameters = new GDAParameterCollection (3);
+		/// <summary>
+		/// Lista de parametros.
+		/// </summary>
+		private GDAParameterCollection _parameters = new GDAParameterCollection(3);
+
 		private ConditionalContainer _conditional;
+
+		private ConditionalContainer _having;
+
 		private string orderClause;
+
 		private string groupByClause;
+
 		private bool _useDistinct = false;
+
 		private string _mainAlias;
-		private List<JoinInfo> _joins = new List<JoinInfo> ();
+
+		/// <summary>
+		/// Joins relacionados com a consulta.
+		/// </summary>
+		private List<JoinInfo> _joins = new List<JoinInfo>();
+
+		/// <summary>
+		/// Nome das propriedades a serem recuperadas pela consulta.
+		/// </summary>
 		private string _selectProperties;
-		public string MainAlias {
-			get {
+
+		/// <summary>
+		/// Alias da tabela principal.
+		/// </summary>
+		public string MainAlias
+		{
+			get
+			{
 				return _mainAlias;
 			}
-			set {
+			set
+			{
 				_mainAlias = value;
 			}
 		}
-		public string SelectProperties {
-			get {
+
+		/// <summary>
+		/// Nome das propriedades a serem recuperadas pela consulta.
+		/// </summary>
+		public string SelectProperties
+		{
+			get
+			{
 				return _selectProperties;
 			}
 		}
-		public List<GDAParameter> Parameters {
-			get {
+
+		/// <summary>
+		/// Recupera a lista de parametros
+		/// </summary>
+		public List<GDAParameter> Parameters
+		{
+			get
+			{
 				return _parameters;
 			}
 		}
-		public List<JoinInfo> Join {
-			get {
+
+		/// <summary>
+		/// Joins relacionados com a consulta.
+		/// </summary>
+		public List<JoinInfo> Join
+		{
+			get
+			{
 				return _joins;
 			}
 		}
-		protected ConditionalContainer WhereConditional {
-			get {
-				if (_conditional == null)
-					_conditional = new ConditionalContainer ("");
+
+		/// <summary>
+		/// Condicional para a parte do WHERE.
+		/// </summary>
+		protected ConditionalContainer WhereConditional
+		{
+			get
+			{
+				if(_conditional == null)
+					_conditional = new ConditionalContainer("");
 				return _conditional;
 			}
-			set {
-				if (value == null)
-					_conditional = new ConditionalContainer ("");
+			set
+			{
+				if(value == null)
+					_conditional = new ConditionalContainer("");
 				else
 					_conditional = value;
 			}
 		}
-		public Query () : this (null)
+
+		/// <summary>
+		/// Condicional para a parte do HAVING.
+		/// </summary>
+		protected ConditionalContainer HavingConditional
+		{
+			get
+			{
+				if(_having == null)
+					_having = new ConditionalContainer("");
+				return _having;
+			}
+			set
+			{
+				if(value == null)
+					_having = new ConditionalContainer("");
+				else
+					_having = value;
+			}
+		}
+
+		/// <summary>
+		/// Cria uma nova consulta
+		/// </summary>
+		public Query() : this(null)
 		{
 		}
-		public Query (string a) : this (a, null, null)
+
+		/// <summary>
+		/// Cria uma nova consulta com base na clausula WHERE.
+		/// </summary>
+		/// <param name="whereClause">Clausula WHERE.</param>
+		public Query(string whereClause) : this(whereClause, null, null)
 		{
 		}
-		public Query (string a, string b) : this (a, b, null)
+
+		/// <summary>
+		/// Cria uma nova consulta com base na clausula WHERE e na clausula ORDER BY.
+		/// </summary>
+		/// <param name="whereClause">Clausula WHERE</param>
+		/// <param name="orderClause">Clausula ORDER BY</param>
+		public Query(string whereClause, string orderClause) : this(whereClause, orderClause, null)
 		{
 		}
-		public Query (string a, IEnumerable<GDAParameter> b) : this (a, null, b)
+
+		/// <summary>
+		/// Cria uma nova consulta com base na clausula WHERE e na lista de parametros passados
+		/// </summary>
+		/// <param name="whereClause">Clausula WHERE</param>
+		/// <param name="parameters">Lista de parametros</param>
+		public Query(string whereClause, IEnumerable<GDAParameter> parameters) : this(whereClause, null, parameters)
 		{
 		}
-		public Query (string a, string b, IEnumerable<GDAParameter> c)
+
+		/// <summary>
+		/// Cria uma nova consulta com base na clausula WHERE, na clausula ORDER BY
+		/// e na lista de parametros.
+		/// </summary>
+		/// <param name="whereClause">WHERE clause</param>
+		/// <param name="orderClause">ORDER BY clause</param>
+		/// <param name="parameters">list of parameters</param>
+		public Query(string whereClause, string orderClause, IEnumerable<GDAParameter> parameters)
 		{
-			Where = a;
-			this.orderClause = b;
-			if (c != null)
-				foreach (var i in c) {
-					var d = this._parameters.FindIndex (e => e.ParameterName == i.ParameterName);
-					if (d >= 0)
-						this._parameters.RemoveAt (d);
-					this._parameters.Add (i);
+			Where = whereClause;
+			this.orderClause = orderClause;
+			if(parameters != null)
+				foreach (var i in parameters)
+				{
+					var index = this._parameters.FindIndex(f => f.ParameterName == i.ParameterName);
+					if(index >= 0)
+						this._parameters.RemoveAt(index);
+					this._parameters.Add(i);
 				}
 		}
-		public Query Alias (string a)
+
+		/// <summary>
+		/// Define o apelido para a tabela principal.
+		/// </summary>
+		/// <param name="alias"></param>
+		/// <returns></returns>
+		public Query Alias(string alias)
 		{
-			_mainAlias = a;
+			_mainAlias = alias;
 			return this;
 		}
-		public Query Distinct ()
+
+		/// <summary>
+		/// Adiciona um Distinct na consulta.
+		/// </summary>
+		/// <returns></returns>
+		public Query Distinct()
 		{
 			_useDistinct = true;
 			return this;
 		}
-		public Query RemoveDistinct ()
+
+		/// <summary>
+		/// Remove o distinct da consulta se existir.
+		/// </summary>
+		/// <returns></returns>
+		public Query RemoveDistinct()
 		{
 			_useDistinct = false;
 			return this;
 		}
-		public Query Skip (int a)
+
+		/// <summary>
+		/// Salta um número especifico de registros antes de recuperar os resultado.
+		/// </summary>
+		/// <param name="count">Quantidade de registros que serão saltados.</param>
+		/// <returns></returns>
+		public Query Skip(int count)
 		{
-			_skipCount = a;
+			_skipCount = count;
 			return this;
 		}
-		public Query Take (int a)
+
+		/// <summary>
+		/// Define a quantidade de registro que serão recuperados.
+		/// </summary>
+		/// <param name="count"></param>
+		/// <returns></returns>
+		public Query Take(int count)
 		{
-			_takeCount = a;
+			_takeCount = count;
 			return this;
 		}
-		public string Where {
-			get {
-				return WhereConditional.ToString ();
+
+		/// <summary>
+		/// Recupera e define a clausula WHERE.
+		/// Não é usada a palavra chave WHERE na clausula
+		/// </summary>
+		public string Where
+		{
+			get
+			{
+				return WhereConditional.ToString();
 			}
-			set {
-				WhereConditional = new ConditionalContainer (value) {
+			set
+			{
+				WhereConditional = new ConditionalContainer(value) {
 					ParameterContainer = this
 				};
 			}
 		}
-		public QueryWhereClause WhereClause {
-			get {
-				return new QueryWhereClause (this, _conditional);
+
+		/// <summary>
+		/// Clausula condicional WHERE.
+		/// </summary>
+		public QueryWhereClause WhereClause
+		{
+			get
+			{
+				return new QueryWhereClause(this, WhereConditional);
 			}
 		}
-		public ConditionalContainer CreateWhereClause (string a)
+
+		/// <summary>
+		/// Cria um container de contição para a consulta.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public ConditionalContainer CreateWhereClause(string expression)
 		{
-			Where = a;
+			Where = expression;
 			return _conditional;
 		}
-		public Query SetWhereClause (ConditionalContainer a)
+
+		/// <summary>
+		/// Define a classe de consulta.
+		/// </summary>
+		/// <param name="clause"></param>
+		/// <returns></returns>
+		public Query SetWhereClause(ConditionalContainer clause)
 		{
-			if (a == null)
+			if(clause == null)
 				Where = "";
-			else {
-				_conditional = a;
+			else
+			{
+				_conditional = clause;
 				_conditional.ParameterContainer = this;
 			}
 			return this;
 		}
-		public string Order {
-			get {
+
+		/// <summary>
+		/// Having.
+		/// </summary>
+		public string HavingText
+		{
+			get
+			{
+				return HavingConditional.ToString();
+			}
+			set
+			{
+				HavingConditional = new ConditionalContainer(value) {
+					ParameterContainer = this
+				};
+			}
+		}
+
+		/// <summary>
+		/// Clausula condicional HAVING.
+		/// </summary>
+		public QueryWhereClause HavingClause
+		{
+			get
+			{
+				return new QueryWhereClause(this, HavingConditional);
+			}
+		}
+
+		/// <summary>
+		/// Cria um container de contição para o Having.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public ConditionalContainer Having(string expression)
+		{
+			HavingText = expression;
+			return _having;
+		}
+
+		/// <summary>
+		/// Define a classe do HAVING.
+		/// </summary>
+		/// <param name="clause"></param>
+		/// <returns></returns>
+		public Query SetHavingClause(ConditionalContainer clause)
+		{
+			if(clause == null)
+				HavingText = "";
+			else
+			{
+				_having = clause;
+				_having.ParameterContainer = this;
+			}
+			return this;
+		}
+
+		/// <summary>
+		/// Recupera e define a clausula ORDER BY.
+		/// Não é usada a palavra chave ORDER BY na clausula.
+		/// </summary>
+		public string Order
+		{
+			get
+			{
 				return orderClause;
 			}
-			set {
+			set
+			{
 				orderClause = value;
 			}
 		}
-		public string GroupByClause {
-			get {
+
+		/// <summary>
+		/// Nome das propriedades que serão agrupadas.
+		/// </summary>
+		public string GroupByClause
+		{
+			get
+			{
 				return groupByClause;
 			}
-			set {
+			set
+			{
 				groupByClause = value;
 			}
 		}
-		public Query Select (string a)
+
+		/// <summary>
+		/// Define os nomes das propriedades que serão recuperadas pela consulta.
+		/// </summary>
+		/// <param name="selectProperties"></param>
+		/// <returns></returns>
+		public Query Select(string selectProperties)
 		{
-			_selectProperties = a;
+			_selectProperties = selectProperties;
 			return this;
 		}
+
 		#if CLS_3_5
+		
         /// <summary>
         /// Recupera o seletor de propriedade.
         /// </summary>
@@ -167,6 +427,7 @@ namespace GDA.Sql
         {
             return new QueryPropertySelector<T>(this).Add(propertiesSelector);
         }
+
         /// <summary>
         /// Seleciona o primeiro registro para a consulta e filtra as colunas 
         /// do tipo que irão para o resultado.
@@ -187,16 +448,20 @@ namespace GDA.Sql
                     if (property != null)
                         properties.Add(property.Name);
                 }
+
                 if (properties.Count > 0)
                     Select(string.Join(", ", properties.ToArray()));
             }
+
             using (var enumerator = ToDataRecords<T>(session).GetEnumerator())
             {
                 if (enumerator.MoveNext())
                     return enumerator.Current;
             }
+
             return null;
         }
+
         /// <summary>
         /// Seleciona o primeiro registro para a consulta e filtra as colunas 
         /// do tipo que irão para o resultado.
@@ -209,6 +474,7 @@ namespace GDA.Sql
             GDASession session = null;
             return SelectFirst<T>(session, propertiesSelector);
         }
+
         /// <summary>
         /// Executa a consulta selecionar o valor da coluna
         /// </summary>
@@ -220,8 +486,11 @@ namespace GDA.Sql
         {
             if (selector == null)
                 throw new ArgumentException("selector");
+
             var property = selector.GetMember() as System.Reflection.PropertyInfo;
+
             Select(property.Name);
+
             using (var enumerator = ToDataRecords<T>(session).GetEnumerator())
             {
                 if (enumerator.MoveNext())
@@ -231,8 +500,10 @@ namespace GDA.Sql
                         return record[0];
                 }
             }
+
             return new GDAPropertyValue(null, false);
         }
+
         /// <summary>
         /// Executa a consulta selecionar o valor da coluna
         /// </summary>
@@ -244,849 +515,1387 @@ namespace GDA.Sql
             return SelectFirstValue<T>(null, selector);
         }
 #endif
-		public Query InnerJoin<ClassJoin> ()
+		/// <summary>
+		/// Adiciona o join com a class especificada.
+		/// </summary>
+		/// <typeparam name="ClassJoin">Tipo da classe que será feito o join.</typeparam>
+		/// <returns></returns>
+		public Query InnerJoin<ClassJoin>()
 		{
-			return InnerJoin<ClassJoin> (null);
+			return InnerJoin<ClassJoin>(null);
 		}
-		public Query InnerJoin<ClassJoin> (string a)
+
+		/// <summary>
+		/// Adiciona o join com a class especificada.
+		/// </summary>
+		/// <typeparam name="ClassJoin">Tipo da classe que será feito o join.</typeparam>
+		/// <param name="classTypeJoinAlias">Apelido da classe do join.</param>
+		/// <returns></returns>
+		public Query InnerJoin<ClassJoin>(string classTypeJoinAlias)
 		{
-			return InnerJoin<ClassJoin> (a, null);
+			return InnerJoin<ClassJoin>(classTypeJoinAlias, null);
 		}
-		public Query InnerJoin<ClassJoin> (string a, string b)
+
+		/// <summary>
+		/// Adiciona o join com a class especificada.
+		/// </summary>
+		/// <typeparam name="ClassJoin">Tipo da classe que será feito o join.</typeparam>
+		/// <param name="classTypeJoinAlias">Apelido da classe do join.</param>
+		/// <param name="groupRelationship">Nome do grupo de relacionamento.</param>
+		/// <returns></returns>
+		public Query InnerJoin<ClassJoin>(string classTypeJoinAlias, string groupRelationship)
 		{
-			_joins.Add (new JoinInfo (JoinType.InnerJoin, null, typeof(ClassJoin), null, a, b));
+			_joins.Add(new JoinInfo(JoinType.InnerJoin, null, typeof(ClassJoin), null, classTypeJoinAlias, groupRelationship));
 			return this;
 		}
-		public Query InnerJoin<ClassMain, ClassJoin> ()
+
+		/// <summary>
+		/// Adiciona um join na consulta.
+		/// </summary>
+		/// <typeparam name="ClassMain"></typeparam>
+		/// <typeparam name="ClassJoin"></typeparam>
+		/// <returns></returns>
+		public Query InnerJoin<ClassMain, ClassJoin>()
 		{
-			return InnerJoin<ClassMain, ClassJoin> (null);
+			return InnerJoin<ClassMain, ClassJoin>(null);
 		}
-		public Query InnerJoin<ClassMain, ClassJoin> (string groupRelationship)
+
+		/// <summary>
+		/// Adiciona um join na consulta.
+		/// </summary>
+		/// <typeparam name="ClassMain"></typeparam>
+		/// <typeparam name="ClassJoin"></typeparam>
+		/// <param name="groupRelationship">Nome do grupo de relacionamento.</param>
+		/// <returns></returns>
+		public Query InnerJoin<ClassMain, ClassJoin>(string groupRelationship)
 		{
-			return InnerJoin<ClassMain, ClassJoin> (null, null, groupRelationship);
+			return InnerJoin<ClassMain, ClassJoin>(null, null, groupRelationship);
 		}
-		public Query InnerJoin<ClassMain, ClassJoin> (string a, string b, string c)
+
+		/// <summary>
+		/// Adiciona um join na consulta.
+		/// </summary>
+		/// <typeparam name="ClassMain"></typeparam>
+		/// <typeparam name="ClassJoin"></typeparam>
+		/// <param name="classTypeMainAlias">Apelido da classe principal do join.</param>
+		/// <param name="classTypeJoinAlias">Apelido da classe do join.</param>
+		/// <param name="groupRelationship">Nome do grupo de relacionamento.</param>
+		/// <returns></returns>
+		public Query InnerJoin<ClassMain, ClassJoin>(string classTypeMainAlias, string classTypeJoinAlias, string groupRelationship)
 		{
-			_joins.Add (new JoinInfo (JoinType.InnerJoin, typeof(ClassMain), typeof(ClassJoin), a, b, c));
+			_joins.Add(new JoinInfo(JoinType.InnerJoin, typeof(ClassMain), typeof(ClassJoin), classTypeMainAlias, classTypeJoinAlias, groupRelationship));
 			return this;
 		}
-		public Query LeftJoin<ClassJoin> ()
+
+		/// <summary>
+		/// Adicionar o left join com a class especificada.
+		/// </summary>
+		/// <typeparam name="ClassJoin">Tipo da classe que será feito o join.</typeparam>
+		/// <returns></returns>
+		public Query LeftJoin<ClassJoin>()
 		{
-			return LeftJoin<ClassJoin> (null);
+			return LeftJoin<ClassJoin>(null);
 		}
-		public Query LeftJoin<ClassJoin> (string a)
+
+		/// <summary>
+		/// Adiciona o join com a classE especificada.
+		/// </summary>
+		/// <typeparam name="ClassJoin">Tipo da classe que será feito o join.</typeparam>
+		/// <param name="classTypeJoinAlias">Apelido da classe do join.</param>
+		/// <returns></returns>
+		public Query LeftJoin<ClassJoin>(string classTypeJoinAlias)
 		{
-			return LeftJoin<ClassJoin> (a, null);
+			return LeftJoin<ClassJoin>(classTypeJoinAlias, null);
 		}
-		public Query LeftJoin<ClassJoin> (string a, string b)
+
+		/// <summary>
+		/// Adiciona o join com a class especificada.
+		/// </summary>
+		/// <typeparam name="ClassJoin">Tipo da classe que será feito o join.</typeparam>
+		/// <param name="classTypeJoinAlias">Apelido da classe do join.</param>
+		/// <param name="groupRelationship">Nome do grupo de relacionamento.</param>
+		/// <returns></returns>
+		public Query LeftJoin<ClassJoin>(string classTypeJoinAlias, string groupRelationship)
 		{
-			_joins.Add (new JoinInfo (JoinType.LeftJoin, null, typeof(ClassJoin), null, a, b));
+			_joins.Add(new JoinInfo(JoinType.LeftJoin, null, typeof(ClassJoin), null, classTypeJoinAlias, groupRelationship));
 			return this;
 		}
-		public Query LeftJoin<ClassMain, ClassJoin> ()
+
+		/// <summary>
+		/// Adiciona um left join na consulta.
+		/// </summary>
+		/// <typeparam name="ClassMain"></typeparam>
+		/// <typeparam name="ClassJoin"></typeparam>
+		/// <returns></returns>
+		public Query LeftJoin<ClassMain, ClassJoin>()
 		{
-			return LeftJoin<ClassMain, ClassJoin> (null);
+			return LeftJoin<ClassMain, ClassJoin>(null);
 		}
-		public Query LeftJoin<ClassMain, ClassJoin> (string groupRelationship)
+
+		/// <summary>
+		/// Adiciona um left join na consulta.
+		/// </summary>
+		/// <typeparam name="ClassMain"></typeparam>
+		/// <typeparam name="ClassJoin"></typeparam>
+		/// <param name="groupRelationship">Nome do grupo de relacionamento.</param>
+		/// <returns></returns>
+		public Query LeftJoin<ClassMain, ClassJoin>(string groupRelationship)
 		{
-			return LeftJoin<ClassMain, ClassJoin> (null, null, groupRelationship);
+			return LeftJoin<ClassMain, ClassJoin>(null, null, groupRelationship);
 		}
-		public Query LeftJoin<ClassMain, ClassJoin> (string a, string b, string c)
+
+		/// <summary>
+		/// Adiciona um left join na consulta.
+		/// </summary>
+		/// <typeparam name="ClassMain"></typeparam>
+		/// <typeparam name="ClassJoin"></typeparam>
+		/// <param name="classTypeMainAlias">Apelido da classe principal do join.</param>
+		/// <param name="classTypeJoinAlias">Apelido da classe do join.</param>
+		/// <param name="groupRelationship">Nome do grupo de relacionamento.</param>
+		/// <returns></returns>
+		public Query LeftJoin<ClassMain, ClassJoin>(string classTypeMainAlias, string classTypeJoinAlias, string groupRelationship)
 		{
-			_joins.Add (new JoinInfo (JoinType.LeftJoin, typeof(ClassMain), typeof(ClassJoin), a, b, c));
+			_joins.Add(new JoinInfo(JoinType.LeftJoin, typeof(ClassMain), typeof(ClassJoin), classTypeMainAlias, classTypeJoinAlias, groupRelationship));
 			return this;
 		}
-		public Query RightJoin<ClassJoin> ()
+
+		/// <summary>
+		/// Adicionar o right join com a class especificada.
+		/// </summary>
+		/// <typeparam name="ClassJoin">Tipo da classe que será feito o join.</typeparam>
+		/// <returns></returns>
+		public Query RightJoin<ClassJoin>()
 		{
-			return RightJoin<ClassJoin> (null);
+			return RightJoin<ClassJoin>(null);
 		}
-		public Query RightJoin<ClassJoin> (string a)
+
+		/// <summary>
+		/// Adiciona o right join com a classE especificada.
+		/// </summary>
+		/// <typeparam name="ClassJoin">Tipo da classe que será feito o join.</typeparam>
+		/// <param name="classTypeJoinAlias">Apelido da classe do join.</param>
+		/// <returns></returns>
+		public Query RightJoin<ClassJoin>(string classTypeJoinAlias)
 		{
-			return RightJoin<ClassJoin> (a, null);
+			return RightJoin<ClassJoin>(classTypeJoinAlias, null);
 		}
-		public Query RightJoin<ClassJoin> (string a, string b)
+
+		/// <summary>
+		/// Adiciona o right join com a class especificada.
+		/// </summary>
+		/// <typeparam name="ClassJoin">Tipo da classe que será feito o join.</typeparam>
+		/// <param name="classTypeJoinAlias">Apelido da classe do join.</param>
+		/// <param name="groupRelationship">Nome do grupo de relacionamento.</param>
+		/// <returns></returns>
+		public Query RightJoin<ClassJoin>(string classTypeJoinAlias, string groupRelationship)
 		{
-			_joins.Add (new JoinInfo (JoinType.RightJoin, null, typeof(ClassJoin), null, a, b));
+			_joins.Add(new JoinInfo(JoinType.RightJoin, null, typeof(ClassJoin), null, classTypeJoinAlias, groupRelationship));
 			return this;
 		}
-		public Query RightJoin<ClassMain, ClassJoin> ()
+
+		/// <summary>
+		/// Adiciona um right join na consulta.
+		/// </summary>
+		/// <typeparam name="ClassMain"></typeparam>
+		/// <typeparam name="ClassJoin"></typeparam>
+		/// <returns></returns>
+		public Query RightJoin<ClassMain, ClassJoin>()
 		{
-			return RightJoin<ClassMain, ClassJoin> (null);
+			return RightJoin<ClassMain, ClassJoin>(null);
 		}
-		public Query RightJoin<ClassMain, ClassJoin> (string groupRelationship)
+
+		/// <summary>
+		/// Adiciona um right join na consulta.
+		/// </summary>
+		/// <typeparam name="ClassMain"></typeparam>
+		/// <typeparam name="ClassJoin"></typeparam>
+		/// <param name="groupRelationship">Nome do grupo de relacionamento.</param>
+		/// <returns></returns>
+		public Query RightJoin<ClassMain, ClassJoin>(string groupRelationship)
 		{
-			return RightJoin<ClassMain, ClassJoin> (null, null, groupRelationship);
+			return RightJoin<ClassMain, ClassJoin>(null, null, groupRelationship);
 		}
-		public Query RightJoin<ClassMain, ClassJoin> (string a, string b, string c)
+
+		/// <summary>
+		/// Adiciona um right join na consulta.
+		/// </summary>
+		/// <typeparam name="ClassMain"></typeparam>
+		/// <typeparam name="ClassJoin"></typeparam>
+		/// <param name="classTypeMainAlias">Apelido da classe principal do join.</param>
+		/// <param name="classTypeJoinAlias">Apelido da classe do join.</param>
+		/// <param name="groupRelationship">Nome do grupo de relacionamento.</param>
+		/// <returns></returns>
+		public Query RightJoin<ClassMain, ClassJoin>(string classTypeMainAlias, string classTypeJoinAlias, string groupRelationship)
 		{
-			_joins.Add (new JoinInfo (JoinType.RightJoin, typeof(ClassMain), typeof(ClassJoin), a, b, c));
+			_joins.Add(new JoinInfo(JoinType.RightJoin, typeof(ClassMain), typeof(ClassJoin), classTypeMainAlias, classTypeJoinAlias, groupRelationship));
 			return this;
 		}
-		public Query Add (GDAParameter a)
+
+		/// <summary>
+		/// Adiciona um novo parametro na consulta.
+		/// </summary>
+		/// <param name="parameter">Paramentro a ser adicionado.</param>
+		/// <returns>Retorna a referencia da consulta aonde o parametro foi adicionado.</returns>
+		public Query Add(GDAParameter parameter)
 		{
-			if (a != null) {
-				var b = this._parameters.FindIndex (c => c.ParameterName == a.ParameterName);
-				if (b >= 0)
-					this._parameters.RemoveAt (b);
-				this._parameters.Add (a);
+			if(parameter != null)
+			{
+				var index = this._parameters.FindIndex(f => f.ParameterName == parameter.ParameterName);
+				if(index >= 0)
+					this._parameters.RemoveAt(index);
+				this._parameters.Add(parameter);
 			}
 			return this;
 		}
-		public Query Add (params GDAParameter[] a)
+
+		/// <summary>
+		/// Adiciona um novo conjunto de parametros na consulta.
+		/// </summary>
+		/// <param name="parameters">Parametros a serem adicionados.</param>
+		/// <returns>Retorna a referencia da consulta aonde os parametros foram adicionados.</returns>
+		public Query Add(params GDAParameter[] parameters)
 		{
-			foreach (var i in a) {
-				var b = this._parameters.FindIndex (c => c.ParameterName == i.ParameterName);
-				if (b >= 0)
-					this._parameters.RemoveAt (b);
-				this._parameters.Add (i);
+			foreach (var i in parameters)
+			{
+				var index = this._parameters.FindIndex(f => f.ParameterName == i.ParameterName);
+				if(index >= 0)
+					this._parameters.RemoveAt(index);
+				this._parameters.Add(i);
 			}
 			return this;
 		}
-		public Query Add (IEnumerable<GDAParameter> a)
+
+		/// <summary>
+		/// Adiciona um novo conjunto de parametros na consulta.
+		/// </summary>
+		/// <param name="parameters">Parametros a serem adicionados.</param>
+		/// <returns>Retorna a referencia da consulta aonde os parametros foram adicionados.</returns>
+		public Query Add(IEnumerable<GDAParameter> parameters)
 		{
-			foreach (var i in a) {
-				var b = this._parameters.FindIndex (c => c.ParameterName == i.ParameterName);
-				if (b >= 0)
-					this._parameters.RemoveAt (b);
-				this._parameters.Add (i);
+			foreach (var i in parameters)
+			{
+				var index = this._parameters.FindIndex(f => f.ParameterName == i.ParameterName);
+				if(index >= 0)
+					this._parameters.RemoveAt(index);
+				this._parameters.Add(i);
 			}
 			return this;
 		}
-		public Query SetWhere (string a)
+
+		/// <summary>
+		/// Define a clausula WHERE na consulta.
+		/// </summary>
+		/// <param name="whereClause">Clausula WHERE.</param>
+		/// <returns>Referência da consulta.</returns>
+		public Query SetWhere(string whereClause)
 		{
-			Where = a;
+			Where = whereClause;
 			return this;
 		}
-		public Query SetOrder (string a)
+
+		/// <summary>
+		/// Define a clausula ORDER BY.
+		/// </summary>
+		/// <param name="orderClause">Clausula ORDER BY.</param>
+		/// <returns>Referência da consulta.</returns>
+		public Query SetOrder(string orderClause)
 		{
-			this.orderClause = a;
+			this.orderClause = orderClause;
 			return this;
 		}
-		public Query SetGroupBy (string a)
+
+		/// <summary>
+		/// Define a cláusula GROUP BY.
+		/// </summary>
+		/// <param name="groupByClause">Clausula GROUP BY</param>
+		/// <returns></returns>
+		public Query SetGroupBy(string groupByClause)
 		{
-			this.groupByClause = a;
+			this.groupByClause = groupByClause;
 			return this;
 		}
-		public ResultList<T> ToResultList<T> (int a) where T : new()
+
+		/// <summary>
+		/// Recupera o <see cref="GDA.Sql.ResultList"/> do resultado da consulta.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="pageSize"></param>
+		/// <returns></returns>
+		public ResultList<T> ToResultList<T>(int pageSize) where T : new()
 		{
-			return new ResultList<T> (this, a);
+			return new ResultList<T>(this, pageSize);
 		}
-		public ResultList<T> ToResultList<T> (GDASession a, int b) where T : new()
+
+		/// <summary>
+		/// Recupera o <see cref="GDA.Sql.ResultList<T>"/> do resultado da consulta.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="session"></param>
+		/// <param name="pageSize"></param>
+		/// <returns></returns>
+		public ResultList<T> ToResultList<T>(GDASession session, int pageSize) where T : new()
 		{
-			return new ResultList<T> (this, a, b);
+			return new ResultList<T>(this, session, pageSize);
 		}
-		public override IEnumerable<Result> ToCursor<T, Result> (GDASession a)
+
+		/// <summary>
+		/// Recipera o resultado da consulta em forma de cursor e recupera o resultado 
+		/// em objetos de outro tipo informado.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <typeparam name="Result">Tipos que estarão no retorno.</typeparam>
+		/// <param name="session"></param>
+		/// <returns></returns>
+		public override IEnumerable<Result> ToCursor<T, Result>(GDASession session)
 		{
-			if (string.IsNullOrEmpty (_selectProperties)) {
-				var b = new List<string> ();
-				var c = typeof(Result).GetProperties (System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.SetField);
-				foreach (var i in MappingManager.GetMappers<T> (null, new DirectionParameter[] {
+			if(string.IsNullOrEmpty(_selectProperties))
+			{
+				var pNames = new List<string>();
+				var resultProperties = typeof(Result).GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.SetField);
+				foreach (var i in MappingManager.GetMappers<T>(null, new DirectionParameter[] {
 					DirectionParameter.Input,
 					DirectionParameter.InputOutput
-				})) {
-					if (Helper.GDAHelper.Exists (c, d => d.Name == i.PropertyMapperName))
-						b.Add (i.PropertyMapperName);
+				}))
+				{
+					if(Helper.GDAHelper.Exists(resultProperties, f => f.Name == i.PropertyMapperName))
+						pNames.Add(i.PropertyMapperName);
 				}
-				_selectProperties = string.Join (", ", b.ToArray ());
+				_selectProperties = string.Join(", ", pNames.ToArray());
 			}
-			return base.ToCursor<T, Result> (a);
+			return base.ToCursor<T, Result>(session);
 		}
-		public override GDAPropertyValue GetValue<T> (GDASession a, string b)
+
+		/// <summary>
+		/// Recupera o valor da propriedade.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="session"></param>
+		/// <param name="propertyName">Nome da propriedade que será recuperada.</param>
+		/// <returns></returns>
+		public override GDAPropertyValue GetValue<T>(GDASession session, string propertyName)
 		{
-			var c = _selectProperties;
-			_selectProperties = b;
-			try {
-				foreach (var i in ToDataRecords<T> (a))
-					return i [b];
-				return new GDAPropertyValue (null, false);
+			var aux = _selectProperties;
+			_selectProperties = propertyName;
+			try
+			{
+				foreach (var i in ToDataRecords<T>(session))
+					return i[propertyName];
+				return new GDAPropertyValue(null, false);
 			}
-			finally {
-				_selectProperties = c;
+			finally
+			{
+				_selectProperties = aux;
 			}
 		}
-		public override IEnumerable<GDAPropertyValue> GetValues<T> (GDASession a, string b)
+
+		/// <summary>
+		/// Recupera os valores da propriedade.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="session"></param>
+		/// <param name="propertyName">Nome da propriedade que será recuperada.</param>
+		/// <returns></returns>
+		public override IEnumerable<GDAPropertyValue> GetValues<T>(GDASession session, string propertyName)
 		{
-			var c = _selectProperties;
-			_selectProperties = b;
-			try {
-				foreach (var i in ToDataRecords<T> (a))
-					yield return i [b];
+			var aux = _selectProperties;
+			_selectProperties = propertyName;
+			try
+			{
+				foreach (var i in ToDataRecords<T>(session))
+					yield return i[propertyName];
 			}
-			finally {
-				_selectProperties = c;
+			finally
+			{
+				_selectProperties = aux;
 			}
 		}
-		public int Delete<T> ()
+
+		/// <summary>
+		/// Apaga os registros com base no critério informado.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <returns>Número de linhas afetadas.</returns>
+		public int Delete<T>()
 		{
-			return Delete<T> (null);
+			return Delete<T>(null);
 		}
-		public int Delete<T> (GDASession a)
+
+		/// <summary>
+		/// Apaga os registros com base no critério informado.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <returns>Número de linhas afetadas.</returns>
+		public int Delete<T>(GDASession session)
 		{
 			_returnTypeQuery = typeof(T);
-			IProviderConfiguration b = GDAOperations.GetDAO (_returnTypeQuery).Configuration;
-			List<Mapper> c = MappingManager.GetMappers (_returnTypeQuery, null, null);
-			var d = MappingManager.GetTableName (_returnTypeQuery);
-			StringBuilder e = new StringBuilder (string.Format ("DELETE FROM {0}", b.Provider.BuildTableName (d)));
-			if (!string.IsNullOrEmpty (this.Where)) {
-				Parser f = new Parser (new Lexer (this.Where));
-				WherePart g = f.ExecuteWherePart ();
-				SelectStatement h = new SelectStatement (g);
-				foreach (ColumnInfo ci in h.ColumnsInfo) {
-					if (string.IsNullOrEmpty (ci.TableNameOrTableAlias) || ci.TableNameOrTableAlias == "main") {
-						ci.TableNameOrTableAlias = b.Provider.BuildTableName (d);
+			IProviderConfiguration providerConfig = GDAOperations.GetDAO(_returnTypeQuery).Configuration;
+			List<Mapper> mapping = MappingManager.GetMappers(_returnTypeQuery, null, null);
+			var tableName = MappingManager.GetTableName(_returnTypeQuery);
+			StringBuilder sb = new StringBuilder(string.Format("DELETE FROM {0}", providerConfig.Provider.BuildTableName(tableName)));
+			if(!string.IsNullOrEmpty(this.Where))
+			{
+				Parser parser = new Parser(new Lexer(this.Where));
+				WherePart wp = parser.ExecuteWherePart();
+				SelectStatement ss = new SelectStatement(wp);
+				foreach (ColumnInfo ci in ss.ColumnsInfo)
+				{
+					if(string.IsNullOrEmpty(ci.TableNameOrTableAlias) || ci.TableNameOrTableAlias == "main")
+					{
+						ci.TableNameOrTableAlias = providerConfig.Provider.BuildTableName(tableName);
 					}
-					Mapper j = c.Find (delegate (Mapper k) {
-						return (string.Compare (k.PropertyMapperName, ci.ColumnName, true) == 0);
+					Mapper m = mapping.Find(delegate(Mapper mp) {
+						return (string.Compare(mp.PropertyMapperName, ci.ColumnName, true) == 0);
 					});
-					if (j == null) {
-						j = MappingManager.GetPropertyMapper (_returnTypeQuery, ci.ColumnName);
-						if (j == null)
-							throw new GDAException ("Property {0} not exists in {1} or not mapped.", ci.ColumnName, _returnTypeQuery.FullName);
+					if(m == null)
+					{
+						m = MappingManager.GetPropertyMapper(_returnTypeQuery, ci.ColumnName);
+						if(m == null)
+							throw new GDAException("Property {0} not exists in {1} or not mapped.", ci.ColumnName, _returnTypeQuery.FullName);
 					}
-					ci.DBColumnName = j.Name;
-					ci.RenameToMapper (b.Provider);
+					ci.DBColumnName = m.Name;
+					ci.RenameToMapper(providerConfig.Provider);
 				}
-				ParserToSqlCommand l = new ParserToSqlCommand (g, b.Provider.QuoteExpressionBegin, b.Provider.QuoteExpressionEnd);
-				e.Append (" WHERE " + l.SqlCommand);
+				ParserToSqlCommand psc = new ParserToSqlCommand(wp, providerConfig.Provider.QuoteExpressionBegin, providerConfig.Provider.QuoteExpressionEnd);
+				sb.Append(" WHERE " + psc.SqlCommand);
 			}
-			DataAccess m = new DataAccess (b);
-			return m.ExecuteCommand (a, e.ToString (), this.Parameters.ToArray ());
+			DataAccess da = new DataAccess(providerConfig);
+			return da.ExecuteCommand(session, sb.ToString(), this.Parameters.ToArray());
 		}
-		public static Query From<T> (string a) where T : new()
+
+		/// <summary>
+		/// Recupera uma instância para o tipo definido.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public static Query From<T>(string whereClause) where T : new()
 		{
-			Query b = new Query (a);
-			b.ReturnTypeQuery = typeof(T);
-			return b;
+			Query q = new Query(whereClause);
+			q.ReturnTypeQuery = typeof(T);
+			return q;
 		}
-		public static Query From<T> () where T : new()
+
+		/// <summary>
+		/// Recupera uma instância para o tipo definido.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public static Query From<T>() where T : new()
 		{
-			Query a = new Query ();
-			a.ReturnTypeQuery = typeof(T);
-			return a;
+			Query q = new Query();
+			q.ReturnTypeQuery = typeof(T);
+			return q;
 		}
-		public override QueryReturnInfo BuildResultInfo<T> (GDA.Interfaces.IProviderConfiguration a)
+
+		/// <summary>
+		/// Constrói as informações para o resultado da consulta.
+		/// </summary>
+		/// <typeparam name="T">Tipo de dados que será tratado na consulta.</typeparam>
+		/// <returns>Consulta SQL gerada.</returns>
+		public override QueryReturnInfo BuildResultInfo<T>(GDA.Interfaces.IProviderConfiguration configuration)
 		{
 			this._returnTypeQuery = typeof(T);
-			if (a != null)
-				a = GDA.GDASettings.DefaultProviderConfiguration;
-			return this.BuildResultInfo2 (a.Provider, null);
+			if(configuration != null)
+				configuration = GDA.GDASettings.DefaultProviderConfiguration;
+			return this.BuildResultInfo2(configuration.Provider, null);
 		}
-		public QueryReturnInfo BuildResultInfo<T> (string a)
+
+		/// <summary>
+		/// Constrói as informações para o resultado da consulta.
+		/// </summary>
+		/// <typeparam name="T">Tipo de dados que será tratado na consulta.</typeparam>
+		/// <param name="aggregationFunction">Função de agregação usada para recuperar o resultado.</param>
+		/// <returns>Consulta SQL gerada.</returns>
+		public QueryReturnInfo BuildResultInfo<T>(string aggregationFunction)
 		{
 			this._returnTypeQuery = typeof(T);
-			return this.BuildResultInfo (a);
+			return this.BuildResultInfo(aggregationFunction);
 		}
-		public override QueryReturnInfo BuildResultInfo (string aggregationFunction)
+
+		/// <summary>
+		/// Constrói as informações para o resultado da consulta.
+		/// </summary>
+		/// <param name="aggregationFunction">Função de agregação usada para recuperar o resultado.</param>
+		/// <returns></returns>
+		public override QueryReturnInfo BuildResultInfo(string aggregationFunction)
 		{
-			if (_returnTypeQuery == null)
-				throw new QueryException ("Type return query not found.");
-			IProvider provider = GDAOperations.GetDAO (_returnTypeQuery).Configuration.Provider;
-			return BuildResultInfo2 (provider, aggregationFunction);
+			if(_returnTypeQuery == null)
+				throw new QueryException("Type return query not found.");
+			IProvider provider = GDAOperations.GetDAO(_returnTypeQuery).Configuration.Provider;
+			return BuildResultInfo2(provider, aggregationFunction);
 		}
-		public override QueryReturnInfo BuildResultInfo2 (IProvider a, string b)
+
+		/// <summary>
+		/// Constrói as informações para o resultado da consulta.
+		/// </summary>
+		/// <param name="provider"></param>
+		/// <param name="aggregationFunction">Função de agregação usada para recuperar o resultado.</param>
+		/// <returns></returns>
+		public override QueryReturnInfo BuildResultInfo2(IProvider provider, string aggregationFunction)
 		{
-			return BuildResultInfo2 (a, b, new Dictionary<string, Type> ());
+			return BuildResultInfo2(provider, aggregationFunction, new Dictionary<string, Type>());
 		}
-		public override QueryReturnInfo BuildResultInfo2 (GDA.Interfaces.IProvider a, string b, Dictionary<string, Type> c)
+
+		/// <summary>
+		/// Constrói as informações para o resultado da consulta.
+		/// </summary>
+		/// <param name="provider">Provider que será utilizado no build.</param>
+		/// <param name="aggregationFunction">Função de agregação usada para recuperar o resultado.</param>
+		/// <param name="classesDictionary">Dicionário com as classe que já foram processadas.</param>
+		/// <returns></returns>
+		public override QueryReturnInfo BuildResultInfo2(GDA.Interfaces.IProvider provider, string aggregationFunction, Dictionary<string, Type> classesDictionary)
 		{
-			if (_returnTypeQuery == null)
-				throw new QueryException ("Type return query not found.");
-			if (c == null)
-				c = new Dictionary<string, Type> ();
-			var d = "main";
-			if (string.IsNullOrEmpty (MainAlias)) {
-				for (var e = 1; c.ContainsKey (d); e++)
-					d = string.Format ("main{0}", e);
+			if(_returnTypeQuery == null)
+				throw new QueryException("Type return query not found.");
+			if(classesDictionary == null)
+				classesDictionary = new Dictionary<string, Type>();
+			var mainTableAlias = "main";
+			if(string.IsNullOrEmpty(MainAlias))
+			{
+				for(var i = 1; classesDictionary.ContainsKey(mainTableAlias); i++)
+					mainTableAlias = string.Format("main{0}", i);
 			}
 			else
-				d = MainAlias;
-			c.Add (d, _returnTypeQuery);
-			foreach (JoinInfo ji in _joins) {
-				if (ji.ClassTypeMain == null) {
+				mainTableAlias = MainAlias;
+			classesDictionary.Add(mainTableAlias, _returnTypeQuery);
+			foreach (JoinInfo ji in _joins)
+			{
+				if(ji.ClassTypeMain == null)
+				{
 					ji.ClassTypeMain = _returnTypeQuery;
-					ji.ClassTypeMainAlias = d;
+					ji.ClassTypeMainAlias = mainTableAlias;
 				}
-				else {
-					if (string.IsNullOrEmpty (ji.ClassTypeMainAlias))
-						ji.ClassTypeMainAlias = ji.ClassTypeJoin.Name.ToLower ();
-					if (!c.ContainsKey (ji.ClassTypeMainAlias))
-						c.Add (ji.ClassTypeMainAlias, ji.ClassTypeMain);
+				else
+				{
+					if(string.IsNullOrEmpty(ji.ClassTypeMainAlias))
+						ji.ClassTypeMainAlias = ji.ClassTypeJoin.Name.ToLower();
+					if(!classesDictionary.ContainsKey(ji.ClassTypeMainAlias))
+						classesDictionary.Add(ji.ClassTypeMainAlias, ji.ClassTypeMain);
 				}
-				if (string.IsNullOrEmpty (ji.ClassTypeJoinAlias))
-					ji.ClassTypeJoinAlias = ji.ClassTypeJoin.Name.ToLower ();
-				if (!c.ContainsKey (ji.ClassTypeJoinAlias))
-					c.Add (ji.ClassTypeJoinAlias, ji.ClassTypeJoin);
+				if(string.IsNullOrEmpty(ji.ClassTypeJoinAlias))
+					ji.ClassTypeJoinAlias = ji.ClassTypeJoin.Name.ToLower();
+				if(!classesDictionary.ContainsKey(ji.ClassTypeJoinAlias))
+					classesDictionary.Add(ji.ClassTypeJoinAlias, ji.ClassTypeJoin);
 			}
-			List<Mapper> f = new List<Mapper> ();
-			List<Mapper> g = new List<Mapper> ();
-			List<Mapper> h = MappingManager.GetMappers (_returnTypeQuery, null, null);
-			List<GroupOfRelationshipInfo> j = MappingManager.GetForeignKeyAttributes (_returnTypeQuery);
-			if (h.Count == 0) {
+			List<Mapper> recoverProperties = new List<Mapper>();
+			List<Mapper> columns = new List<Mapper>();
+			List<Mapper> mapping = MappingManager.GetMappers(_returnTypeQuery, null, null);
+			List<GroupOfRelationshipInfo> fkMapping = MappingManager.GetForeignKeyAttributes(_returnTypeQuery);
+			if(mapping.Count == 0)
+			{
 			}
-			StringBuilder k = new StringBuilder (128).Append ("SELECT ");
-			if (_useDistinct)
-				k.Append ("DISTINCT ");
-			bool l = false;
-			if (!string.IsNullOrEmpty (_selectProperties)) {
-				var m = new List<string> ();
-				Parser n = new Parser (new Lexer (_selectProperties));
-				SelectPart o = n.ExecuteSelectPart ();
-				var p = new List<string> (o.SelectionExpressions.Count);
-				var q = new List<SelectExpression> ();
-				foreach (SelectExpression se in o.SelectionExpressions) {
-					if (se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column) {
-						Column r = se.Column;
-						if (string.IsNullOrEmpty (r.TableName)) {
-							se.ColumnName.Value.Text = string.Format ("{0}.{1}", d, se.ColumnName.Value.Text);
-							r = se.Column;
+			StringBuilder buf = new StringBuilder(128).Append("SELECT ");
+			if(_useDistinct)
+				buf.Append("DISTINCT ");
+			bool append = false;
+			if(!string.IsNullOrEmpty(_selectProperties))
+			{
+				var functions = new List<string>();
+				Parser p = new Parser(new Lexer(_selectProperties));
+				SelectPart selectPart = p.ExecuteSelectPart();
+				var selectProps = new List<string>(selectPart.SelectionExpressions.Count);
+				var projection = new List<SelectExpression>();
+				foreach (SelectExpression se in selectPart.SelectionExpressions)
+				{
+					if(se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column)
+					{
+						Column col = se.Column;
+						if(string.IsNullOrEmpty(col.TableName))
+						{
+							se.ColumnName.Value.Text = string.Format("{0}.{1}", mainTableAlias, se.ColumnName.Value.Text);
+							col = se.Column;
 						}
-						if (r.TableName == d && r.Name == "*") {
-							foreach (Mapper mp in h) {
-								if (mp.Direction == DirectionParameter.Input || mp.Direction == DirectionParameter.InputOutput || mp.Direction == DirectionParameter.OutputOnlyInsert) {
-									var s = new SelectExpression (new SqlExpression (new Expression (0, 0) {
-										Text = string.Format ("{0}.{1}", d, mp.PropertyMapperName)
-									}), new SqlExpression (new Expression (0, 0) {
+						if(col.TableName == mainTableAlias && col.Name == "*")
+						{
+							foreach (Mapper mp in mapping)
+							{
+								if(mp.Direction == DirectionParameter.Input || mp.Direction == DirectionParameter.InputOutput || mp.Direction == DirectionParameter.OutputOnlyInsert)
+								{
+									var columnExpression = new SelectExpression(new SqlExpression(new Expression(0, 0) {
+										Text = string.Format("{0}.{1}", mainTableAlias, mp.PropertyMapperName)
+									}), new SqlExpression(new Expression(0, 0) {
 										Text = mp.PropertyMapperName
 									}));
-									q.Add (s);
+									projection.Add(columnExpression);
 								}
 							}
 							continue;
 						}
-						else if (r.Name == "*")
-							throw new GDAException ("Invalid expression {0}", se.ColumnName.Value.Text);
-						else {
-							q.Add (se);
+						else if(col.Name == "*")
+							throw new GDAException("Invalid expression {0}", se.ColumnName.Value.Text);
+						else
+						{
+							projection.Add(se);
 						}
 					}
-					else if (se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Function) {
-						SqlFunction t = (SqlFunction)se.ColumnName;
-						if (t.Parameters.Count > 0) {
-							foreach (List<SqlExpression> listSqlEx in t.Parameters) {
-								foreach (SqlExpression ss1 in listSqlEx) {
-									if (ss1.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column) {
-										ColumnInfo r = new ColumnInfo (ss1.Value);
-										if (string.IsNullOrEmpty (r.TableNameOrTableAlias))
-											r.TableNameOrTableAlias = d;
-										if (r.ColumnName == "*")
+					else if(se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Function)
+					{
+						SqlFunction func = (SqlFunction)se.ColumnName;
+						if(func.Parameters.Count > 0)
+						{
+							foreach (List<SqlExpression> listSqlEx in func.Parameters)
+							{
+								foreach (SqlExpression ss1 in listSqlEx)
+								{
+									if(ss1.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column)
+									{
+										ColumnInfo col = new ColumnInfo(ss1.Value);
+										if(string.IsNullOrEmpty(col.TableNameOrTableAlias))
+											col.TableNameOrTableAlias = mainTableAlias;
+										if(col.ColumnName == "*")
 											break;
-										if (c.ContainsKey (r.TableNameOrTableAlias)) {
-											var u = MappingManager.GetMappers (c [r.TableNameOrTableAlias], null, null);
-											bool v = false;
-											foreach (Mapper mapper in u)
-												if (string.Compare (r.ColumnName, mapper.PropertyMapperName, true) == 0) {
-													r.DBColumnName = mapper.Name;
-													r.RenameToMapper (a);
-													v = true;
+										if(classesDictionary.ContainsKey(col.TableNameOrTableAlias))
+										{
+											var mapperList = MappingManager.GetMappers(classesDictionary[col.TableNameOrTableAlias], null, null);
+											bool found = false;
+											foreach (Mapper mapper in mapperList)
+												if(string.Compare(col.ColumnName, mapper.PropertyMapperName, true) == 0)
+												{
+													col.DBColumnName = mapper.Name;
+													col.RenameToMapper(provider);
+													found = true;
 													break;
 												}
-											if (!v)
-												throw new GDAException ("Property {0} not found for type {1}.", r.ColumnName, c [r.TableNameOrTableAlias].FullName);
+											if(!found)
+												throw new GDAException("Property {0} not found for type {1}.", col.ColumnName, classesDictionary[col.TableNameOrTableAlias].FullName);
 										}
-										else {
-											throw new GDAException ("Classe alias {0} not found.", r.TableNameOrTableAlias);
+										else
+										{
+											throw new GDAException("Classe alias {0} not found.", col.TableNameOrTableAlias);
 										}
 									}
 								}
 							}
 						}
-						q.Add (se);
+						projection.Add(se);
 					}
 				}
-				l = false;
-				foreach (var se in q) {
-					if (se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column) {
-						var w = se.Column;
-						Type x = null;
-						if (!c.TryGetValue (w.TableName, out x))
-							throw new GDAException ("Not found class for alias {0}", w.TableName);
-						var y = MappingManager.GetMappers (x, null, null);
-						if (y == null)
+				//// Pecorre as possíveis propriedades da classe principal que serão recuperadas na consulta
+				append = false;
+				foreach (var se in projection)
+				{
+					if(se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column)
+					{
+						var column = se.Column;
+						Type tableType = null;
+						if(!classesDictionary.TryGetValue(column.TableName, out tableType))
+							throw new GDAException("Not found class for alias {0}", column.TableName);
+						var tableMapping = MappingManager.GetMappers(tableType, null, null);
+						if(tableMapping == null)
 							continue;
-						var z = y.Find (A => StringComparer.InvariantCultureIgnoreCase.Equals (w.Name, A.PropertyMapperName));
-						if (z == null)
-							throw new GDAException ("Not fount mapping {0} for type {1}", w.Name, x.FullName);
-						if (l)
-							k.Append (", ");
+						var mapper = tableMapping.Find(f => StringComparer.InvariantCultureIgnoreCase.Equals(column.Name, f.PropertyMapperName));
+						if(mapper == null)
+							throw new GDAException("Not fount mapping {0} for type {1}", column.Name, tableType.FullName);
+						if(append)
+							buf.Append(", ");
 						else
-							l = true;
-						k.Append (a.QuoteExpression (w.TableName)).Append (".").Append (a.QuoteExpression (z.Name));
-						if (!string.IsNullOrEmpty (w.Alias)) {
-							var B = h.Find (A => StringComparer.InvariantCultureIgnoreCase.Equals (w.Alias, A.PropertyMapperName));
-							if (B != null) {
-								f.Add (B);
-								k.Append (" AS ").Append (a.QuoteExpression (B.Name));
+							append = true;
+						buf.Append(provider.QuoteExpression(column.TableName)).Append(".").Append(provider.QuoteExpression(mapper.Name));
+						if(!string.IsNullOrEmpty(column.Alias))
+						{
+							var mainMapper = mapping.Find(f => StringComparer.InvariantCultureIgnoreCase.Equals(column.Alias, f.PropertyMapperName));
+							if(mainMapper != null)
+							{
+								recoverProperties.Add(mainMapper);
+								buf.Append(" AS ").Append(provider.QuoteExpression(mainMapper.Name));
 							}
 							else
-								k.Append (" AS ").Append (a.QuoteExpression (w.Alias));
+								buf.Append(" AS ").Append(provider.QuoteExpression(column.Alias));
 						}
 						else
-							f.Add (z);
+							recoverProperties.Add(mapper);
 					}
-					else if (se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Function) {
-						if (l)
-							k.Append (", ");
+					else if(se.ColumnName.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Function)
+					{
+						if(append)
+							buf.Append(", ");
 						else
-							l = true;
-						k.Append (se.ColumnName.ToString ());
-						if (se.ColumnAlias != null) {
-							var C = se.ColumnAlias.ToString ();
-							var B = h.Find (A => StringComparer.InvariantCultureIgnoreCase.Equals (C, A.PropertyMapperName));
-							if (B != null) {
-								f.Add (B);
-								k.Append (" AS ").Append (a.QuoteExpression (B.Name));
+							append = true;
+						buf.Append(se.ColumnName.ToString());
+						if(se.ColumnAlias != null)
+						{
+							var columnAlias = se.ColumnAlias.ToString();
+							var mainMapper = mapping.Find(f => StringComparer.InvariantCultureIgnoreCase.Equals(columnAlias, f.PropertyMapperName));
+							if(mainMapper != null)
+							{
+								recoverProperties.Add(mainMapper);
+								buf.Append(" AS ").Append(provider.QuoteExpression(mainMapper.Name));
 							}
 							else
-								k.Append (" AS ").Append (a.QuoteExpression (C));
+								buf.Append(" AS ").Append(provider.QuoteExpression(columnAlias));
 						}
 					}
 				}
-				l = !string.IsNullOrEmpty (_selectProperties);
+				append = !string.IsNullOrEmpty(_selectProperties);
 			}
-			l = false;
-			foreach (Mapper column in h) {
-				switch (column.Direction) {
+			append = false;
+			foreach (Mapper column in mapping)
+			{
+				switch(column.Direction)
+				{
 				case DirectionParameter.Input:
 				case DirectionParameter.InputOutput:
 				case DirectionParameter.OutputOnlyInsert:
-					if (string.IsNullOrEmpty (_selectProperties)) {
-						if (l)
-							k.Append (", ");
+					if(string.IsNullOrEmpty(_selectProperties))
+					{
+						if(append)
+							buf.Append(", ");
 						else
-							l = true;
-						k.Append (a.QuoteExpression (d)).Append (".").Append (a.QuoteExpression (column.Name));
-						f.Add (column);
+							append = true;
+						buf.Append(provider.QuoteExpression(mainTableAlias)).Append(".").Append(provider.QuoteExpression(column.Name));
+						recoverProperties.Add(column);
 					}
-					g.Add (column);
+					columns.Add(column);
 					break;
 				}
 			}
-			IList<ForeignMemberMapper> D = MappingManager.GetForeignMemberMapper (_returnTypeQuery);
-			foreach (ForeignMemberMapper fmm in D) {
-				int E = _joins.FindIndex (delegate (JoinInfo F) {
-					return F.ClassTypeJoin == fmm.TypeOfClassRelated && F.GroupOfRelationship == fmm.GroupOfRelationship;
+			IList<ForeignMemberMapper> fmms = MappingManager.GetForeignMemberMapper(_returnTypeQuery);
+			foreach (ForeignMemberMapper fmm in fmms)
+			{
+				int index = _joins.FindIndex(delegate(JoinInfo ji) {
+					return ji.ClassTypeJoin == fmm.TypeOfClassRelated && ji.GroupOfRelationship == fmm.GroupOfRelationship;
 				});
-				if (E >= 0) {
-					if (l)
-						k.Append (", ");
+				if(index >= 0)
+				{
+					if(append)
+						buf.Append(", ");
 					else
-						l = true;
-					PersistencePropertyAttribute G = MappingManager.GetPersistenceProperty (fmm.PropertyOfClassRelated);
-					if (G == null)
-						throw new GDAException ("Fail on ForeignKeyMember, property {0} in {1} isn't mapped.", fmm.PropertyOfClassRelated.Name, fmm.TypeOfClassRelated.FullName);
-					k.Append (a.QuoteExpression (_joins [E].ClassTypeJoinAlias)).Append (".").Append (a.QuoteExpression (G.Name)).Append (" AS ").Append (a.QuoteExpression (fmm.PropertyModel.Name));
-					f.Add (new Mapper (_returnTypeQuery, new PersistencePropertyAttribute (fmm.PropertyModel.Name, DirectionParameter.InputOptional), fmm.PropertyModel));
+						append = true;
+					PersistencePropertyAttribute ppaRelated = MappingManager.GetPersistenceProperty(fmm.PropertyOfClassRelated);
+					if(ppaRelated == null)
+						throw new GDAException("Fail on ForeignKeyMember, property {0} in {1} isn't mapped.", fmm.PropertyOfClassRelated.Name, fmm.TypeOfClassRelated.FullName);
+					buf.Append(provider.QuoteExpression(_joins[index].ClassTypeJoinAlias)).Append(".").Append(provider.QuoteExpression(ppaRelated.Name)).Append(" AS ").Append(provider.QuoteExpression(fmm.PropertyModel.Name));
+					recoverProperties.Add(new Mapper(_returnTypeQuery, new PersistencePropertyAttribute(fmm.PropertyModel.Name, DirectionParameter.InputOptional), fmm.PropertyModel));
 				}
 			}
-			if (!string.IsNullOrEmpty (b)) {
-				Parser H = new Parser (new Lexer (b));
-				SelectPart I = H.ExecuteSelectPart ();
-				if (I.SelectionExpressions.Count == 0)
-					throw new GDAException ("Not found aggregation function.");
-				foreach (SelectExpression sqlEx in I.SelectionExpressions)
-					if (sqlEx.ColumnName is SqlFunction) {
-						SqlFunction t = (SqlFunction)sqlEx.ColumnName;
-						if (t.Parameters.Count > 0) {
-							foreach (List<SqlExpression> listSqlEx in t.Parameters) {
-								foreach (SqlExpression ss1 in listSqlEx) {
-									if (ss1.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column) {
-										Column r = new Column (ss1, null);
-										if (string.IsNullOrEmpty (r.TableName))
-											r.TableName = d;
-										if (r.Name == "*")
+			if(!string.IsNullOrEmpty(aggregationFunction))
+			{
+				Parser aggreParser = new Parser(new Lexer(aggregationFunction));
+				SelectPart sp = aggreParser.ExecuteSelectPart();
+				if(sp.SelectionExpressions.Count == 0)
+					throw new GDAException("Not found aggregation function.");
+				foreach (SelectExpression sqlEx in sp.SelectionExpressions)
+					if(sqlEx.ColumnName is SqlFunction)
+					{
+						SqlFunction func = (SqlFunction)sqlEx.ColumnName;
+						if(func.Parameters.Count > 0)
+						{
+							foreach (List<SqlExpression> listSqlEx in func.Parameters)
+							{
+								foreach (SqlExpression ss1 in listSqlEx)
+								{
+									if(ss1.Type == GDA.Sql.InterpreterExpression.Enums.SqlExpressionType.Column)
+									{
+										Column col = new Column(ss1, null);
+										if(string.IsNullOrEmpty(col.TableName))
+											col.TableName = mainTableAlias;
+										if(col.Name == "*")
 											break;
-										if (c.ContainsKey (r.TableName)) {
-											List<Mapper> J = MappingManager.GetMappers (c [r.TableName], null, null);
-											bool v = false;
-											foreach (Mapper mapper in J)
-												if (string.Compare (r.Name, mapper.PropertyMapperName, true) == 0) {
-													b = b.Substring (0, ss1.Value.BeginPoint) + a.QuoteExpression (r.TableName) + "." + a.QuoteExpression (mapper.Name) + b.Substring (ss1.Value.BeginPoint + ss1.Value.Length);
-													v = true;
+										if(classesDictionary.ContainsKey(col.TableName))
+										{
+											List<Mapper> listMapper = MappingManager.GetMappers(classesDictionary[col.TableName], null, null);
+											bool found = false;
+											foreach (Mapper mapper in listMapper)
+												if(string.Compare(col.Name, mapper.PropertyMapperName, true) == 0)
+												{
+													aggregationFunction = aggregationFunction.Substring(0, ss1.Value.BeginPoint) + provider.QuoteExpression(col.TableName) + "." + provider.QuoteExpression(mapper.Name) + aggregationFunction.Substring(ss1.Value.BeginPoint + ss1.Value.Length);
+													found = true;
 													break;
 												}
-											if (!v)
-												throw new GDAException ("Property {0} not found.", r.Name);
+											if(!found)
+												throw new GDAException("Property {0} not found.", col.Name);
 										}
-										else {
-											throw new GDAException ("Classe alias {0} not found.", r.TableName);
+										else
+										{
+											throw new GDAException("Classe alias {0} not found.", col.TableName);
 										}
 									}
 								}
 							}
 						}
 					}
-				k = new StringBuilder ("SELECT ").Append (b);
+				buf = new StringBuilder("SELECT ").Append(aggregationFunction);
 			}
-			k.Append (" FROM ").Append (a.BuildTableName (MappingManager.GetTableName (_returnTypeQuery))).Append (" ").Append (a.QuoteExpression (d)).Append (" ");
-			StringBuilder K = new StringBuilder ();
-			if (_joins.Count > 0) {
-				int L = 1;
-				for (int e = 0; e < _joins.Count; e++) {
-					JoinInfo F = _joins [e];
-					GroupOfRelationshipInfo M = j.Find (delegate (GroupOfRelationshipInfo N) {
-						return N.TypeOfClassRelated == F.ClassTypeJoin && N.GroupOfRelationship == F.GroupOfRelationship;
+			buf.Append(" FROM ").Append(provider.BuildTableName(MappingManager.GetTableName(_returnTypeQuery))).Append(" ").Append(provider.QuoteExpression(mainTableAlias)).Append(" ");
+			StringBuilder sbJoins = new StringBuilder();
+			if(_joins.Count > 0)
+			{
+				int indexCurrentJoin = 1;
+				for(int i = 0; i < _joins.Count; i++)
+				{
+					JoinInfo ji = _joins[i];
+					GroupOfRelationshipInfo info = fkMapping.Find(delegate(GroupOfRelationshipInfo gri) {
+						return gri.TypeOfClassRelated == ji.ClassTypeJoin && gri.GroupOfRelationship == ji.GroupOfRelationship;
 					});
-					if (M == null) {
-						M = MappingManager.GetForeignKeyAttributes (F.ClassTypeJoin).Find (delegate (GroupOfRelationshipInfo N) {
-							return N.TypeOfClassRelated == _returnTypeQuery && N.GroupOfRelationship == F.GroupOfRelationship;
+					if(info == null)
+					{
+						info = MappingManager.GetForeignKeyAttributes(ji.ClassTypeJoin).Find(delegate(GroupOfRelationshipInfo gri) {
+							return gri.TypeOfClassRelated == _returnTypeQuery && gri.GroupOfRelationship == ji.GroupOfRelationship;
 						});
-						if (M == null) {
-							foreach (GroupOfRelationshipInfo gri2 in j) {
-								MappingManager.LoadClassMapper (gri2.TypeOfClassRelated);
-								M = MappingManager.GetForeignKeyAttributes (gri2.TypeOfClassRelated).Find (delegate (GroupOfRelationshipInfo N) {
-									return N.TypeOfClassRelated == F.ClassTypeJoin && N.GroupOfRelationship == F.GroupOfRelationship;
+						if(info == null)
+						{
+							foreach (GroupOfRelationshipInfo gri2 in fkMapping)
+							{
+								MappingManager.LoadClassMapper(gri2.TypeOfClassRelated);
+								info = MappingManager.GetForeignKeyAttributes(gri2.TypeOfClassRelated).Find(delegate(GroupOfRelationshipInfo gri) {
+									return gri.TypeOfClassRelated == ji.ClassTypeJoin && gri.GroupOfRelationship == ji.GroupOfRelationship;
 								});
-								if (M != null) {
-									F.ClassTypeMain = M.TypeOfClass;
-									int O = 0;
-									for (O = 0; O < _joins.Count; O++)
-										if (_joins [O].ClassTypeJoin == M.TypeOfClass) {
-											F.ClassTypeMainAlias = _joins [O].ClassTypeJoinAlias;
+								if(info != null)
+								{
+									ji.ClassTypeMain = info.TypeOfClass;
+									int j = 0;
+									for(j = 0; j < _joins.Count; j++)
+										if(_joins[j].ClassTypeJoin == info.TypeOfClass)
+										{
+											ji.ClassTypeMainAlias = _joins[j].ClassTypeJoinAlias;
 											break;
 										}
-									if (O >= _joins.Count) {
-										F.ClassTypeMainAlias = F.ClassTypeMain.Name;
-										_joins.Add (new JoinInfo (F.Type, ReturnTypeQuery, M.TypeOfClass, F.ClassTypeMain.Name, F.ClassTypeJoinAlias, M.GroupOfRelationship));
+									if(j >= _joins.Count)
+									{
+										ji.ClassTypeMainAlias = ji.ClassTypeMain.Name;
+										_joins.Add(new JoinInfo(ji.Type, ReturnTypeQuery, info.TypeOfClass, ji.ClassTypeMain.Name, ji.ClassTypeJoinAlias, info.GroupOfRelationship));
 									}
 									break;
 								}
 							}
-							if (M == null) {
-								foreach (KeyValuePair<string, Type> it in c) {
-									if (it.Key == d)
+							if(info == null)
+							{
+								foreach (KeyValuePair<string, Type> it in classesDictionary)
+								{
+									if(it.Key == mainTableAlias)
 										continue;
-									MappingManager.LoadClassMapper (it.Value);
-									M = MappingManager.GetForeignKeyAttributes (it.Value).Find (delegate (GroupOfRelationshipInfo N) {
-										return N.TypeOfClassRelated == F.ClassTypeJoin && N.GroupOfRelationship == F.GroupOfRelationship;
+									MappingManager.LoadClassMapper(it.Value);
+									info = MappingManager.GetForeignKeyAttributes(it.Value).Find(delegate(GroupOfRelationshipInfo gri) {
+										return gri.TypeOfClassRelated == ji.ClassTypeJoin && gri.GroupOfRelationship == ji.GroupOfRelationship;
 									});
-									if (M != null) {
-										F.ClassTypeMain = M.TypeOfClass;
-										int O = 0;
-										for (O = 0; O < _joins.Count; O++)
-											if (_joins [O].ClassTypeJoin == M.TypeOfClass) {
-												F.ClassTypeMainAlias = _joins [O].ClassTypeJoinAlias;
+									if(info != null)
+									{
+										ji.ClassTypeMain = info.TypeOfClass;
+										int j = 0;
+										for(j = 0; j < _joins.Count; j++)
+											if(_joins[j].ClassTypeJoin == info.TypeOfClass)
+											{
+												ji.ClassTypeMainAlias = _joins[j].ClassTypeJoinAlias;
 												break;
 											}
-										if (O >= _joins.Count) {
-											F.ClassTypeMainAlias = F.ClassTypeMain.Name;
-											_joins.Add (new JoinInfo (F.Type, ReturnTypeQuery, M.TypeOfClass, F.ClassTypeMain.Name, F.ClassTypeJoinAlias, M.GroupOfRelationship));
+										if(j >= _joins.Count)
+										{
+											ji.ClassTypeMainAlias = ji.ClassTypeMain.Name;
+											_joins.Add(new JoinInfo(ji.Type, ReturnTypeQuery, info.TypeOfClass, ji.ClassTypeMain.Name, ji.ClassTypeJoinAlias, info.GroupOfRelationship));
 										}
 										break;
 									}
 								}
 							}
-							if (M == null)
-								throw new QueryException ("Not found foreign key with {0}", F.ClassTypeJoin.FullName);
+							if(info == null)
+								throw new QueryException("Not found foreign key with {0}", ji.ClassTypeJoin.FullName);
 						}
 					}
-					switch (F.Type) {
+					switch(ji.Type)
+					{
 					case JoinType.InnerJoin:
-						K.Append ("INNER JOIN ");
+						sbJoins.Append("INNER JOIN ");
 						break;
 					case JoinType.LeftJoin:
-						K.Append ("LEFT JOIN ");
+						sbJoins.Append("LEFT JOIN ");
 						break;
 					case JoinType.RightJoin:
-						K.Append ("RIGHT JOIN ");
+						sbJoins.Append("RIGHT JOIN ");
 						break;
 					case JoinType.CrossJoin:
-						K.Append ("CROSS JOIN ");
+						sbJoins.Append("CROSS JOIN ");
 						break;
 					}
-					K.Append (a.BuildTableName (MappingManager.GetTableName (F.ClassTypeJoin))).Append (" AS ").Append (a.QuoteExpression (F.ClassTypeJoinAlias)).Append (" ON(");
-					for (int P = 0; P < M.ForeignKeys.Count; P++) {
-						ForeignKeyMapper Q = M.ForeignKeys [P];
-						var R = MappingManager.GetPersistenceProperty (Q.PropertyOfClassRelated);
-						if (R == null)
-							throw new GDAException ("Not found mapper for property '{0}' of type '{1}'.", Q.PropertyOfClassRelated.Name, Q.PropertyOfClassRelated.DeclaringType.FullName);
-						K.Append (a.QuoteExpression (F.ClassTypeMainAlias)).Append (".").Append (a.QuoteExpression (MappingManager.GetPersistenceProperty (Q.PropertyModel).Name)).Append ("=").Append (a.QuoteExpression (F.ClassTypeJoinAlias)).Append (".").Append (a.QuoteExpression (R.Name));
-						if ((P + 1) < M.ForeignKeys.Count)
-							K.Append (" AND ");
+					sbJoins.Append(provider.BuildTableName(MappingManager.GetTableName(ji.ClassTypeJoin))).Append(" AS ").Append(provider.QuoteExpression(ji.ClassTypeJoinAlias)).Append(" ON(");
+					for(int x = 0; x < info.ForeignKeys.Count; x++)
+					{
+						ForeignKeyMapper fk = info.ForeignKeys[x];
+						var persistenceProperty = MappingManager.GetPersistenceProperty(fk.PropertyOfClassRelated);
+						if(persistenceProperty == null)
+							throw new GDAException("Not found mapper for property '{0}' of type '{1}'.", fk.PropertyOfClassRelated.Name, fk.PropertyOfClassRelated.DeclaringType.FullName);
+						sbJoins.Append(provider.QuoteExpression(ji.ClassTypeMainAlias)).Append(".").Append(provider.QuoteExpression(MappingManager.GetPersistenceProperty(fk.PropertyModel).Name)).Append("=").Append(provider.QuoteExpression(ji.ClassTypeJoinAlias)).Append(".").Append(provider.QuoteExpression(persistenceProperty.Name));
+						if((x + 1) < info.ForeignKeys.Count)
+							sbJoins.Append(" AND ");
 					}
-					K.Append (") ");
-					L++;
+					sbJoins.Append(") ");
+					indexCurrentJoin++;
 				}
 			}
-			k.Append (K.ToString ());
-			if (this._conditional != null && this._conditional.Count > 0) {
-				Parser S = new Parser (new Lexer (this.Where));
-				WherePart U = S.ExecuteWherePart ();
-				SelectStatement V = new SelectStatement (U);
-				foreach (ColumnInfo ci in V.ColumnsInfo) {
-					if (string.IsNullOrEmpty (ci.TableNameOrTableAlias) || ci.TableNameOrTableAlias == d) {
-						ci.TableNameOrTableAlias = a.QuoteExpression (d);
+			buf.Append(sbJoins.ToString());
+			if(this._conditional != null && this._conditional.Count > 0)
+			{
+				Parser parser = new Parser(new Lexer(this.Where));
+				WherePart wp = parser.ExecuteWherePart();
+				SelectStatement ss = new SelectStatement(wp);
+				ProcessConditionalSelectStatement(provider, classesDictionary, mainTableAlias, columns, ss, false);
+				foreach (var variableInfo in ss.VariablesInfo)
+					variableInfo.Replace(provider, this, classesDictionary);
+				ParserToSqlCommand psc = new ParserToSqlCommand(wp, provider.QuoteExpressionBegin, provider.QuoteExpressionEnd);
+				buf.Append(" WHERE ").Append(psc.SqlCommand);
+			}
+			if(!string.IsNullOrEmpty(this.GroupByClause))
+			{
+				Parser parser = new Parser(new Lexer(this.GroupByClause));
+				GroupByPart gbp = parser.ExecuteGroupByPart();
+				SelectStatement ss = new SelectStatement(gbp);
+				foreach (ColumnInfo ci in ss.ColumnsInfo)
+				{
+					if(string.IsNullOrEmpty(ci.TableNameOrTableAlias) || ci.TableNameOrTableAlias == mainTableAlias)
+					{
+						ci.TableNameOrTableAlias = mainTableAlias;
 					}
-					else {
-						foreach (JoinInfo ji in this._joins) {
-							if (ji.ClassTypeJoin.Name == ci.TableNameOrTableAlias || ji.ClassTypeJoin.FullName == ci.TableNameOrTableAlias || ji.ClassTypeJoinAlias == ci.TableNameOrTableAlias) {
-								List<Mapper> W = MappingManager.GetMappers (ji.ClassTypeJoin, null, null);
-								Mapper X = W.Find (delegate (Mapper Y) {
-									return (string.Compare (Y.PropertyMapperName, ci.ColumnName, true) == 0);
+					else
+					{
+						foreach (JoinInfo ji in this._joins)
+						{
+							if(ji.ClassTypeJoin.Name == ci.TableNameOrTableAlias || ji.ClassTypeJoin.FullName == ci.TableNameOrTableAlias || ji.ClassTypeJoinAlias == ci.TableNameOrTableAlias)
+							{
+								List<Mapper> mapperAux = MappingManager.GetMappers(ji.ClassTypeJoin, null, null);
+								Mapper mAux = mapperAux.Find(delegate(Mapper mp) {
+									return (string.Compare(mp.PropertyMapperName, ci.ColumnName, true) == 0);
 								});
-								if (X == null) {
-									X = MappingManager.GetPropertyMapper (ji.ClassTypeJoin, ci.ColumnName);
-									if (X == null)
-										throw new GDAException ("Property {0} not exists in {1} or not mapped.", ci.ColumnName, ji.ClassTypeJoin.FullName);
+								if(mAux == null)
+								{
+									mAux = MappingManager.GetPropertyMapper(ji.ClassTypeJoin, ci.ColumnName);
+									if(mAux == null)
+										throw new GDAException("Property {0} not exists in {1} or not mapped.", ci.ColumnName, ji.ClassTypeJoin.FullName);
 								}
 								ci.TableNameOrTableAlias = ji.ClassTypeJoinAlias;
-								ci.DBColumnName = X.Name;
-								ci.RenameToMapper (a);
+								ci.DBColumnName = mAux.Name;
+								ci.RenameToMapper(provider);
 								break;
 							}
 						}
-						if (string.IsNullOrEmpty (ci.DBColumnName)) {
-							Type Z = null;
-							if (c.TryGetValue (ci.TableNameOrTableAlias, out Z)) {
-								List<Mapper> W = MappingManager.GetMappers (Z, null, null);
-								Mapper X = W.Find (delegate (Mapper Y) {
-									return (string.Compare (Y.PropertyMapperName, ci.ColumnName, true) == 0);
-								});
-								if (X == null) {
-									X = MappingManager.GetPropertyMapper (Z, ci.ColumnName);
-									if (X == null)
-										throw new GDAException ("Property {0} not exists in {1} or not mapped.", ci.ColumnName, Z.FullName);
-								}
-								ci.DBColumnName = X.Name;
-								ci.RenameToMapper (a);
-							}
-							if (string.IsNullOrEmpty (ci.DBColumnName))
-								throw new QueryException ("Field {0} not found in mapping.", ci.ToString ());
-						}
+						if(string.IsNullOrEmpty(ci.DBColumnName))
+							throw new QueryException("Field {0} not found in mapping.", ci.ToString());
 						continue;
 					}
-					Mapper _ = g.Find (delegate (Mapper Y) {
-						return (string.Compare (Y.PropertyMapperName, ci.ColumnName, true) == 0);
+					Mapper m = columns.Find(delegate(Mapper mp) {
+						return (string.Compare(mp.PropertyMapperName, ci.ColumnName, true) == 0);
 					});
-					if (_ == null) {
-						_ = MappingManager.GetPropertyMapper (_returnTypeQuery, ci.ColumnName);
-						if (_ == null)
-							throw new GDAException ("Property {0} not exists in {1} or not mapped.", ci.ColumnName, _returnTypeQuery.FullName);
+					if(m == null)
+					{
+						m = MappingManager.GetPropertyMapper(_returnTypeQuery, ci.ColumnName);
+						if(m == null)
+							throw new GDAException("Property {0} not exists in {1} or not mapped.", ci.ColumnName, _returnTypeQuery.FullName);
 					}
-					ci.DBColumnName = _.Name;
-					ci.RenameToMapper (a);
+					ci.DBColumnName = m.Name;
+					ci.RenameToMapper(provider);
 				}
-				foreach (var variableInfo in V.VariablesInfo)
-					variableInfo.Replace (a, this, c);
-				ParserToSqlCommand a0 = new ParserToSqlCommand (U, a.QuoteExpressionBegin, a.QuoteExpressionEnd);
-				k.Append (" WHERE ").Append (a0.SqlCommand);
+				ParserToSqlCommand psc = new ParserToSqlCommand(gbp, provider.QuoteExpressionBegin, provider.QuoteExpressionEnd);
+				buf.Append(" GROUP BY ").Append(psc.SqlCommand);
 			}
-			if (!string.IsNullOrEmpty (this.GroupByClause)) {
-				Parser S = new Parser (new Lexer (this.GroupByClause));
-				GroupByPart a1 = S.ExecuteGroupByPart ();
-				SelectStatement V = new SelectStatement (a1);
-				foreach (ColumnInfo ci in V.ColumnsInfo) {
-					if (string.IsNullOrEmpty (ci.TableNameOrTableAlias) || ci.TableNameOrTableAlias == d) {
-						ci.TableNameOrTableAlias = d;
-					}
-					else {
-						foreach (JoinInfo ji in this._joins) {
-							if (ji.ClassTypeJoin.Name == ci.TableNameOrTableAlias || ji.ClassTypeJoin.FullName == ci.TableNameOrTableAlias || ji.ClassTypeJoinAlias == ci.TableNameOrTableAlias) {
-								List<Mapper> W = MappingManager.GetMappers (ji.ClassTypeJoin, null, null);
-								Mapper X = W.Find (delegate (Mapper Y) {
-									return (string.Compare (Y.PropertyMapperName, ci.ColumnName, true) == 0);
-								});
-								if (X == null) {
-									X = MappingManager.GetPropertyMapper (ji.ClassTypeJoin, ci.ColumnName);
-									if (X == null)
-										throw new GDAException ("Property {0} not exists in {1} or not mapped.", ci.ColumnName, ji.ClassTypeJoin.FullName);
-								}
-								ci.TableNameOrTableAlias = ji.ClassTypeJoinAlias;
-								ci.DBColumnName = X.Name;
-								ci.RenameToMapper (a);
-								break;
-							}
-						}
-						if (string.IsNullOrEmpty (ci.DBColumnName))
-							throw new QueryException ("Field {0} not found in mapping.", ci.ToString ());
-						continue;
-					}
-					Mapper _ = g.Find (delegate (Mapper Y) {
-						return (string.Compare (Y.PropertyMapperName, ci.ColumnName, true) == 0);
-					});
-					if (_ == null) {
-						_ = MappingManager.GetPropertyMapper (_returnTypeQuery, ci.ColumnName);
-						if (_ == null)
-							throw new GDAException ("Property {0} not exists in {1} or not mapped.", ci.ColumnName, _returnTypeQuery.FullName);
-					}
-					ci.DBColumnName = _.Name;
-					ci.RenameToMapper (a);
-				}
-				ParserToSqlCommand a0 = new ParserToSqlCommand (a1, a.QuoteExpressionBegin, a.QuoteExpressionEnd);
-				k.Append (" GROUP BY ").Append (a0.SqlCommand);
+			if(this._having != null && this._having.Count > 0)
+			{
+				Parser parser = new Parser(new Lexer(this.HavingText));
+				HavingPart havingPart = parser.ExecuteHavingPart();
+				SelectStatement ss = new SelectStatement(havingPart);
+				ProcessConditionalSelectStatement(provider, classesDictionary, mainTableAlias, columns, ss, true);
+				foreach (var variableInfo in ss.VariablesInfo)
+					variableInfo.Replace(provider, this, classesDictionary);
+				ParserToSqlCommand psc = new ParserToSqlCommand(havingPart, provider.QuoteExpressionBegin, provider.QuoteExpressionEnd);
+				buf.Append(" HAVING ").Append(psc.SqlCommand);
 			}
-			if (!string.IsNullOrEmpty (this.Order) && string.IsNullOrEmpty (b)) {
-				Parser S = new Parser (new Lexer (this.Order));
-				OrderByPart a2 = S.ExecuteOrderByPart ();
-				SelectStatement V = new SelectStatement (a2);
-				foreach (ColumnInfo ci in V.ColumnsInfo) {
-					if (string.IsNullOrEmpty (ci.TableNameOrTableAlias) || ci.TableNameOrTableAlias == d) {
-						Mapper _ = g.Find (delegate (Mapper Y) {
-							return string.Compare (Y.PropertyMapperName, ci.ColumnName, true) == 0;
+			if(!string.IsNullOrEmpty(this.Order) && string.IsNullOrEmpty(aggregationFunction))
+			{
+				Parser parser = new Parser(new Lexer(this.Order));
+				OrderByPart op = parser.ExecuteOrderByPart();
+				SelectStatement ss = new SelectStatement(op);
+				foreach (ColumnInfo ci in ss.ColumnsInfo)
+				{
+					if(string.IsNullOrEmpty(ci.TableNameOrTableAlias) || ci.TableNameOrTableAlias == mainTableAlias)
+					{
+						Mapper m = columns.Find(delegate(Mapper mp) {
+							return string.Compare(mp.PropertyMapperName, ci.ColumnName, true) == 0;
 						});
-						if (_ == null) {
-							GDAOperations.CallDebugTrace (this, string.Format ("Property {0} not exists in {1} or not mapped.", ci.ColumnName, _returnTypeQuery.FullName));
+						if(m == null)
+						{
+							GDAOperations.CallDebugTrace(this, string.Format("Property {0} not exists in {1} or not mapped.", ci.ColumnName, _returnTypeQuery.FullName));
 							continue;
 						}
-						ci.DBColumnName = _.Name;
-						ci.RenameToMapper (a);
+						ci.DBColumnName = m.Name;
+						ci.RenameToMapper(provider);
 					}
-					else {
-						foreach (JoinInfo ji in this._joins) {
-							if (ji.ClassTypeJoin.Name == ci.TableNameOrTableAlias || ji.ClassTypeJoin.FullName == ci.TableNameOrTableAlias || ji.ClassTypeJoinAlias == ci.TableNameOrTableAlias) {
-								List<Mapper> W = MappingManager.GetMappers (ji.ClassTypeJoin, null, null);
-								Mapper X = W.Find (delegate (Mapper Y) {
-									return (string.Compare (Y.PropertyMapperName, ci.ColumnName, true) == 0);
+					else
+					{
+						foreach (JoinInfo ji in this._joins)
+						{
+							if(ji.ClassTypeJoin.Name == ci.TableNameOrTableAlias || ji.ClassTypeJoin.FullName == ci.TableNameOrTableAlias || ji.ClassTypeJoinAlias == ci.TableNameOrTableAlias)
+							{
+								List<Mapper> mapperAux = MappingManager.GetMappers(ji.ClassTypeJoin, null, null);
+								Mapper mAux = mapperAux.Find(delegate(Mapper mp) {
+									return (string.Compare(mp.PropertyMapperName, ci.ColumnName, true) == 0);
 								});
-								if (X == null) {
-									X = MappingManager.GetPropertyMapper (ji.ClassTypeJoin, ci.ColumnName);
-									if (X == null) {
-										GDAOperations.CallDebugTrace (this, string.Format ("Property {0} not exists in {1} or not mapped.", ci.ColumnName, ji.ClassTypeJoin.FullName));
+								if(mAux == null)
+								{
+									mAux = MappingManager.GetPropertyMapper(ji.ClassTypeJoin, ci.ColumnName);
+									if(mAux == null)
+									{
+										GDAOperations.CallDebugTrace(this, string.Format("Property {0} not exists in {1} or not mapped.", ci.ColumnName, ji.ClassTypeJoin.FullName));
 										continue;
 									}
 								}
 								ci.TableNameOrTableAlias = ji.ClassTypeJoinAlias;
-								ci.DBColumnName = X.Name;
-								ci.RenameToMapper (a);
+								ci.DBColumnName = mAux.Name;
+								ci.RenameToMapper(provider);
 								break;
 							}
 						}
 					}
-					if (string.IsNullOrEmpty (ci.DBColumnName))
-						GDAOperations.CallDebugTrace (this, string.Format ("Field {0} not found in mapping.", ci.ToString ()));
+					if(string.IsNullOrEmpty(ci.DBColumnName))
+						GDAOperations.CallDebugTrace(this, string.Format("Field {0} not found in mapping.", ci.ToString()));
 				}
-				ParserToSqlCommand a0 = new ParserToSqlCommand (a2, a.QuoteExpressionBegin, a.QuoteExpressionEnd);
-				k.Append (" ORDER BY ").Append (a0.SqlCommand);
+				ParserToSqlCommand psc = new ParserToSqlCommand(op, provider.QuoteExpressionBegin, provider.QuoteExpressionEnd);
+				buf.Append(" ORDER BY ").Append(psc.SqlCommand);
 			}
-			return new QueryReturnInfo (k.ToString (), this.Parameters, f);
+			return new QueryReturnInfo(buf.ToString(), this.Parameters, recoverProperties);
 		}
-		public override bool Equals (object a)
+
+		/// <summary>
+		/// Processa o Select Statement.
+		/// </summary>
+		/// <param name="provider"></param>
+		/// <param name="classesDictionary"></param>
+		/// <param name="mainTableAlias"></param>
+		/// <param name="columns"></param>
+		/// <param name="ss"></param>
+		/// <param name="supportWildcardColumn">Identifica se deve possui suporte para coluna curinga "*"</param>
+		private void ProcessConditionalSelectStatement(GDA.Interfaces.IProvider provider, Dictionary<string, Type> classesDictionary, string mainTableAlias, List<Mapper> columns, SelectStatement ss, bool supportWildcardColumn)
 		{
-			if (a is Query)
-				return Equals ((Query)a);
+			foreach (ColumnInfo ci in ss.ColumnsInfo)
+			{
+				if(string.IsNullOrEmpty(ci.TableNameOrTableAlias) || ci.TableNameOrTableAlias == mainTableAlias)
+				{
+					ci.TableNameOrTableAlias = provider.QuoteExpression(mainTableAlias);
+				}
+				else
+				{
+					foreach (JoinInfo ji in this._joins)
+					{
+						if(ji.ClassTypeJoin.Name == ci.TableNameOrTableAlias || ji.ClassTypeJoin.FullName == ci.TableNameOrTableAlias || ji.ClassTypeJoinAlias == ci.TableNameOrTableAlias)
+						{
+							List<Mapper> mapperAux = MappingManager.GetMappers(ji.ClassTypeJoin, null, null);
+							Mapper mAux = mapperAux.Find(delegate(Mapper mp) {
+								return (string.Compare(mp.PropertyMapperName, ci.ColumnName, true) == 0);
+							});
+							if(mAux == null)
+							{
+								mAux = MappingManager.GetPropertyMapper(ji.ClassTypeJoin, ci.ColumnName);
+								if(mAux == null)
+									throw new GDAException("Property {0} not exists in {1} or not mapped.", ci.ColumnName, ji.ClassTypeJoin.FullName);
+							}
+							ci.TableNameOrTableAlias = ji.ClassTypeJoinAlias;
+							ci.DBColumnName = mAux.Name;
+							ci.RenameToMapper(provider);
+							break;
+						}
+					}
+					if(string.IsNullOrEmpty(ci.DBColumnName))
+					{
+						Type type = null;
+						if(classesDictionary.TryGetValue(ci.TableNameOrTableAlias, out type))
+						{
+							List<Mapper> mapperAux = MappingManager.GetMappers(type, null, null);
+							Mapper mAux = mapperAux.Find(delegate(Mapper mp) {
+								return (string.Compare(mp.PropertyMapperName, ci.ColumnName, true) == 0);
+							});
+							if(mAux == null)
+							{
+								mAux = MappingManager.GetPropertyMapper(type, ci.ColumnName);
+								if(mAux == null)
+									throw new GDAException("Property {0} not exists in {1} or not mapped.", ci.ColumnName, type.FullName);
+							}
+							ci.DBColumnName = mAux.Name;
+							ci.RenameToMapper(provider);
+						}
+						if(string.IsNullOrEmpty(ci.DBColumnName))
+							throw new QueryException("Field {0} not found in mapping.", ci.ToString());
+					}
+					continue;
+				}
+				Mapper m = columns.Find(delegate(Mapper mp) {
+					return (string.Compare(mp.PropertyMapperName, ci.ColumnName, true) == 0);
+				});
+				if(m == null)
+				{
+					m = MappingManager.GetPropertyMapper(_returnTypeQuery, ci.ColumnName);
+					if(m == null && (!supportWildcardColumn || ci.ColumnName != "*"))
+						throw new GDAException("Property {0} not exists in {1} or not mapped.", ci.ColumnName, _returnTypeQuery.FullName);
+				}
+				if(m != null)
+					ci.DBColumnName = m.Name;
+				ci.RenameToMapper(provider);
+			}
+		}
+
+		/// <summary>
+		/// Verifica a igualdade com outro objeto.
+		/// </summary>
+		/// <param name="obj">Outro objeto</param>
+		/// <returns>True se for igual, false senão.</returns>
+		public override bool Equals(object obj)
+		{
+			if(obj is Query)
+				return Equals((Query)obj);
 			else
 				return false;
 		}
-		public bool Equals (Query a)
+
+		/// <summary>
+		/// Verifica a igualdade com outro objeto Query.
+		/// </summary>
+		/// <param name="other">outro objeto Query</param>
+		/// <returns>True se for igual, false senão.</returns>
+		public bool Equals(Query other)
 		{
-			return Where == null ? a.Where == null : Where.Equals (a.Where) && orderClause == null ? a.orderClause == null : orderClause.Equals (a.orderClause);
+			return Where == null ? other.Where == null : Where.Equals(other.Where) && orderClause == null ? other.orderClause == null : orderClause.Equals(other.orderClause);
 		}
-		public override int GetHashCode ()
+
+		/// <summary>
+		/// Gets the hash code for this instance.
+		/// </summary>
+		/// <returns>hash code</returns>
+		public override int GetHashCode()
 		{
-			return base.GetHashCode ();
+			return base.GetHashCode();
 		}
-		public Query Add (DbType a, object b)
+
+		/// <summary>
+		/// Adiciona um parametro na consulta.
+		/// </summary>
+		/// <param name="dbtype">Tipo usado na base de dados</param>
+		/// <param name="value">Valor do parametro.</param>
+		public Query Add(DbType dbtype, object value)
 		{
-			return Add ("", a, b);
+			return Add("", dbtype, value);
 		}
-		public Query Add (string a, DbType b, object c)
+
+		/// <summary>
+		/// Adicionar um parametro.
+		/// </summary>
+		/// <param name="name">Nome do parametro.</param>
+		/// <param name="dbtype">Tipo usado na base de dados.</param>
+		/// <param name="value">parameter value</param>
+		public Query Add(string name, DbType dbtype, object value)
 		{
-			return Add (a, b, 0, c);
+			return Add(name, dbtype, 0, value);
 		}
-		public Query Add (string a, object b)
+
+		public Query Add(string name, object value)
 		{
-			return Add (new GDAParameter (a, b));
+			return Add(new GDAParameter(name, value));
 		}
-		public Query Add (DbType a, int b, object c)
+
+		/// <summary>
+		/// Adds a parameter.
+		/// </summary>
+		/// <param name="dbtype">database data type</param>
+		/// <param name="size">size of the database data type</param>
+		/// <param name="value">parameter value</param>
+		public Query Add(DbType dbtype, int size, object value)
 		{
-			return Add ("", a, b, c);
+			return Add("", dbtype, size, value);
 		}
-		public Query Add (string a, DbType b, int c, object d)
+
+		/// <summary>
+		/// Adds a parameter.
+		/// </summary>
+		/// <param name="name">parameter name</param>
+		/// <param name="dbtype">database data type</param>
+		/// <param name="size">size of the database data type</param>
+		/// <param name="value">parameter value</param>
+		public Query Add(string name, DbType dbtype, int size, object value)
 		{
-			GDAParameter e = new GDAParameter ();
-			e.ParameterName = a;
-			e.DbType = b;
-			e.Size = c;
-			e.Value = d;
-			var f = this._parameters.FindIndex (g => g.ParameterName == e.ParameterName);
-			if (f >= 0)
-				this._parameters.RemoveAt (f);
-			this._parameters.Add (e);
+			GDAParameter p = new GDAParameter();
+			p.ParameterName = name;
+			p.DbType = dbtype;
+			p.Size = size;
+			p.Value = value;
+			var index = this._parameters.FindIndex(f => f.ParameterName == p.ParameterName);
+			if(index >= 0)
+				this._parameters.RemoveAt(index);
+			this._parameters.Add(p);
 			return this;
 		}
-		public long Count<T> () where T : new()
+
+		/// <summary>
+		/// Recupera a quantidade de registros com base na Query.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public long Count<T>() where T : new()
 		{
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Count (this);
+			return GDAOperations.GetDAO<T>().Count(this);
 		}
-		public long Count<T> (GDASession a) where T : new()
+
+		/// <summary>
+		/// Recupera a quantidade de registros com base na Query.
+		/// </summary>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <returns>Quantidade de registro encontrados com base na consulta.</returns>
+		public long Count<T>(GDASession session) where T : new()
 		{
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Count (a, this);
+			return GDAOperations.GetDAO<T>().Count(session, this);
 		}
-		public double Sum<T> (string a) where T : new()
+
+		/// <summary>
+		/// Efetua a soma de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="propertyName">Propriedade que sera somada.</param>
+		/// <returns>Soma dos valores da propriedade identificada.</returns>
+		public double Sum<T>(string propertyName) where T : new()
 		{
-			_aggregationFunctionProperty = a;
+			_aggregationFunctionProperty = propertyName;
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Sum (null, this);
+			return GDAOperations.GetDAO<T>().Sum(null, this);
 		}
-		public double Sum<T> (GDASession a, string b) where T : new()
+
+		/// <summary>
+		/// Efetua a soma de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="propertyName">Propriedade que sera somada.</param>
+		/// <returns>Soma dos valores da propriedade identificada.</returns>
+		public double Sum<T>(GDASession session, string propertyName) where T : new()
 		{
-			_aggregationFunctionProperty = b;
+			_aggregationFunctionProperty = propertyName;
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Sum (a, this);
+			return GDAOperations.GetDAO<T>().Sum(session, this);
 		}
-		public double Max<T> (string a) where T : new()
+
+		/// <summary>
+		/// Recupera o valor máximo de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="propertyName">Propriedade onde será recupera o valor máximo.</param>
+		/// <returns>Valor máximo da propriedade identificada.</returns>
+		public double Max<T>(string propertyName) where T : new()
 		{
-			_aggregationFunctionProperty = a;
+			_aggregationFunctionProperty = propertyName;
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Max (null, this);
+			return GDAOperations.GetDAO<T>().Max(null, this);
 		}
-		public double Max<T> (GDASession a, string b) where T : new()
+
+		/// <summary>
+		/// Recupera o valor máximo de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="propertyName">Propriedade onde será recupera o valor máximo.</param>
+		/// <returns>Valor máximo da propriedade identificada.</returns>
+		public double Max<T>(GDASession session, string propertyName) where T : new()
 		{
-			_aggregationFunctionProperty = b;
+			_aggregationFunctionProperty = propertyName;
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Max (a, this);
+			return GDAOperations.GetDAO<T>().Max(session, this);
 		}
-		public double Min<T> (string a) where T : new()
+
+		/// <summary>
+		/// Recupera o valor mínimo de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="propertyName">Propriedade onde será recupera o valor mínimo.</param>
+		/// <returns>Valor mínimo da propriedade identificada.</returns>
+		public double Min<T>(string propertyName) where T : new()
 		{
-			_aggregationFunctionProperty = a;
+			_aggregationFunctionProperty = propertyName;
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Min (null, this);
+			return GDAOperations.GetDAO<T>().Min(null, this);
 		}
-		public double Min<T> (GDASession a, string b) where T : new()
+
+		/// <summary>
+		/// Recupera o valor mínimo de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="propertyName">Propriedade onde será recupera o valor mínimo.</param>
+		/// <returns>Valor mínimo da propriedade identificada.</returns>
+		public double Min<T>(GDASession session, string propertyName) where T : new()
 		{
-			_aggregationFunctionProperty = b;
+			_aggregationFunctionProperty = propertyName;
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Min (a, this);
+			return GDAOperations.GetDAO<T>().Min(session, this);
 		}
-		public double Avg<T> (string a) where T : new()
+
+		/// <summary>
+		/// Recupera o valor médio de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="propertyName">Propriedade onde será recupera o valor médio.</param>
+		/// <returns>Valor médio da propriedade identificada.</returns>
+		public double Avg<T>(string propertyName) where T : new()
 		{
-			_aggregationFunctionProperty = a;
+			_aggregationFunctionProperty = propertyName;
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Avg (null, this);
+			return GDAOperations.GetDAO<T>().Avg(null, this);
 		}
-		public double Avg<T> (GDASession a, string b) where T : new()
+
+		/// <summary>
+		/// Recupera o valor médio de uma determina propriedade da classe T definida.
+		/// </summary>
+		/// <typeparam name="T">Model que será tratada.</typeparam>
+		/// <param name="session">Sessão utilizada para a execução do comando.</param>
+		/// <param name="propertyName">Propriedade onde será recupera o valor médio.</param>
+		/// <returns>Valor médio da propriedade identificada.</returns>
+		public double Avg<T>(GDASession session, string propertyName) where T : new()
 		{
-			_aggregationFunctionProperty = b;
+			_aggregationFunctionProperty = propertyName;
 			_returnTypeQuery = typeof(T);
-			return GDAOperations.GetDAO<T> ().Avg (a, this);
+			return GDAOperations.GetDAO<T>().Avg(session, this);
 		}
-		void IGDAParameterContainer.Add (GDAParameter parameter)
+
+		void IGDAParameterContainer.Add(GDAParameter parameter)
 		{
-			var index = this._parameters.FindIndex (f => f.ParameterName == parameter.ParameterName);
-			if (index >= 0)
-				this._parameters.RemoveAt (index);
-			this._parameters.Add (parameter);
+			var index = this._parameters.FindIndex(f => f.ParameterName == parameter.ParameterName);
+			if(index >= 0)
+				this._parameters.RemoveAt(index);
+			this._parameters.Add(parameter);
 		}
-		bool IGDAParameterContainer.TryGet (string a, out GDAParameter b)
+
+		/// <summary>
+		/// Tenta recupera o parametro pelo nome informado.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="parameter"></param>
+		/// <returns></returns>
+		bool IGDAParameterContainer.TryGet(string name, out GDAParameter parameter)
 		{
-			return _parameters.TryGet (a, out b);
+			return _parameters.TryGet(name, out parameter);
 		}
-		bool IGDAParameterContainer.ContainsKey (string a)
+
+		/// <summary>
+		/// Verifica se existe algum parametro com o nome informado.
+		/// </summary>
+		/// <param name="name">Nome do parametro.</param>
+		/// <returns></returns>
+		bool IGDAParameterContainer.ContainsKey(string name)
 		{
-			return _parameters.ContainsKey (a);
+			return _parameters.ContainsKey(name);
 		}
-		bool IGDAParameterContainer.Remove (string a)
+
+		/// <summary>
+		/// Remove o parametro pelo nome informado.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <returns></returns>
+		bool IGDAParameterContainer.Remove(string name)
 		{
-			return _parameters.Remove (a);
+			return _parameters.Remove(name);
 		}
-		IEnumerator<GDAParameter> IEnumerable<GDAParameter>.GetEnumerator ()
+
+		IEnumerator<GDAParameter> IEnumerable<GDAParameter>.GetEnumerator()
 		{
-			return _parameters.GetEnumerator ();
+			return _parameters.GetEnumerator();
 		}
-		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator ()
+
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
 		{
-			return _parameters.GetEnumerator ();
+			return _parameters.GetEnumerator();
 		}
 	}
 }

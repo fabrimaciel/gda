@@ -1,141 +1,229 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Analysis;
 using System.Data;
 using System.Data.OleDb;
+
 namespace GDA.Provider.MsAccess
 {
 	public class MsAccessAnalyzer : DatabaseAnalyzer
 	{
-		public MsAccessAnalyzer (MsAccessProviderConfiguration a) : base (a)
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		/// <param name="providerConfiguration"></param>
+		public MsAccessAnalyzer(MsAccessProviderConfiguration providerConfiguration) : base(providerConfiguration)
 		{
 		}
-		private DataTable GetTables (string a)
+
+		/// <summary>
+		/// Recupera a estrutura da tabela.
+		/// http://msdn.microsoft.com/library/en-us/oledb/htm/oledbtables_rowset.asp
+		/// Restriction columns: TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE ("TABLE","VIEW")
+		/// Schema columns: TABLE_GUID, DESCRIPTION, TABLE_PROPID, DATE_CREATED, DATE_MODIFIED
+		/// </summary>
+		private DataTable GetTables(string tableName)
 		{
-			OleDbConnection b = ProviderConfiguration.CreateConnection () as OleDbConnection;
-			GDAConnectionManager.NotifyConnectionCreated (b);
-			if (b.State != ConnectionState.Open) {
-				b.Open ();
-				GDAConnectionManager.NotifyConnectionOpened (b);
+			OleDbConnection conn = ProviderConfiguration.CreateConnection() as OleDbConnection;
+			GDAConnectionManager.NotifyConnectionCreated(conn);
+			if(conn.State != ConnectionState.Open)
+			{
+				conn.Open();
+				GDAConnectionManager.NotifyConnectionOpened(conn);
 			}
-			try {
-				return b.GetOleDbSchemaTable (OleDbSchemaGuid.Tables, new object[] {
+			try
+			{
+				return conn.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, new object[] {
 					null,
 					null,
-					a,
+					tableName,
 					null
 				});
 			}
-			finally {
-				b.Close ();
+			finally
+			{
+				conn.Close();
 			}
 		}
-		private DataTable GetColumns (string a)
+
+		/// <summary>
+		/// Recupera as informações das colunas da tabela.
+		/// http://msdn.microsoft.com/library/en-us/oledb/htm/oledbcolumns_rowset.asp
+		/// http://msdn.microsoft.com/library/default.asp?url=/library/en-us/oledb/htm/oledbtype_indicators.asp
+		/// Restriction columns: TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME
+		/// Schema columns: DATA_TYPE, ORDINAL_POSITION, COLUMN_HASDEFAULT, COLUMN_DEFAULT, 
+		///		COLUMN_FLAGS, IS_NULLABLE, NUMERIC_PRECISION, NUMERIC_SCALE, 
+		///		CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH
+		/// </summary>
+		private DataTable GetColumns(string tableName)
 		{
-			OleDbConnection b = ProviderConfiguration.CreateConnection () as OleDbConnection;
-			GDAConnectionManager.NotifyConnectionCreated (b);
-			if (b.State != ConnectionState.Open) {
-				b.Open ();
-				GDAConnectionManager.NotifyConnectionOpened (b);
+			OleDbConnection conn = ProviderConfiguration.CreateConnection() as OleDbConnection;
+			GDAConnectionManager.NotifyConnectionCreated(conn);
+			if(conn.State != ConnectionState.Open)
+			{
+				conn.Open();
+				GDAConnectionManager.NotifyConnectionOpened(conn);
 			}
-			try {
-				return b.GetOleDbSchemaTable (OleDbSchemaGuid.Columns, new object[] {
+			try
+			{
+				return conn.GetOleDbSchemaTable(OleDbSchemaGuid.Columns, new object[] {
 					null,
 					null,
-					a,
+					tableName,
 					null
 				});
 			}
-			finally {
-				b.Close ();
+			finally
+			{
+				conn.Close();
 			}
 		}
-		private DataTable GetPrimaryKeys (string a)
+
+		/// <summary>
+		/// http://msdn.microsoft.com/library/en-us/oledb/htm/oledbprimary_keys_rowset.asp
+		/// Restriction columns: TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME
+		/// Schema columns: COLUMN_NAME, COLUMN_GUID, COLUMN_PROPID, ORDINAL, PK_NAME
+		/// </summary>
+		private DataTable GetPrimaryKeys(string tableName)
 		{
-			OleDbConnection b = ProviderConfiguration.CreateConnection () as OleDbConnection;
-			GDAConnectionManager.NotifyConnectionCreated (b);
-			if (b.State != ConnectionState.Open) {
-				b.Open ();
-				GDAConnectionManager.NotifyConnectionOpened (b);
+			OleDbConnection conn = ProviderConfiguration.CreateConnection() as OleDbConnection;
+			GDAConnectionManager.NotifyConnectionCreated(conn);
+			if(conn.State != ConnectionState.Open)
+			{
+				conn.Open();
+				GDAConnectionManager.NotifyConnectionOpened(conn);
 			}
-			try {
-				return b.GetOleDbSchemaTable (OleDbSchemaGuid.Primary_Keys, new object[] {
+			try
+			{
+				return conn.GetOleDbSchemaTable(OleDbSchemaGuid.Primary_Keys, new object[] {
 					null,
 					null,
-					a
+					tableName
 				});
 			}
-			finally {
-				b.Close ();
+			finally
+			{
+				conn.Close();
 			}
 		}
-		private DataTable GetPrimaryKeyInfo (string a)
+
+		/// <summary>
+		/// Recupera as informações sobre as chaves primárias da tabela.
+		/// </summary>
+		private DataTable GetPrimaryKeyInfo(string tableName)
 		{
-			OleDbConnection b = ProviderConfiguration.CreateConnection () as OleDbConnection;
-			GDAConnectionManager.NotifyConnectionCreated (b);
-			if (b.State != ConnectionState.Open) {
-				b.Open ();
-				GDAConnectionManager.NotifyConnectionOpened (b);
+			OleDbConnection conn = ProviderConfiguration.CreateConnection() as OleDbConnection;
+			GDAConnectionManager.NotifyConnectionCreated(conn);
+			if(conn.State != ConnectionState.Open)
+			{
+				conn.Open();
+				GDAConnectionManager.NotifyConnectionOpened(conn);
 			}
-			try {
-				OleDbCommand c = new OleDbCommand ("SELECT * FROM " + a, b);
-				OleDbDataReader d = c.ExecuteReader (CommandBehavior.KeyInfo);
-				return d.GetSchemaTable ();
+			try
+			{
+				OleDbCommand cmd = new OleDbCommand("SELECT * FROM " + tableName, conn);
+				OleDbDataReader dr = cmd.ExecuteReader(CommandBehavior.KeyInfo);
+				return dr.GetSchemaTable();
 			}
-			finally {
-				b.Close ();
+			finally
+			{
+				conn.Close();
 			}
 		}
-		private DataTable GetForeignKeys (string a)
+
+		/// <summary>
+		/// Recupera as chaves estrangeiras da tabela.
+		/// http://msdn.microsoft.com/library/default.asp?url=/library/en-us/oledb/htm/oledbtable_constraints_rowset.asp
+		/// Restriction columns: PK_TABLE_CATALOG, PK_TABLE_SCHEMA, PK_TABLE_NAME, 
+		/// FK_TABLE_CATALOG, FK_TABLE_SCHEMA, FK_TABLE_NAME
+		/// Schema columns: FK_COLUMN_NAME, FK_COLUMN_GUID, FK_COLUMN_PROPID, UPDATE_RULE,
+		/// DELETE_RULE, PK_NAME, FK_NAME, DEFERRABILITY 
+		/// </summary>
+		private DataTable GetForeignKeys(string tableName)
 		{
-			OleDbConnection b = ProviderConfiguration.CreateConnection () as OleDbConnection;
-			GDAConnectionManager.NotifyConnectionCreated (b);
-			if (b.State != ConnectionState.Open) {
-				b.Open ();
-				GDAConnectionManager.NotifyConnectionOpened (b);
+			OleDbConnection conn = ProviderConfiguration.CreateConnection() as OleDbConnection;
+			GDAConnectionManager.NotifyConnectionCreated(conn);
+			if(conn.State != ConnectionState.Open)
+			{
+				conn.Open();
+				GDAConnectionManager.NotifyConnectionOpened(conn);
 			}
-			try {
-				return b.GetOleDbSchemaTable (OleDbSchemaGuid.Foreign_Keys, new object[] {
+			try
+			{
+				return conn.GetOleDbSchemaTable(OleDbSchemaGuid.Foreign_Keys, new object[] {
 					null,
 					null,
 					null,
 					null,
 					null,
-					a
+					tableName
 				});
 			}
-			finally {
-				b.Close ();
+			finally
+			{
+				conn.Close();
 			}
 		}
-		public override void Analyze (string a)
+
+		public override void Analyze(string tableName)
 		{
-			try {
-				bool b = a != null;
-				DataTable c = GetTables (a);
-				foreach (DataRow row in c.Rows) {
-					string d = (string)row ["TABLE_NAME"];
-					if (!d.StartsWith ("MSysAccess")) {
-						if (!b || a.ToLower ().Equals (d.ToLower ())) {
-							TableMap e = GetTableMap (d);
-							if (e == null) {
-								e = new TableMap (ProviderConfiguration, d);
-								tablesMaps [d.ToLower ()] = e;
+			try
+			{
+				bool isSingleRun = tableName != null;
+				DataTable dt = GetTables(tableName);
+				foreach (DataRow row in dt.Rows)
+				{
+					string dbTableName = (string)row["TABLE_NAME"];
+					if(!dbTableName.StartsWith("MSysAccess"))
+					{
+						if(!isSingleRun || tableName.ToLower().Equals(dbTableName.ToLower()))
+						{
+							TableMap map = GetTableMap(dbTableName);
+							if(map == null)
+							{
+								map = new TableMap(ProviderConfiguration, dbTableName);
+								tablesMaps[dbTableName.ToLower()] = map;
 							}
-							GetColumnData (e);
-							if (b)
+							GetColumnData(map);
+							if(isSingleRun)
 								break;
 						}
 					}
 				}
-				GetPrimaryKeyData ();
-				GetForeignKeyData ();
+				GetPrimaryKeyData();
+				GetForeignKeyData();
 			}
-			catch (Exception ex) {
-				throw new GDAException ("An error occurred while analyzing the database schema.", ex);
+			catch(Exception ex)
+			{
+				throw new GDAException("An error occurred while analyzing the database schema.", ex);
 			}
 		}
+
+		/// <summary>
+		/// This enumeration represents the bitmask values of the COLUMN_FLAGS value used below.
+		/// </summary>
 		[Flags]
 		private enum DBCOLUMNFLAGS
 		{
@@ -160,73 +248,97 @@ namespace GDA.Provider.MsAccess
 			ISROW = 0x200000,
 			ROWSPECIFICCOLUMN = 0x400000
 		}
-		private void GetColumnData (TableMap a)
+
+		/// <summary>
+		/// Este método preenche os dados das colunas da table.
+		/// </summary>
+		private void GetColumnData(TableMap map)
 		{
-			DataTable b = GetColumns (a.TableName);
-			foreach (DataRow row in b.Rows) {
-				string c = (string)row ["COLUMN_NAME"];
-				FieldMap d = a.GetFieldMapFromColumn (c);
-				if (d == null) {
-					d = new FieldMap (a, c);
-					a.Fields.Add (d);
+			DataTable dt = GetColumns(map.TableName);
+			foreach (DataRow row in dt.Rows)
+			{
+				string columnName = (string)row["COLUMN_NAME"];
+				FieldMap fm = map.GetFieldMapFromColumn(columnName);
+				if(fm == null)
+				{
+					fm = new FieldMap(map, columnName);
+					map.Fields.Add(fm);
 				}
-				d.IsNullable = Convert.ToBoolean (row ["IS_NULLABLE"]);
-				OleDbType e = (OleDbType)row ["DATA_TYPE"];
-				d.SetDbType ((long)e);
-				d.DbTypeName = e.ToString ();
-				if (e == OleDbType.Decimal || e == OleDbType.Numeric || e == OleDbType.VarNumeric) {
-					d.Size = Convert.ToInt32 (row ["NUMERIC_PRECISION"]);
+				fm.IsNullable = Convert.ToBoolean(row["IS_NULLABLE"]);
+				OleDbType dbType = (OleDbType)row["DATA_TYPE"];
+				fm.SetDbType((long)dbType);
+				fm.DbTypeName = dbType.ToString();
+				if(dbType == OleDbType.Decimal || dbType == OleDbType.Numeric || dbType == OleDbType.VarNumeric)
+				{
+					fm.Size = Convert.ToInt32(row["NUMERIC_PRECISION"]);
 				}
-				else if (e == OleDbType.LongVarBinary || e == OleDbType.LongVarChar || e == OleDbType.LongVarWChar || e == OleDbType.VarBinary || e == OleDbType.VarChar || e == OleDbType.VarWChar || e == OleDbType.WChar || e == OleDbType.Char || e == OleDbType.BSTR || e == OleDbType.Binary) {
-					d.Size = Convert.ToInt32 (row ["CHARACTER_MAXIMUM_LENGTH"]);
+				else if(dbType == OleDbType.LongVarBinary || dbType == OleDbType.LongVarChar || dbType == OleDbType.LongVarWChar || dbType == OleDbType.VarBinary || dbType == OleDbType.VarChar || dbType == OleDbType.VarWChar || dbType == OleDbType.WChar || dbType == OleDbType.Char || dbType == OleDbType.BSTR || dbType == OleDbType.Binary)
+				{
+					fm.Size = Convert.ToInt32(row["CHARACTER_MAXIMUM_LENGTH"]);
 				}
-				int f = Convert.ToInt32 (row ["COLUMN_FLAGS"]);
-				int g = (int)DBCOLUMNFLAGS.ISNULLABLE + (int)DBCOLUMNFLAGS.MAYBENULL;
-				bool h = (f & g) != 0;
-				g = (int)DBCOLUMNFLAGS.WRITE + (int)DBCOLUMNFLAGS.WRITEUNKNOWN;
-				bool i = (f & g) == 0;
-				d.IsReadOnly = i;
-				if (row ["DESCRIPTION"] != DBNull.Value && row ["DESCRIPTION"] is string)
-					d.Comment = row ["DESCRIPTION"].ToString ();
+				int columnFlags = Convert.ToInt32(row["COLUMN_FLAGS"]);
+				int flags = (int)DBCOLUMNFLAGS.ISNULLABLE + (int)DBCOLUMNFLAGS.MAYBENULL;
+				bool isNullableFlag = (columnFlags & flags) != 0;
+				flags = (int)DBCOLUMNFLAGS.WRITE + (int)DBCOLUMNFLAGS.WRITEUNKNOWN;
+				bool isReadOnly = (columnFlags & flags) == 0;
+				fm.IsReadOnly = isReadOnly;
+				if(row["DESCRIPTION"] != DBNull.Value && row["DESCRIPTION"] is string)
+					fm.Comment = row["DESCRIPTION"].ToString();
 			}
 		}
-		private void GetPrimaryKeyData ()
+
+		/// <summary>
+		/// Recupera os dados das chaves primárias da tabela.
+		/// </summary>
+		private void GetPrimaryKeyData()
 		{
-			DataTable a = GetPrimaryKeys (null);
-			foreach (DataRow row in a.Rows) {
-				string b = (string)row ["TABLE_NAME"];
-				string c = (string)row ["COLUMN_NAME"];
-				TableMap d = GetTableMap (b);
-				if (d != null) {
-					FieldMap e = d.GetFieldMapFromColumn (c);
-					if (e != null) {
-						e.IsPrimaryKey = true;
-						DataTable f = GetPrimaryKeyInfo (d.QuotedTableName);
-						foreach (DataRow dr in f.Rows) {
-							string g = dr ["ColumnName"].ToString ();
-							if (g == c) {
-								bool h = Convert.ToBoolean (dr ["IsAutoIncrement"]);
-								e.IsAutoGenerated = h;
+			DataTable dt = GetPrimaryKeys(null);
+			foreach (DataRow row in dt.Rows)
+			{
+				string tableName = (string)row["TABLE_NAME"];
+				string columnName = (string)row["COLUMN_NAME"];
+				TableMap map = GetTableMap(tableName);
+				if(map != null)
+				{
+					FieldMap fm = map.GetFieldMapFromColumn(columnName);
+					if(fm != null)
+					{
+						fm.IsPrimaryKey = true;
+						DataTable pkInfo = GetPrimaryKeyInfo(map.QuotedTableName);
+						foreach (DataRow dr in pkInfo.Rows)
+						{
+							string column = dr["ColumnName"].ToString();
+							if(column == columnName)
+							{
+								bool isAutoGenerated = Convert.ToBoolean(dr["IsAutoIncrement"]);
+								fm.IsAutoGenerated = isAutoGenerated;
 							}
 						}
 					}
 				}
 			}
 		}
-		private void GetForeignKeyData ()
+
+		/// <summary>
+		/// Recupera os dados de todas as chaves estrangeiras.
+		/// </summary>
+		private void GetForeignKeyData()
 		{
-			DataTable a = GetForeignKeys (null);
-			foreach (DataRow row in a.Rows) {
-				string b = (string)row ["FK_TABLE_NAME"];
-				string c = (string)row ["FK_COLUMN_NAME"];
-				string d = (string)row ["PK_TABLE_NAME"];
-				string e = (string)row ["PK_COLUMN_NAME"];
-				TableMap f = GetTableMap (b);
-				if (f != null) {
-					FieldMap g = f.GetFieldMapFromColumn (c);
-					if (g != null) {
-						g.ForeignKeyTableName = d;
-						g.ForeignKeyColumnName = e;
+			DataTable dt = GetForeignKeys(null);
+			foreach (DataRow row in dt.Rows)
+			{
+				string fkTableName = (string)row["FK_TABLE_NAME"];
+				string fkColumnName = (string)row["FK_COLUMN_NAME"];
+				string pkTableName = (string)row["PK_TABLE_NAME"];
+				string pkColumnName = (string)row["PK_COLUMN_NAME"];
+				TableMap map = GetTableMap(fkTableName);
+				if(map != null)
+				{
+					FieldMap fm = map.GetFieldMapFromColumn(fkColumnName);
+					if(fm != null)
+					{
+						fm.ForeignKeyTableName = pkTableName;
+						fm.ForeignKeyColumnName = pkColumnName;
 					}
 				}
 			}

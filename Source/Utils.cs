@@ -1,22 +1,44 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Sql.InterpreterExpression;
 using GDA.Sql.InterpreterExpression.Grammar;
 using GDA.Sql.InterpreterExpression.Nodes;
+
 namespace GDA.Sql
 {
 	internal class Utils
 	{
-		public static void Test ()
+		public static void Test()
 		{
-			string a = "select a.*, f.nome as nomefuncionario from atendimento a " + "inner join funcionarios f on a.idn_funcionario = f.idn_funcionario " + "where a.sta_reg <> 'R' order by a.dta_cadastro";
-			string b = "select mAX(p.Idn_Item), p.idn_item, (1 + 3 + 3) as teste, p.idn_pesquisa, f.nome as funcionario, o.nome as operadora," + "p.descricao, p.dta_cadastro, p.sta_reg, p.dta_pesquisa from pesquisa p " + "inner join funcionarios f on (p.idn_funcionario=f.idn_funcionario) " + "inner join Operadora o on (p.idn_operadora=o.idn_operadora) " + "where p.idn_pesquisa=1 group by p.idn_pesquisa, f.Nome having p.nom=2 order by p.dta_cadastro";
-			string c = "SELECT Func(Func2(Model.a.CodName),(()), (1+2)+3, 'dada') AS QQ, a.teste K FROM " + "(SELECT tb1 from cidades cid) as t";
-			string[] d = new string[] {
-				b,
-				a,
+			string c = "select a.*, f.nome as nomefuncionario from atendimento a " + "inner join funcionarios f on a.idn_funcionario = f.idn_funcionario " + "where a.sta_reg <> 'R' order by a.dta_cadastro";
+			string c2 = "select mAX(p.Idn_Item), p.idn_item, (1 + 3 + 3) as teste, p.idn_pesquisa, f.nome as funcionario, o.nome as operadora," + "p.descricao, p.dta_cadastro, p.sta_reg, p.dta_pesquisa from pesquisa p " + "inner join funcionarios f on (p.idn_funcionario=f.idn_funcionario) " + "inner join Operadora o on (p.idn_operadora=o.idn_operadora) " + "where p.idn_pesquisa=1 group by p.idn_pesquisa, f.Nome having p.nom=2 order by p.dta_cadastro";
+			string ss = "SELECT Func(Func2(Model.a.CodName),(()), (1+2)+3, 'dada') AS QQ, a.teste K FROM " + "(SELECT tb1 from cidades cid) as t";
+			string[] cmds = new string[] {
+				c2,
 				c,
+				ss,
 				"SELECT * FROM    Produtos WHERE    PrecoUnidade    ANY    (    SELECT    PrecoUnidade    FROM    DetalhePedido    WHERE    Desconto = 0.25 ) ",
 				"SELECT Sobrenome, Nome, Titulo, Salario FROM   Empregados AS T1 WHERE    Salario =    (    SELECT     Avg(Salario)    FROM    Empregados    WHERE    T1.Titulo = Empregados.Titulo    ) ORDER BY Titulo ",
 				"SELECT Sobrenomes, Nome, Cargo, Salario FROM Empregados WHERE Cargo LIKE 'Agente Ven*' AND Salario ALL ( SELECT    Salario    FROM    Empregados     WHERE    Cargo LIKE '*Chefe*'    OR    Cargo LIKE '*Diretor*' ) ",
@@ -44,20 +66,22 @@ and sy1.pos = 'n'
 and semlinkref.linkid = 1
 order by se1.rank asc;"
 			};
-			foreach (string cmd in d) {
-				SelectStatement e = SqlBuilder.P (cmd);
-				SelectStatement f = SqlBuilder.P (e.Parser ());
-				string[] g = new string[] {
-					e.Parser ().Replace (" ", "").ToUpper (),
-					f.Parser ().Replace (" ", "").ToUpper (),
-					cmd.Replace (" ", "").ToUpper ()
+			foreach (string cmd in cmds)
+			{
+				SelectStatement s1 = SqlBuilder.P(cmd);
+				SelectStatement s2 = SqlBuilder.P(s1.Parser());
+				string[] sql = new string[] {
+					s1.Parser().Replace(" ", "").ToUpper(),
+					s2.Parser().Replace(" ", "").ToUpper(),
+					cmd.Replace(" ", "").ToUpper()
 				};
-				if (e != f || (g [0] != g [1] && g [1] != g [2])) {
-					throw new Exception ("Diferentes.");
+				if(s1 != s2 || (sql[0] != sql[1] && sql[1] != sql[2]))
+				{
+					throw new Exception("Diferentes.");
 				}
 				else
-					Console.WriteLine ("Iguais");
-				System.Diagnostics.Debug.WriteLine (g [0] + "\n" + g [1] + "\n" + g [2]);
+					Console.WriteLine("Iguais");
+				System.Diagnostics.Debug.WriteLine(sql[0] + "\n" + sql[1] + "\n" + sql[2]);
 			}
 		}
 	}

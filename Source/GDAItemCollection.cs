@@ -1,273 +1,395 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.ComponentModel;
 using System.Collections;
 using System.Globalization;
+
 namespace GDA.Collections
 {
 	public class GDAItemCollection<T> : GDAList<T>, IList<T>, IBindingList, IBindingListView
 	{
-		public GDAItemCollection ()
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		public GDAItemCollection()
 		{
 		}
-		public GDAItemCollection (IEnumerable<T> a) : base (a)
+
+		/// <summary>
+		/// Construtor que inicializa a collection como uma collection.
+		/// </summary>
+		/// <param name="collection"></param>
+		public GDAItemCollection(IEnumerable<T> collection) : base(collection)
 		{
 		}
+
 		public event ListChangedEventHandler ListChanged;
-		private ListChangedEventArgs resetEvent = new ListChangedEventArgs (ListChangedType.Reset, -1);
-		protected virtual void OnListChanged (ListChangedEventArgs a)
+
+		private ListChangedEventArgs resetEvent = new ListChangedEventArgs(ListChangedType.Reset, -1);
+
+		/// <summary>
+		/// Método acionado quando a lista é alterada.
+		/// </summary>
+		/// <param name="ev"></param>
+		protected virtual void OnListChanged(ListChangedEventArgs ev)
 		{
-			if (ListChanged != null) {
-				ListChanged (this, a);
+			if(ListChanged != null)
+			{
+				ListChanged(this, ev);
 			}
 		}
-		public bool AllowEdit {
-			get {
+
+		public bool AllowEdit
+		{
+			get
+			{
 				return true;
 			}
 		}
-		public bool AllowNew {
-			get {
+
+		public bool AllowNew
+		{
+			get
+			{
 				return true;
 			}
 		}
-		public bool AllowRemove {
-			get {
+
+		public bool AllowRemove
+		{
+			get
+			{
 				return true;
 			}
 		}
-		public bool SupportsChangeNotification {
-			get {
+
+		public bool SupportsChangeNotification
+		{
+			get
+			{
 				return false;
 			}
 		}
-		public bool SupportsSearching {
-			get {
-				return true;
-			}
-		}
-		public bool SupportsSorting {
-			get {
-				return true;
-			}
-		}
-		public object AddNew ()
+
+		public bool SupportsSearching
 		{
-			T a = (T)Activator.CreateInstance (typeof(T));
-			this.Add (a);
-			return a;
+			get
+			{
+				return true;
+			}
 		}
+
+		public bool SupportsSorting
+		{
+			get
+			{
+				return true;
+			}
+		}
+
+		public object AddNew()
+		{
+			T item = (T)Activator.CreateInstance(typeof(T));
+			this.Add(item);
+			return item;
+		}
+
 		private bool isSorted = false;
-		public bool IsSorted {
-			get {
+
+		public bool IsSorted
+		{
+			get
+			{
 				return isSorted;
 			}
 		}
+
 		private ListSortDirection listSortDirection = ListSortDirection.Ascending;
-		public ListSortDirection SortDirection {
-			get {
+
+		public ListSortDirection SortDirection
+		{
+			get
+			{
 				return listSortDirection;
 			}
 		}
+
 		PropertyDescriptor sortProperty = null;
+
 		string sortPropertyName = null;
-		public PropertyDescriptor SortProperty {
-			get {
+
+		public PropertyDescriptor SortProperty
+		{
+			get
+			{
 				return sortProperty;
 			}
 		}
-		public void AddIndex (PropertyDescriptor a)
+
+		public void AddIndex(PropertyDescriptor property)
 		{
 			isSorted = true;
-			sortProperty = a;
-			sortPropertyName = a.Name;
+			sortProperty = property;
+			sortPropertyName = property.Name;
 		}
-		public void ApplySort (PropertyDescriptor a, ListSortDirection b)
+
+		public void ApplySort(PropertyDescriptor property, ListSortDirection direction)
 		{
-			sortProperty = a;
-			ApplySort (a.Name, b);
+			sortProperty = property;
+			ApplySort(property.Name, direction);
 		}
-		public void ApplySort (string a, ListSortDirection b)
+
+		public void ApplySort(string property, ListSortDirection direction)
 		{
 			isSorted = true;
-			sortPropertyName = a;
-			listSortDirection = b;
-			ArrayList c = new ArrayList ();
-			this.Sort (new ObjectPropertyComparer<T> (sortPropertyName));
-			if (b == ListSortDirection.Descending)
-				this.Reverse ();
-			OnListChanged (resetEvent);
+			sortPropertyName = property;
+			listSortDirection = direction;
+			ArrayList a = new ArrayList();
+			this.Sort(new ObjectPropertyComparer<T>(sortPropertyName));
+			if(direction == ListSortDirection.Descending)
+				this.Reverse();
+			OnListChanged(resetEvent);
 		}
-		private int[] Find (string a, object b, bool c)
+
+		private int[] Find(string propertyName, object key, bool getFirst)
 		{
-			GDAList<int> d = new GDAList<int> ();
-			Type e = typeof(T);
-			int f = 0;
-			foreach (T o in this) {
-				if (Match (e.GetProperty (a).GetValue (o, null), b)) {
-					if (c)
+			GDAList<int> itens = new GDAList<int>();
+			Type type = typeof(T);
+			int count = 0;
+			foreach (T o in this)
+			{
+				if(Match(type.GetProperty(propertyName).GetValue(o, null), key))
+				{
+					if(getFirst)
 						return new int[] {
-							f
+							count
 						};
 					else
-						d.Add (f);
+						itens.Add(count);
 				}
-				f++;
+				count++;
 			}
-			if (c)
+			if(getFirst)
 				return null;
 			else
-				return d.ToArray ();
+				return itens.ToArray();
 		}
-		public int Find (string a, object b)
+
+		public int Find(string propertyName, object key)
 		{
-			int[] c = Find (a, b, true);
-			if (c == null) {
+			int[] value = Find(propertyName, key, true);
+			if(value == null)
+			{
 				return -1;
 			}
-			else {
-				OnListChanged (new ListChangedEventArgs (ListChangedType.ItemMoved, c [0], 0));
-				return c [0];
+			else
+			{
+				OnListChanged(new ListChangedEventArgs(ListChangedType.ItemMoved, value[0], 0));
+				return value[0];
 			}
 		}
-		public int Find (PropertyDescriptor a, object b)
+
+		public int Find(PropertyDescriptor property, object key)
 		{
-			return Find (a.Name, b);
+			return Find(property.Name, key);
 		}
-		public void RemoveIndex (PropertyDescriptor a)
+
+		public void RemoveIndex(PropertyDescriptor property)
 		{
 			sortProperty = null;
 			sortPropertyName = null;
 		}
-		public void RemoveSort ()
+
+		public void RemoveSort()
 		{
 			isSorted = false;
 			sortProperty = null;
 			sortPropertyName = null;
-			OnListChanged (resetEvent);
+			OnListChanged(resetEvent);
 		}
+
 		private bool applyFilter = false;
+
 		private int[] itensFilter;
-		public void ApplyFilter (string a, object b)
+
+		public void ApplyFilter(string propertyName, object key)
 		{
-			itensFilter = Find (a, b, false);
+			itensFilter = Find(propertyName, key, false);
 			applyFilter = true;
-			OnListChanged (resetEvent);
+			OnListChanged(resetEvent);
 		}
-		public void RemoveFilter ()
+
+		public void RemoveFilter()
 		{
 			applyFilter = false;
-			OnListChanged (resetEvent);
+			OnListChanged(resetEvent);
 		}
-		protected internal override T GetItem (int a)
+
+		protected internal override T GetItem(int index)
 		{
-			if (applyFilter)
-				return base.GetItem (itensFilter [a]);
+			if(applyFilter)
+				return base.GetItem(itensFilter[index]);
 			else
-				return base.GetItem (a);
+				return base.GetItem(index);
 		}
-		protected internal override void SetItem (int a, T b)
+
+		protected internal override void SetItem(int index, T value)
 		{
-			if (applyFilter)
-				base.SetItem (itensFilter [a], b);
+			if(applyFilter)
+				base.SetItem(itensFilter[index], value);
 			else
-				base.SetItem (a, b);
+				base.SetItem(index, value);
 		}
-		protected internal override int GetCount ()
+
+		protected internal override int GetCount()
 		{
-			if (applyFilter)
+			if(applyFilter)
 				return itensFilter.Length;
 			else
-				return base.GetCount ();
+				return base.GetCount();
 		}
-		public override void OnInsertComplete (int a, T b)
+
+		public override void OnInsertComplete(int index, T value)
 		{
-			base.OnInsert (a, b);
-			OnListChanged (new ListChangedEventArgs (ListChangedType.ItemAdded, a));
+			base.OnInsert(index, value);
+			OnListChanged(new ListChangedEventArgs(ListChangedType.ItemAdded, index));
 		}
-		public override void OnRemoveComplete (int a, T b)
+
+		public override void OnRemoveComplete(int index, T value)
 		{
-			base.OnRemove (a, b);
-			OnListChanged (new ListChangedEventArgs (ListChangedType.ItemDeleted, a));
+			base.OnRemove(index, value);
+			OnListChanged(new ListChangedEventArgs(ListChangedType.ItemDeleted, index));
 		}
-		public override void OnRemoveAll ()
+
+		public override void OnRemoveAll()
 		{
-			base.OnRemoveAll ();
-			OnListChanged (resetEvent);
+			base.OnRemoveAll();
+			OnListChanged(resetEvent);
 		}
-		public override void OnClearComplete ()
+
+		public override void OnClearComplete()
 		{
-			base.OnClear ();
-			OnListChanged (resetEvent);
+			base.OnClear();
+			OnListChanged(resetEvent);
 		}
-		public override void OnSetComplete (int a, T b)
+
+		public override void OnSetComplete(int index, T newValue)
 		{
-			base.OnSetComplete (a, b);
-			OnListChanged (new ListChangedEventArgs (ListChangedType.ItemChanged, a));
+			base.OnSetComplete(index, newValue);
+			OnListChanged(new ListChangedEventArgs(ListChangedType.ItemChanged, index));
 		}
-		protected bool Match (object a, object b)
+
+		protected bool Match(object data, object searchValue)
 		{
-			if (a == null || b == null) {
-				return (bool)(a == b);
+			if(data == null || searchValue == null)
+			{
+				return (bool)(data == searchValue);
 			}
-			bool c = (bool)(a is string);
-			if (a.GetType () != b.GetType ())
-				throw new ArgumentException ("Objects must be of the same type");
-			if (!(a.GetType ().IsValueType || a is string))
-				throw new ArgumentException ("Objects must be a value type");
-			if (c) {
-				string d = ((string)a).ToLower (CultureInfo.CurrentCulture);
-				string e = ((string)b).ToLower (CultureInfo.CurrentCulture);
-				return (bool)(d.IndexOf (e) >= 0);
+			bool IsString = (bool)(data is string);
+			if(data.GetType() != searchValue.GetType())
+				throw new ArgumentException("Objects must be of the same type");
+			if(!(data.GetType().IsValueType || data is string))
+				throw new ArgumentException("Objects must be a value type");
+			if(IsString)
+			{
+				string stringData = ((string)data).ToLower(CultureInfo.CurrentCulture);
+				string stringMatch = ((string)searchValue).ToLower(CultureInfo.CurrentCulture);
+				return (bool)(stringData.IndexOf(stringMatch) >= 0);
 			}
-			else {
-				return (bool)(Comparer.Default.Compare (a, b) == 0);
+			else
+			{
+				return (bool)(Comparer.Default.Compare(data, searchValue) == 0);
 			}
 		}
+
 		private string m_FilterString = null;
-		void IBindingListView.ApplySort (ListSortDescriptionCollection a)
+
+		void IBindingListView.ApplySort(ListSortDescriptionCollection sorts)
 		{
-			throw new NotSupportedException ();
+			throw new NotSupportedException();
 		}
-		string IBindingListView.Filter {
-			get {
+
+		string IBindingListView.Filter
+		{
+			get
+			{
 				return m_FilterString;
 			}
-			set {
+			set
+			{
 				m_FilterString = value;
-				UpdateFilter ();
+				UpdateFilter();
 			}
 		}
-		void IBindingListView.RemoveFilter ()
+
+		void IBindingListView.RemoveFilter()
 		{
-			RemoveFilter ();
+			RemoveFilter();
 		}
-		ListSortDescriptionCollection IBindingListView.SortDescriptions {
-			get {
+
+		ListSortDescriptionCollection IBindingListView.SortDescriptions
+		{
+			get
+			{
 				return null;
 			}
 		}
-		bool IBindingListView.SupportsAdvancedSorting {
-			get {
+
+		bool IBindingListView.SupportsAdvancedSorting
+		{
+			get
+			{
 				return false;
 			}
 		}
-		bool IBindingListView.SupportsFiltering {
-			get {
+
+		bool IBindingListView.SupportsFiltering
+		{
+			get
+			{
 				return true;
 			}
 		}
-		protected virtual void UpdateFilter ()
+
+		protected virtual void UpdateFilter()
 		{
-			int a = m_FilterString.IndexOf ('=');
-			string b = m_FilterString.Substring (0, a).Trim ();
-			string c = m_FilterString.Substring (a + 1, m_FilterString.Length - a - 1).Trim ();
-			c = c.Substring (1, c.Length - 2);
-			ApplyFilter (b, c);
+			int equalsPos = m_FilterString.IndexOf('=');
+			string propName = m_FilterString.Substring(0, equalsPos).Trim();
+			string criteria = m_FilterString.Substring(equalsPos + 1, m_FilterString.Length - equalsPos - 1).Trim();
+			criteria = criteria.Substring(1, criteria.Length - 2);
+			ApplyFilter(propName, criteria);
 		}
-		public static implicit operator List<T> (GDAItemCollection<T> a) {
-			return new List<T> (a);
+
+		/// <summary>
+		/// Converte implicitamente para um lista tipada.
+		/// </summary>
+		/// <param name="collection"></param>
+		/// <returns>Lista tipada.</returns>
+		public static implicit operator List<T>(GDAItemCollection<T> collection)
+		{
+			return new List<T>(collection);
 		}
 	}
 }

@@ -1,11 +1,37 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
+
 namespace GDA.Helper
 {
+	/// <summary>
+	/// Encodes and decodes 'Canonical' base32 format.
+	/// </summary>
 	public static class Base32
 	{
 		static string base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
 		private static int[] base32Lookup =  {
 			0xFF,
 			0xFF,
@@ -88,86 +114,111 @@ namespace GDA.Helper
 			0xFF,
 			0xFF
 		};
-		public static string Encode (byte[] a)
+
+		/// <summary>
+		/// Codifica os bytes para a base 32.
+		/// </summary>
+		/// <param name="bytes"></param>
+		/// <returns></returns>
+		public static string Encode(byte[] bytes)
 		{
-			return Encode (a, 0, a.Length);
+			return Encode(bytes, 0, bytes.Length);
 		}
-		public static string Encode (byte[] a, int b, int c)
+
+		/// <summary>
+		/// Codifica os bytes para a base 32.
+		/// </summary>
+		/// <param name="bytes"></param>
+		/// <param name="loc"></param>
+		/// <param name="len"></param>
+		/// <returns></returns>
+		public static string Encode(byte[] bytes, int loc, int len)
 		{
-			int d = b + c;
-			int e = 0, f = 0;
-			int g, h;
-			StringBuilder i = new StringBuilder ((c + 7) * 8 / 5);
-			while (b < d) {
-				g = a [b];
-				if (e > 3) {
-					if ((b + 1) < d)
-						h = a [b + 1];
+			int total = loc + len;
+			int index = 0, digit = 0;
+			int currByte, nextByte;
+			StringBuilder base32 = new StringBuilder((len + 7) * 8 / 5);
+			while (loc < total)
+			{
+				currByte = bytes[loc];
+				if(index > 3)
+				{
+					if((loc + 1) < total)
+						nextByte = bytes[loc + 1];
 					else
-						h = 0;
-					f = g & (0xFF >> e);
-					e = (e + 5) % 8;
-					f <<= e;
-					f |= h >> (8 - e);
-					b++;
+						nextByte = 0;
+					digit = currByte & (0xFF >> index);
+					index = (index + 5) % 8;
+					digit <<= index;
+					digit |= nextByte >> (8 - index);
+					loc++;
 				}
-				else {
-					f = (g >> (8 - (e + 5))) & 0x1F;
-					e = (e + 5) % 8;
-					if (e == 0)
-						b++;
+				else
+				{
+					digit = (currByte >> (8 - (index + 5))) & 0x1F;
+					index = (index + 5) % 8;
+					if(index == 0)
+						loc++;
 				}
-				i.Append (base32Chars [f]);
+				base32.Append(base32Chars[digit]);
 			}
-			return i.ToString ().Replace ('I', '1');
+			return base32.ToString().Replace('I', '1');
 		}
-		public static string Encode (string a)
+
+		public static string Encode(string text)
 		{
-			return Encode (System.Text.Encoding.Default.GetBytes (a));
+			return Encode(System.Text.Encoding.Default.GetBytes(text));
 		}
-		public static byte[] Decode (string a)
+
+		public static byte[] Decode(string base32)
 		{
-			return Decode (a, 0, a.Length);
+			return Decode(base32, 0, base32.Length);
 		}
-		public static byte[] Decode (string a, int b, int c)
+
+		public static byte[] Decode(string base32, int loc, int len)
 		{
-			a = a.Replace ('1', 'I');
-			int d = b + c;
-			int e, f, g, h;
-			byte[] i = new byte[c * 5 / 8];
-			for (e = 0, g = 0; b < d; b++) {
-				f = a [b] - '0';
-				if (f < 0 || f >= base32Lookup.Length)
+			base32 = base32.Replace('1', 'I');
+			int total = loc + len;
+			int index, lookup, offset, digit;
+			byte[] bytes = new byte[len * 5 / 8];
+			for(index = 0, offset = 0; loc < total; loc++)
+			{
+				lookup = base32[loc] - '0';
+				if(lookup < 0 || lookup >= base32Lookup.Length)
 					continue;
-				h = base32Lookup [f];
-				if (h == 0xFF)
+				digit = base32Lookup[lookup];
+				if(digit == 0xFF)
 					continue;
-				if (e <= 3) {
-					e = (e + 5) % 8;
-					if (e == 0) {
-						i [g] |= (byte)h;
-						g++;
-						if (g >= i.Length)
+				if(index <= 3)
+				{
+					index = (index + 5) % 8;
+					if(index == 0)
+					{
+						bytes[offset] |= (byte)digit;
+						offset++;
+						if(offset >= bytes.Length)
 							break;
 					}
 					else
-						i [g] |= (byte)(h << (8 - e));
+						bytes[offset] |= (byte)(digit << (8 - index));
 				}
-				else {
-					e = (e + 5) % 8;
-					i [g] |= (byte)((uint)h >> e);
-					g++;
-					if (g >= i.Length)
+				else
+				{
+					index = (index + 5) % 8;
+					bytes[offset] |= (byte)((uint)digit >> index);
+					offset++;
+					if(offset >= bytes.Length)
 						break;
-					i [g] |= (byte)(h << (8 - e));
+					bytes[offset] |= (byte)(digit << (8 - index));
 				}
 			}
-			return i;
+			return bytes;
 		}
-		public static string DecodeToText (string a)
+
+		public static string DecodeToText(string base32)
 		{
-			byte[] b = Decode (a);
-			return System.Text.Encoding.Default.GetString (b, 0, b.Length);
+			byte[] result = Decode(base32);
+			return System.Text.Encoding.Default.GetString(result, 0, result.Length);
 		}
 	}
 }

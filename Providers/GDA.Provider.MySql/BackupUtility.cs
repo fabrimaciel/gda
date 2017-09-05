@@ -1,174 +1,292 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
+
 namespace GDA.Provider.MySql
 {
+	/// <summary>
+	/// Representa um utilitarios para backup.
+	/// </summary>
 	public class BackupUtility
 	{
 		private string _username;
+
 		private string _password;
+
 		private string _host;
+
 		private int _port = 3306;
+
 		private string _defaultCharacterSet = "utf8";
+
 		private string _database;
+
 		private bool _exportXML = false;
+
 		private string _destinationFile;
+
 		private string _mysqlDumpPath;
+
 		private string _mysqlPath;
-		public string Username {
-			get {
+
+		/// <summary>
+		/// Usuário de acesso.
+		/// </summary>
+		public string Username
+		{
+			get
+			{
 				return _username;
 			}
-			set {
-				if (string.IsNullOrEmpty (value))
-					throw new ArgumentNullException ("Username");
+			set
+			{
+				if(string.IsNullOrEmpty(value))
+					throw new ArgumentNullException("Username");
 				_username = value;
 			}
 		}
-		public string Password {
-			get {
+
+		/// <summary>
+		/// Senha de acesso.
+		/// </summary>
+		public string Password
+		{
+			get
+			{
 				return _password;
 			}
-			set {
-				if (string.IsNullOrEmpty (value))
-					throw new ArgumentNullException ("Password");
+			set
+			{
+				if(string.IsNullOrEmpty(value))
+					throw new ArgumentNullException("Password");
 				_password = value;
 			}
 		}
-		public string Host {
-			get {
+
+		/// <summary>
+		/// Host do banco de dados.
+		/// </summary>
+		public string Host
+		{
+			get
+			{
 				return _host;
 			}
-			set {
-				if (string.IsNullOrEmpty (value))
-					throw new ArgumentNullException ("Host");
+			set
+			{
+				if(string.IsNullOrEmpty(value))
+					throw new ArgumentNullException("Host");
 				_host = value;
 			}
 		}
-		public int Port {
-			get {
+
+		/// <summary>
+		/// Porta de comunicação.
+		/// </summary>
+		public int Port
+		{
+			get
+			{
 				return _port;
 			}
-			set {
+			set
+			{
 				_port = value;
 			}
 		}
-		public string DefaultCharacterSet {
-			get {
+
+		public string DefaultCharacterSet
+		{
+			get
+			{
 				return _defaultCharacterSet;
 			}
-			set {
+			set
+			{
 				_defaultCharacterSet = value;
 			}
 		}
-		public string Database {
-			get {
+
+		/// <summary>
+		/// Base de dados que será importada ou exportada.
+		/// </summary>
+		public string Database
+		{
+			get
+			{
 				return _database;
 			}
-			set {
-				if (string.IsNullOrEmpty (value))
-					throw new ArgumentNullException ("Database");
+			set
+			{
+				if(string.IsNullOrEmpty(value))
+					throw new ArgumentNullException("Database");
 				_database = value;
 			}
 		}
-		public bool ExportXML {
-			get {
+
+		/// <summary>
+		/// Identifica se será usado o formato XML.
+		/// </summary>
+		public bool ExportXML
+		{
+			get
+			{
 				return _exportXML;
 			}
-			set {
+			set
+			{
 				_exportXML = value;
 			}
 		}
-		public string DestinationFile {
-			get {
+
+		/// <summary>
+		/// Nome do arquivo de importação ou exportação.
+		/// </summary>
+		public string DestinationFile
+		{
+			get
+			{
 				return _destinationFile;
 			}
-			set {
-				if (string.IsNullOrEmpty (value))
-					throw new ArgumentNullException ("DestinationFile");
+			set
+			{
+				if(string.IsNullOrEmpty(value))
+					throw new ArgumentNullException("DestinationFile");
 				_destinationFile = value;
 			}
 		}
-		public string MysqlDumpPath {
-			get {
+
+		/// <summary>
+		/// Caminho do Mysqldump.
+		/// </summary>
+		public string MysqlDumpPath
+		{
+			get
+			{
 				return _mysqlDumpPath;
 			}
-			set {
+			set
+			{
 				_mysqlDumpPath = value;
 			}
 		}
-		public string MysqlPath {
-			get {
+
+		/// <summary>
+		/// Caminho do programa Mysql para importação dos dados.
+		/// </summary>
+		public string MysqlPath
+		{
+			get
+			{
 				return _mysqlPath;
 			}
-			set {
+			set
+			{
 				_mysqlPath = value;
 			}
 		}
-		public BackupUtility (string a, string b, string c, string d, string e)
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="host">Nome do host onde está o banco de dados.</param>
+		/// <param name="username">Usuário de acesso ao banco de dados.</param>
+		/// <param name="password">Senha de acesso.</param>
+		/// <param name="database">Nome da base de dados.</param>
+		/// <param name="destinationFile">Arquivo de destino dos dados importados ou exportados.</param>
+		public BackupUtility(string host, string username, string password, string database, string destinationFile)
 		{
-			Host = a;
-			Username = b;
-			Password = c;
-			Database = d;
-			DestinationFile = e;
+			Host = host;
+			Username = username;
+			Password = password;
+			Database = database;
+			DestinationFile = destinationFile;
 		}
-		public void Export ()
+
+		/// <summary>
+		/// Exporta os dados.
+		/// </summary>
+		public void Export()
 		{
-			if (string.IsNullOrEmpty (_mysqlDumpPath))
-				throw new Exception ("MysqlDump not defined.");
-			else if (!System.IO.File.Exists (_mysqlDumpPath))
-				throw new Exception (string.Format ("MysqlDump file \"{0}\" not exists.", _mysqlDumpPath));
-			Exception a = null;
-			DataReceivedEventHandler b = new DataReceivedEventHandler (delegate (object c, DataReceivedEventArgs d) {
-				if (!string.IsNullOrEmpty (d.Data))
-					a = new Exception (d.Data);
+			if(string.IsNullOrEmpty(_mysqlDumpPath))
+				throw new Exception("MysqlDump not defined.");
+			else if(!System.IO.File.Exists(_mysqlDumpPath))
+				throw new Exception(string.Format("MysqlDump file \"{0}\" not exists.", _mysqlDumpPath));
+			Exception exceptionOcurred = null;
+			DataReceivedEventHandler dataError = new DataReceivedEventHandler(delegate(object sender, DataReceivedEventArgs e) {
+				if(!string.IsNullOrEmpty(e.Data))
+					exceptionOcurred = new Exception(e.Data);
 			});
-			Process e = new Process ();
-			string f = "/c " + (_mysqlDumpPath.IndexOf (' ') >= 0 ? "\"" + _mysqlDumpPath + "\"" : _mysqlDumpPath) + " ";
-			f += "-u " + _username + " -p" + _password + " -h " + _host + " --default-character-set=" + _defaultCharacterSet + " -P " + _port.ToString () + " -x -e" + (!string.IsNullOrEmpty (_database) ? " -B " + _database : "") + " > " + (_destinationFile.IndexOf (' ') >= 0 ? "\"" + _destinationFile + "\"" : _destinationFile);
-			e.StartInfo = new ProcessStartInfo (@"cmd", f);
-			e.EnableRaisingEvents = false;
-			e.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-			e.StartInfo.CreateNoWindow = true;
-			e.StartInfo.RedirectStandardError = true;
-			e.StartInfo.UseShellExecute = false;
-			e.ErrorDataReceived += b;
-			e.Start ();
-			e.BeginErrorReadLine ();
-			e.WaitForExit ();
-			e.ErrorDataReceived -= b;
-			if (a != null)
-				throw a;
+			Process p1 = new Process();
+			string cmdArgs = "/c " + (_mysqlDumpPath.IndexOf(' ') >= 0 ? "\"" + _mysqlDumpPath + "\"" : _mysqlDumpPath) + " ";
+			cmdArgs += "-u " + _username + " -p" + _password + " -h " + _host + " --default-character-set=" + _defaultCharacterSet + " -P " + _port.ToString() + " -x -e" + (!string.IsNullOrEmpty(_database) ? " -B " + _database : "") + " > " + (_destinationFile.IndexOf(' ') >= 0 ? "\"" + _destinationFile + "\"" : _destinationFile);
+			p1.StartInfo = new ProcessStartInfo(@"cmd", cmdArgs);
+			p1.EnableRaisingEvents = false;
+			p1.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+			p1.StartInfo.CreateNoWindow = true;
+			p1.StartInfo.RedirectStandardError = true;
+			p1.StartInfo.UseShellExecute = false;
+			p1.ErrorDataReceived += dataError;
+			p1.Start();
+			p1.BeginErrorReadLine();
+			p1.WaitForExit();
+			p1.ErrorDataReceived -= dataError;
+			if(exceptionOcurred != null)
+				throw exceptionOcurred;
 		}
-		public void Import ()
+
+		/// <summary>
+		/// Importa os dados.
+		/// </summary>
+		public void Import()
 		{
-			if (string.IsNullOrEmpty (_mysqlPath))
-				throw new Exception ("Mysql not defined.");
-			else if (!System.IO.File.Exists (_mysqlPath))
-				throw new Exception (string.Format ("Mysql file \"{0}\" not exists.", _mysqlPath));
-			Exception a = null;
-			DataReceivedEventHandler b = new DataReceivedEventHandler (delegate (object c, DataReceivedEventArgs d) {
-				if (!string.IsNullOrEmpty (d.Data))
-					a = new Exception (d.Data);
+			if(string.IsNullOrEmpty(_mysqlPath))
+				throw new Exception("Mysql not defined.");
+			else if(!System.IO.File.Exists(_mysqlPath))
+				throw new Exception(string.Format("Mysql file \"{0}\" not exists.", _mysqlPath));
+			Exception exceptionOcurred = null;
+			DataReceivedEventHandler dataError = new DataReceivedEventHandler(delegate(object sender, DataReceivedEventArgs e) {
+				if(!string.IsNullOrEmpty(e.Data))
+					exceptionOcurred = new Exception(e.Data);
 			});
-			Process e = new Process ();
-			string f = "/c " + (_mysqlPath.IndexOf (' ') >= 0 ? "\"" + _mysqlPath + "\"" : _mysqlPath) + " ";
-			f += "-u " + _username + " -p" + _password + " -h " + _host + " -B " + _database + " -P " + _port.ToString () + " < " + (_destinationFile.IndexOf (' ') >= 0 ? "\"" + _destinationFile + "\"" : _destinationFile);
-			e.StartInfo = new ProcessStartInfo (@"cmd", f);
-			e.EnableRaisingEvents = false;
-			e.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-			e.StartInfo.CreateNoWindow = true;
-			e.StartInfo.RedirectStandardError = true;
-			e.StartInfo.UseShellExecute = false;
-			e.ErrorDataReceived += b;
-			e.Start ();
-			e.BeginErrorReadLine ();
-			e.WaitForExit ();
-			e.ErrorDataReceived -= b;
-			if (a != null)
-				throw a;
+			Process p1 = new Process();
+			string cmdArgs = "/c " + (_mysqlPath.IndexOf(' ') >= 0 ? "\"" + _mysqlPath + "\"" : _mysqlPath) + " ";
+			cmdArgs += "-u " + _username + " -p" + _password + " -h " + _host + " -B " + _database + " -P " + _port.ToString() + " < " + (_destinationFile.IndexOf(' ') >= 0 ? "\"" + _destinationFile + "\"" : _destinationFile);
+			p1.StartInfo = new ProcessStartInfo(@"cmd", cmdArgs);
+			p1.EnableRaisingEvents = false;
+			p1.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+			p1.StartInfo.CreateNoWindow = true;
+			p1.StartInfo.RedirectStandardError = true;
+			p1.StartInfo.UseShellExecute = false;
+			p1.ErrorDataReceived += dataError;
+			p1.Start();
+			p1.BeginErrorReadLine();
+			p1.WaitForExit();
+			p1.ErrorDataReceived -= dataError;
+			if(exceptionOcurred != null)
+				throw exceptionOcurred;
 		}
 	}
 }

@@ -1,98 +1,184 @@
-﻿using System;
+﻿/* 
+ * GDA - Generics Data Access, is framework to object-relational mapping 
+ * (a programming technique for converting data between incompatible 
+ * type systems in databases and Object-oriented programming languages) using c#.
+ * 
+ * Copyright (C) 2010  <http://www.colosoft.com.br/gda> - support@colosoft.com.br
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GDA.Interfaces;
 using System.Reflection;
 using Oracle.DataAccess.Client;
+
 namespace GDA.Provider.Oracle
 {
+	/// <summary>
+	/// Implementação do provedor do Oracle.
+	/// </summary>
 	public class OracleProvider : Provider, IParameterConverter
 	{
-		public OracleProvider () : base ("OracleProvider", "Oracle.DataAccess.dll", "Oracle.DataAccess.Client.OracleConnection", "Oracle.DataAccess.Client.OracleDataAdapter", "Oracle.DataAccess.Client.OracleCommand", "Oracle.DataAccess.Client.OracleParameter", ":", true, "")
+		/// <summary>
+		/// Construtor padrão.
+		/// </summary>
+		public OracleProvider() : base("OracleProvider", "Oracle.DataAccess.dll", "Oracle.DataAccess.Client.OracleConnection", "Oracle.DataAccess.Client.OracleDataAdapter", "Oracle.DataAccess.Client.OracleCommand", "Oracle.DataAccess.Client.OracleParameter", ":", true, "")
 		{
 			base.ExecuteCommandsOneAtATime = true;
-			string a = Assembly.GetExecutingAssembly ().EscapedCodeBase;
-			Uri b = new Uri (a);
-			string c = b.IsFile ? System.IO.Path.GetDirectoryName (b.LocalPath) : null;
-			providerAssembly = Assembly.LoadFrom (c + "\\Oracle.DataAccess.dll");
+			string uriString = Assembly.GetExecutingAssembly().EscapedCodeBase;
+			Uri uri = new Uri(uriString);
+			string path = uri.IsFile ? System.IO.Path.GetDirectoryName(uri.LocalPath) : null;
+			providerAssembly = Assembly.LoadFrom(path + "\\Oracle.DataAccess.dll");
 		}
-		public override string SqlQueryReturnIdentity {
-			get {
+
+		public override string SqlQueryReturnIdentity
+		{
+			get
+			{
 				return "SELECT {0}.currval FROM dual;";
 			}
 		}
-		public override char QuoteCharacter {
-			get {
+
+		/// <summary>
+		/// Obtem o caracter usado para delimitar os parametros de string.
+		/// </summary>
+		/// <returns>The quote character.</returns>
+		public override char QuoteCharacter
+		{
+			get
+			{
 				return '"';
 			}
 		}
-		public override string QuoteExpressionBegin {
-			get {
-				return "\"";
-			}
-		}
-		public override string QuoteExpressionEnd {
-			get {
-				return "\"";
-			}
-		}
-		public override string QuoteExpression (string a)
+
+		/// <summary>
+		/// Quote inicial da expressão.
+		/// </summary>
+		public override string QuoteExpressionBegin
 		{
-			string[] b = a.Split ('.');
-			string c = "";
-			for (int d = 0; d < b.Length; d++)
-				c += "\"" + b [d] + "\"" + ((d + 1) != b.Length ? "." : "");
-			return c;
+			get
+			{
+				return "\"";
+			}
 		}
-		public override bool SupportSQLCommandLimit {
-			get {
+
+		/// <summary>
+		/// Quote final da expressão.
+		/// </summary>
+		public override string QuoteExpressionEnd
+		{
+			get
+			{
+				return "\"";
+			}
+		}
+
+		public override string QuoteExpression(string word)
+		{
+			string[] parts = word.Split('.');
+			string result = "";
+			for(int i = 0; i < parts.Length; i++)
+				result += "\"" + parts[i] + "\"" + ((i + 1) != parts.Length ? "." : "");
+			return result;
+		}
+
+		/// <summary>
+		/// Identifica que o provider suporta o comando limit
+		/// </summary>
+		public override bool SupportSQLCommandLimit
+		{
+			get
+			{
 				return true;
 			}
 		}
-		public override string ParameterPrefix {
-			get {
+
+		public override string ParameterPrefix
+		{
+			get
+			{
 				return ":";
 			}
 		}
-		public override string GetIdentitySelect (string a, string b)
+
+		/// <summary>
+		/// Esse método com base no nome da tabela e na coluna identidade da tabela 
+		/// recupera a consulta SQL que irá recupera o valor da chave identidade gerado
+		/// para o registro recentemente inserido.
+		/// </summary>
+		/// <param name="tableName">Nome da tabela onde o registro será inserido.</param>
+		/// <param name="identityColumnName">Nome da coluna identidade da tabela.</param>
+		/// <returns>The modified sql string which also retrieves the identity value</returns>
+		public override string GetIdentitySelect(string tableName, string identityColumnName)
 		{
-			string c = (a + "_seq").ToUpper ();
-			return String.Format (SqlQueryReturnIdentity, c);
+			string seqName = (tableName + "_seq").ToUpper();
+			return String.Format(SqlQueryReturnIdentity, seqName);
 		}
-		public override long GetDbType (Type a)
+
+		/// <summary>
+		/// Obtem um número inteiro que corresponde ao tipo da base de dados que representa o tipo
+		/// informado. O valor de retorno pode ser convertido em um tipo válido (enum value) para 
+		/// o atual provider. Esse method é chamado para traduzir os tipos do sistema para os tipos
+		/// do banco de dados que não são convertidos explicitamento.
+		/// </summary>
+		/// <param name="type">Tipo do sistema.</param>
+		/// <returns>Tipo correspondente da base de dados.</returns>
+		public override long GetDbType(Type type)
 		{
-			OracleDbType b = OracleDbType.Int32;
-			if (a.Equals (typeof(byte)) || a.Equals (typeof(Byte)))
-				b = OracleDbType.Byte;
-			else if (a.Equals (typeof(short)) || a.Equals (typeof(Int16)))
-				b = OracleDbType.Int16;
-			else if (a.Equals (typeof(int)) || a.Equals (typeof(Int32)) || a.IsEnum)
-				b = OracleDbType.Int32;
-			else if (a.Equals (typeof(long)) || a.Equals (typeof(Int64)))
-				b = OracleDbType.Int64;
-			else if (a.Equals (typeof(float)) || a.Equals (typeof(Single)))
-				b = OracleDbType.Double;
-			else if (a.Equals (typeof(double)))
-				b = OracleDbType.Double;
-			else if (a.Equals (typeof(decimal)) || a.Equals (typeof(Decimal)))
-				b = OracleDbType.Decimal;
-			else if (a.Equals (typeof(DateTime)))
-				b = OracleDbType.Date;
-			else if (a.Equals (typeof(bool)))
-				b = OracleDbType.Byte;
-			else if (a.Equals (typeof(string)))
-				b = OracleDbType.Varchar2;
-			else if (a.Equals (typeof(TimeSpan)))
-				b = OracleDbType.IntervalDS;
-			else if (a.Equals (typeof(byte[])))
-				b = OracleDbType.Blob;
+			OracleDbType result = OracleDbType.Int32;
+			if(type.Equals(typeof(byte)) || type.Equals(typeof(Byte)))
+				result = OracleDbType.Byte;
+			else if(type.Equals(typeof(short)) || type.Equals(typeof(Int16)))
+				result = OracleDbType.Int16;
+			else if(type.Equals(typeof(int)) || type.Equals(typeof(Int32)) || type.IsEnum)
+				result = OracleDbType.Int32;
+			else if(type.Equals(typeof(long)) || type.Equals(typeof(Int64)))
+				result = OracleDbType.Int64;
+			else if(type.Equals(typeof(float)) || type.Equals(typeof(Single)))
+				result = OracleDbType.Double;
+			else if(type.Equals(typeof(double)))
+				result = OracleDbType.Double;
+			else if(type.Equals(typeof(decimal)) || type.Equals(typeof(Decimal)))
+				result = OracleDbType.Decimal;
+			else if(type.Equals(typeof(DateTime)))
+				result = OracleDbType.Date;
+			else if(type.Equals(typeof(bool)))
+				result = OracleDbType.Byte;
+			else if(type.Equals(typeof(string)))
+				result = OracleDbType.Varchar2;
+			else if(type.Equals(typeof(TimeSpan)))
+				result = OracleDbType.IntervalDS;
+			else if(type.Equals(typeof(byte[])))
+				result = OracleDbType.Blob;
 			else
-				throw new GDAException ("Unsupported Property Type");
-			return (long)b;
+				throw new GDAException("Unsupported Property Type");
+			return (long)result;
 		}
-		public override Type GetSystemType (long a)
+
+		/// <summary>
+		/// Esse método retorna o tipo do sistema correspodente ao tipo specifico indicado no long.
+		/// A implementação padrão não retorna exception, mas sim null.
+		/// </summary>
+		/// <param name="dbType">Tipo especifico do provider.</param>
+		/// <returns>Tipo do sistema correspondente.</returns>
+		public override Type GetSystemType(long dbType)
 		{
-			switch (a) {
+			switch(dbType)
+			{
 			case (long)OracleDbType.Byte:
 				return typeof(bool);
 			case (long)OracleDbType.Int16:
@@ -132,10 +218,21 @@ namespace GDA.Provider.Oracle
 				return typeof(object);
 			}
 		}
-		public override long GetDbType (string a, bool b)
+
+		/// <summary>
+		/// Esse método converte a string (extraída da tabelas do banco de dados) para o tipo do system
+		/// correspondente.
+		/// </summary>
+		/// <param name="dbType">Nome do tipo usado no banco de dados.</param>
+		/// <param name="isUnsigned">Valor boolean que identifica se o tipo é unsigned.</param>
+		/// <returns>Valor do enumerator do tipo correspondente do banco de dados. O retorno é um número
+		/// inteiro por causa que em alguns provider o enumerations não seguem o padrão do DbType definido
+		/// no System.Data.</returns>
+		public override long GetDbType(string dbType, bool isUnsigned)
 		{
-			string c = a.ToLower ();
-			switch (c) {
+			string tmp = dbType.ToLower();
+			switch(tmp)
+			{
 			case "bfile":
 				return (long)OracleDbType.BFile;
 			case "blob":
@@ -210,30 +307,44 @@ namespace GDA.Provider.Oracle
 				return No_DbType;
 			}
 		}
-		public override void SetParameterValue (System.Data.IDbDataParameter a, object b)
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="parameter"></param>
+		/// <param name="value"></param>
+		public override void SetParameterValue(System.Data.IDbDataParameter parameter, object value)
 		{
-			if (b != null && b.GetType ().IsEnum)
-				b = (int)b;
-			base.SetParameterValue (a, b);
+			if(value != null && value.GetType().IsEnum)
+				value = (int)value;
+			base.SetParameterValue(parameter, value);
 		}
-		public System.Data.IDbDataParameter Convert (GDAParameter a)
+
+		/// <summary>
+		/// Converte o parametro do GDA.
+		/// </summary>
+		/// <param name="parameter"></param>
+		/// <returns></returns>
+		public System.Data.IDbDataParameter Convert(GDAParameter parameter)
 		{
-			var b = this.CreateParameter ();
-			b.DbType = a.DbType;
-			if (b.Direction != a.Direction)
-				b.Direction = a.Direction;
-			b.Size = a.Size;
-			try {
-				if (a.ParameterName [0] == '?')
-					b.ParameterName = ParameterPrefix + a.ParameterName.Substring (1) + ParameterSuffix;
+			var p = this.CreateParameter();
+			p.DbType = parameter.DbType;
+			if(p.Direction != parameter.Direction)
+				p.Direction = parameter.Direction;
+			p.Size = parameter.Size;
+			try
+			{
+				if(parameter.ParameterName[0] == '?')
+					p.ParameterName = ParameterPrefix + parameter.ParameterName.Substring(1) + ParameterSuffix;
 				else
-					b.ParameterName = a.ParameterName;
+					p.ParameterName = parameter.ParameterName;
 			}
-			catch (Exception ex) {
-				throw new GDAException ("Error on convert parameter name '" + a.ParameterName + "'.", ex);
+			catch(Exception ex)
+			{
+				throw new GDAException("Error on convert parameter name '" + parameter.ParameterName + "'.", ex);
 			}
-			SetParameterValue (b, a.Value == null ? DBNull.Value : a.Value);
-			return b;
+			SetParameterValue(p, parameter.Value == null ? DBNull.Value : parameter.Value);
+			return p;
 		}
 	}
 }
